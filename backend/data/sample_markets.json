@@ -1,0 +1,92 @@
+[
+  {
+    "ticker": "GOVSHUT-26JAN31",
+    "title": "Will the U.S. federal government be in a shutdown as of Jan 31, 2026?",
+    "subtitle": "Funding-lapse shutdown in effect on the date",
+    "category": "Macro · government",
+    "rules_primary": "This market resolves Yes if the federal government is in a shutdown due to a lapse in appropriations as of January 31, 2026, based on the Office of Personnel Management operating status. No time of day is specified.",
+    "rules_secondary": "A shutdown means a lapse in appropriations affecting federal operations.",
+    "open_interest": 4200000
+  },
+  {
+    "ticker": "TEMP-NYC-90-AUG21",
+    "title": "Will the daily high temperature reach 90F at NYC Central Park on Aug 21, 2026?",
+    "subtitle": "Recorded maximum at or above 90F",
+    "category": "Weather · temperature",
+    "rules_primary": "Resolves Yes if the official NWS daily maximum temperature at station KNYC (Central Park) is at or above 90 degrees F on the calendar day, local time, per the NWS daily climate report. Source: National Weather Service.",
+    "rules_secondary": "",
+    "open_interest": 310000
+  },
+  {
+    "ticker": "WTI-80-SEP30",
+    "title": "Will front-month WTI crude settle above 80.00 on Sep 30, 2026?",
+    "subtitle": "NYMEX front-month daily settlement",
+    "category": "Commodity · energy",
+    "rules_primary": "Resolves Yes if the CME official daily settlement price for the front-month NYMEX Light Sweet Crude Oil contract is above 80.00 on the settlement date. Source: CME Group official settlement.",
+    "rules_secondary": "Front-month is the nearest contract not in its expiry/roll window.",
+    "open_interest": 1900000
+  },
+  {
+    "ticker": "FOMC-CUT-SEP",
+    "title": "Will the FOMC lower the target range by at least 25 bps at its September 2026 meeting?",
+    "subtitle": "Reduction in the federal funds target range",
+    "category": "Macro · monetary",
+    "rules_primary": "Resolves Yes if the FOMC lowers the upper bound of the federal funds target range by at least 25 basis points, per the official FOMC statement released on the meeting day at 2:00 pm ET. Source: Federal Reserve FOMC statement.",
+    "rules_secondary": "",
+    "open_interest": 6700000
+  },
+  {
+    "ticker": "RAIN-MIA-1-AUG",
+    "title": "Will Miami record more than 1.00 inch of precipitation over Aug 18-19, 2026?",
+    "subtitle": "Two-day measured total",
+    "category": "Weather · precipitation",
+    "rules_primary": "Resolves Yes if the NWS measured precipitation total at station KMIA over the two calendar days Aug 18 and Aug 19, 2026 local time is greater than 1.00 inch. Source: National Weather Service.",
+    "rules_secondary": "",
+    "open_interest": 180000
+  },
+  {
+    "ticker": "CEASEFIRE-Q4",
+    "title": "Will there be a ceasefire in the conflict by Sep 30, 2026?",
+    "subtitle": "Ceasefire in effect by the deadline",
+    "category": "Geopolitics · interpretive",
+    "rules_primary": "Resolves Yes if a ceasefire is in place by the deadline according to credible news reporting and reputable media sources.",
+    "rules_secondary": "",
+    "open_interest": 1800000
+  },
+  {
+    "ticker": "COPPER-450-SEP",
+    "title": "Will copper trade above 4.50 per pound during September 2026?",
+    "subtitle": "Front-month copper price",
+    "category": "Commodity · metals",
+    "rules_primary": "Resolves Yes if copper trades above 4.50 per pound at any point during September 2026 on COMEX or LME.",
+    "rules_secondary": "Prices may be observed on either exchange.",
+    "open_interest": 940000
+  },
+  {
+    "ticker": "RECESSION-2026",
+    "title": "Will a U.S. recession be declared for 2026?",
+    "subtitle": "Recession dated to 2026",
+    "category": "Macro · interpretive",
+    "rules_primary": "Resolves Yes if a recession is declared for 2026, based on NBER dating or two consecutive quarters of negative GDP growth.",
+    "rules_secondary": "",
+    "open_interest": 2600000
+  },
+  {
+    "ticker": "CPI-AUG-3",
+    "title": "Will CPI print above 3.0% year-over-year for August 2026?",
+    "subtitle": "Headline CPI-U, year over year",
+    "category": "Macro · inflation",
+    "rules_primary": "Resolves Yes if the CPI year-over-year figure for August 2026 is above 3.0%. Source: Bureau of Labor Statistics CPI release.",
+    "rules_secondary": "",
+    "open_interest": 3400000
+  },
+  {
+    "ticker": "BTC-100K-DEC31",
+    "title": "Will Bitcoin close at or above 100000 on Dec 31, 2026?",
+    "subtitle": "Daily close on the reference index",
+    "category": "Crypto · price",
+    "rules_primary": "Resolves Yes if the Bitcoin price is at or above 100000 USD at 5:00 pm ET on Dec 31, 2026 per the CME CF Bitcoin Reference Rate. Source: CME CF BRR official value.",
+    "rules_secondary": "",
+    "open_interest": 5100000
+  }
+]

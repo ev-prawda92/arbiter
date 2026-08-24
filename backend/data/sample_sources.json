@@ -1,0 +1,8 @@
+{
+  "TEMP-NYC-90-AUG21": {"value": 92, "label": "92.0\u00b0F recorded at KNYC (sample)", "source": "nws-sample"},
+  "RAIN-MIA-1-AUG": {"value": 0.62, "label": "0.62 inch two-day total at KMIA (sample)", "source": "nws-sample"},
+  "WTI-80-SEP30": {"value": 81.14, "label": "81.14 CME settlement (sample)", "source": "cme-sample"},
+  "CPI-AUG-3": {"value": 3.2, "label": "3.2% YoY initial print (sample)", "source": "bls-sample"},
+  "BTC-100K-DEC31": {"value": 103250, "label": "103,250 CME CF BRR (sample)", "source": "cme-cf-sample"},
+  "FOMC-CUT-SEP": {"value": 25, "label": "target range lowered 25 bps (sample)", "source": "fomc-sample"}
+}

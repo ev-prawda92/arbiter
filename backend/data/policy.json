@@ -1,0 +1,20 @@
+{
+  "version": "2026.08.24-1",
+  "weights": {
+    "source": 0.3,
+    "timing": 0.3,
+    "definition": 0.4
+  },
+  "thresholds": {
+    "clean": 20,
+    "monitored": 50
+  },
+  "changelog": [
+    {
+      "version": "2026.08.24-1",
+      "at": "2026-08-24T00:00:00Z",
+      "by": "arbiter.default",
+      "note": "Initial policy. Definition weighted highest \u2014 interpretive ambiguity is the most common driver of disputed resolutions."
+    }
+  ]
+}
