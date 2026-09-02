@@ -33,9 +33,7 @@ AUTHORITATIVE_SOURCES = [
     r"federal reserve", r"\bFOMC\b", r"\bFed\b",
     r"\bBEA\b", r"bureau of economic analysis",
     r"\bNBER\b", r"\bCFTC\b", r"\bSEC\b", r"\bTreasury\b",
-    r"associated press", r"\bAP\b race call", r"\bBinance\b",
-    r"official Tour de France (website|results|classification)",
-    r"official (results|settlement|report|statement|data|source|website|classification)",
+    r"associated press", r"\bAP\b race call", r"official (results|settlement|report|statement|data|source)",
 ]
 
 # Vague / non-authoritative source language raises source risk sharply.
@@ -74,11 +72,11 @@ def score_source(text, title):
 
     # multiple sources with no stated hierarchy (e.g. "COMEX or LME", "A and B")
     src_tokens = re.findall(r"\b(NWS|NOAA|BLS|CME|NYMEX|COMEX|LME|OPM|BEA|NBER|FOMC)\b", raw, re.I)
-    if len(set(t.upper() for t in src_tokens)) >= 2 and not re.search(r"primary|secondary|fallback|if .* unavailable|priority|first|governs|takes precedence", blob):
+    if len(set(t.upper() for t in src_tokens)) >= 2 and not re.search(r"primary|priority|first|governs|takes precedence", blob):
         score += 26
         flags.append("multiple sources, no stated hierarchy")
 
-    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(r"initial (print|release|estimate)|first (print|release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob):
+    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(r"initial (print|release|estimate)|first (print|release)|as first (published|reported)", blob):
         score += 14
         flags.append("revision-prone source, revision rule unstated")
 
@@ -104,31 +102,23 @@ def score_timing(text, title):
     # Daily-observation markets (weather climate reports, daily totals) are settled on
     # a calendar-day basis. They legitimately have no intraday clock, so a missing
     # time-of-day is not a defect here.
-    daily_obs = bool(re.search(r"calendar day|daily (maximum|minimum|climate|total|high|low)|nws daily|highest temperature.*on|lowest temperature.*on|all times on this day", blob))
-    reversible = bool(re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", title.lower()))
+    daily_obs = bool(re.search(r"calendar day|daily (maximum|minimum|climate|total|high|low)|nws daily", blob))
+    reversible = bool(re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", blob))
     revision = any(re.search(p, blob) for p in REVISION_PRONE)
-    revision_resolved = bool(re.search(r"initial|first (print|release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob))
-    if daily_obs and not reversible and (not revision or revision_resolved):
+    if daily_obs and not reversible and not revision:
         return _clamp(12), flags
 
     has_time = any(re.search(p, blob, re.I) for p in TIME_PATTERNS)
-    # Separate "a clock is mentioned" from "the clock is fully qualified".
-    # Release-triggered markets may legitimately resolve on publication, but if their
-    # rules include a specific clock time, that time still needs a timezone.
-    clock_mentioned = bool(re.search(r"\b\d{1,2}:\d{2}\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b|\b(?:midnight|noon)\b", blob, re.I))
-    event_triggered = bool(re.search(r"upon release|as soon as .* issued|at the end of|at conclusion|final published|officially classified|first official declaration|first .* release|when .* declared|on publication", blob))
     has_tz = bool(re.search(r"\b(et|est|edt|ct|cst|pt|pst|utc|gmt)\b", blob))
     dateonly = any(re.search(p, blob, re.I) for p in DATEONLY_HINT)
 
     if has_time:
         score -= 8
-    elif event_triggered:
-        score -= 4
     else:
         score += 20
         flags.append("no explicit settlement time")
 
-    if not has_tz and not daily_obs and (clock_mentioned or not event_triggered):
+    if not has_tz:
         score += 16
         flags.append("no timezone specified")
 
@@ -142,7 +132,7 @@ def score_timing(text, title):
         score += 18
         flags.append("reversible event, no snapshot/duration rule")
 
-    if any(re.search(p, blob) for p in REVISION_PRONE) and not revision_resolved:
+    if any(re.search(p, blob) for p in REVISION_PRONE) and not re.search(r"initial|first (print|release)", blob):
         score += 22
         flags.append("initial vs revised print not specified")
 
@@ -176,12 +166,16 @@ def score_definition(text, title, subtitle=""):
         score += min(60, 22 + 12 * len(interp_hits))
         flags.append(f"interpretive term(s): {', '.join(interp_hits[:3])}")
 
-    objective_event = bool(re.search(r"official declaration|officially classified|final published|declared winner|official results|target federal funds range|listed nationality", blob))
-    if verifiable or objective_event:
+    if verifiable:
         score -= 16
     else:
         score += 18
         flags.append("no numeric / objectively verifiable threshold")
+
+    # ambiguous inequality direction
+    if re.search(r"\babove\b", blob) and not re.search(r"at or above|>=|inclusive|exclusive", blob):
+        score += 6
+        flags.append("'above' — inclusive vs exclusive not stated")
 
     # compound conditions widen the surface for dispute
     if re.search(r"\band\b.*\band\b", blob) or (re.search(r"\bboth\b", blob) and re.search(r"\band\b", blob)):

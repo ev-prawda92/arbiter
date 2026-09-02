@@ -1,0 +1,442 @@
+{
+  "summary": {
+    "benchmark": "ARB-GOLD-CLEAN-v0.1",
+    "engine": "Arbiter v0.4",
+    "policy_version": "2026.08.24-1",
+    "n_clean_cases": 20,
+    "auto_resolve": 11,
+    "monitored": 9,
+    "hold_review": 0,
+    "clean_recognition_rate": 0.55,
+    "false_nonclean_rate": 0.45,
+    "false_hold_rate": 0.0,
+    "avg_composite": 19.4,
+    "avg_source": 18.7,
+    "avg_timing": 37.5,
+    "avg_definition": 6.2,
+    "caveat": "ARB-GOLD-CLEAN-v0.1 uses structured paraphrases; external benchmark runs should use preserved verbatim market rules."
+  },
+  "cases": [
+    {
+      "id": "ARB-CLEAN-001",
+      "venue": "Polymarket",
+      "domain": "crypto",
+      "title": "Will Bitcoin reach $65,000 before September?",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 12,
+      "source_score": 26,
+      "timing_score": 8,
+      "definition_score": 4,
+      "source_flags": [
+        "no clearly authoritative source named"
+      ],
+      "timing_flags": [],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-002",
+      "venue": "Polymarket",
+      "domain": "crypto",
+      "title": "Ethereum above $2,600 on July 16?",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 14,
+      "source_score": 26,
+      "timing_score": 8,
+      "definition_score": 10,
+      "source_flags": [
+        "no clearly authoritative source named"
+      ],
+      "timing_flags": [],
+      "definition_flags": [
+        "'above' \u2014 inclusive vs exclusive not stated"
+      ],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-003",
+      "venue": "Polymarket",
+      "domain": "elections",
+      "title": "AP calls 2024 presidential election by Nov. 5?",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 6,
+      "source_score": 6,
+      "timing_score": 8,
+      "definition_score": 4,
+      "source_flags": [],
+      "timing_flags": [],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-004",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "June 2026 unemployment rate",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 6,
+      "source_score": 6,
+      "timing_score": 8,
+      "definition_score": 4,
+      "source_flags": [],
+      "timing_flags": [],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-005",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "Did US GDP grow more than 2.5% in Q4 2022?",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 30,
+      "source_score": 20,
+      "timing_score": 74,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "initial vs revised print not specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-006",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "US GDP growth in Q1 2026: 2.0%\u20132.5%",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 23,
+      "source_score": 20,
+      "timing_score": 52,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-007",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "GDP growth in 2025 greater than 2.5%",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 30,
+      "source_score": 20,
+      "timing_score": 74,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "initial vs revised print not specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-008",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "Negative GDP growth in Q1 2025?",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 30,
+      "source_score": 20,
+      "timing_score": 74,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "initial vs revised print not specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-009",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "Annual inflation above 2.5% in August 2024?",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 12,
+      "source_score": 20,
+      "timing_score": 8,
+      "definition_score": 10,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [],
+      "definition_flags": [
+        "'above' \u2014 inclusive vs exclusive not stated"
+      ],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-010",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "September 2025 monthly inflation",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 10,
+      "source_score": 20,
+      "timing_score": 8,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-011",
+      "venue": "Polymarket",
+      "domain": "macro",
+      "title": "August 2025 monthly inflation at least 0.4%",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 10,
+      "source_score": 20,
+      "timing_score": 8,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-012",
+      "venue": "Polymarket",
+      "domain": "sports",
+      "title": "Tour de France 2025: 145+ riders finish?",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 25,
+      "source_score": 26,
+      "timing_score": 52,
+      "definition_score": 4,
+      "source_flags": [
+        "no clearly authoritative source named"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-013",
+      "venue": "Polymarket",
+      "domain": "sports",
+      "title": "2026 Tour de France winner nationality: Slovenia",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 12,
+      "source_score": 26,
+      "timing_score": 8,
+      "definition_score": 4,
+      "source_flags": [
+        "no clearly authoritative source named"
+      ],
+      "timing_flags": [],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-014",
+      "venue": "Polymarket",
+      "domain": "weather",
+      "title": "Highest temperature in Chicago on Aug. 27, 2026",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 30,
+      "source_score": 20,
+      "timing_score": 74,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "initial vs revised print not specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-015",
+      "venue": "Polymarket",
+      "domain": "weather",
+      "title": "Highest temperature in Dallas on Aug. 25, 2026",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 30,
+      "source_score": 20,
+      "timing_score": 74,
+      "definition_score": 4,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "initial vs revised print not specified"
+      ],
+      "definition_flags": [],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-016",
+      "venue": "Polymarket",
+      "domain": "crypto",
+      "title": "Bitcoin above threshold on Aug. 29, 2026",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 14,
+      "source_score": 26,
+      "timing_score": 8,
+      "definition_score": 10,
+      "source_flags": [
+        "no clearly authoritative source named"
+      ],
+      "timing_flags": [],
+      "definition_flags": [
+        "'above' \u2014 inclusive vs exclusive not stated"
+      ],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-017",
+      "venue": "Kalshi",
+      "domain": "macro",
+      "title": "Will the Fed do a rate cut of more than 25bps in 2025?",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 19,
+      "source_score": 6,
+      "timing_score": 52,
+      "definition_score": 4,
+      "source_flags": [],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-018",
+      "venue": "Kalshi",
+      "domain": "macro",
+      "title": "Will rates hit zero in 2025?",
+      "gold": "clean",
+      "verdict": "clean",
+      "verdict_label": "AUTO-RESOLVE",
+      "composite": 19,
+      "source_score": 6,
+      "timing_score": 52,
+      "definition_score": 4,
+      "source_flags": [],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ],
+      "definition_flags": [],
+      "pass": true
+    },
+    {
+      "id": "ARB-CLEAN-019",
+      "venue": "Kalshi",
+      "domain": "macro",
+      "title": "Previous jobs revised higher? April 2026 Employment Situation",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 34,
+      "source_score": 20,
+      "timing_score": 74,
+      "definition_score": 14,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "initial vs revised print not specified"
+      ],
+      "definition_flags": [
+        "compound condition (multiple clauses)"
+      ],
+      "pass": false
+    },
+    {
+      "id": "ARB-CLEAN-020",
+      "venue": "Kalshi",
+      "domain": "macro",
+      "title": "Core inflation in January 2026 above 2.4%",
+      "gold": "clean",
+      "verdict": "monitored",
+      "verdict_label": "MONITORED",
+      "composite": 22,
+      "source_score": 20,
+      "timing_score": 26,
+      "definition_score": 20,
+      "source_flags": [
+        "revision-prone source, revision rule unstated"
+      ],
+      "timing_flags": [
+        "reversible event, no snapshot/duration rule"
+      ],
+      "definition_flags": [
+        "'above' \u2014 inclusive vs exclusive not stated",
+        "compound condition (multiple clauses)"
+      ],
+      "pass": false
+    }
+  ]
+}

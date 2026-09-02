@@ -1,0 +1,71 @@
+{
+  "version": "0.1",
+  "levers": {
+    "source": [
+      {
+        "id": "SOURCE_MISSING",
+        "severity": "high"
+      },
+      {
+        "id": "SOURCE_VAGUE",
+        "severity": "high"
+      },
+      {
+        "id": "SOURCE_CONFLICT",
+        "severity": "high"
+      },
+      {
+        "id": "SOURCE_REVISION",
+        "severity": "medium"
+      },
+      {
+        "id": "SOURCE_FALLBACK_UNORDERED",
+        "severity": "medium"
+      }
+    ],
+    "timing": [
+      {
+        "id": "TIME_MISSING",
+        "severity": "medium"
+      },
+      {
+        "id": "TIMEZONE_MISSING",
+        "severity": "medium"
+      },
+      {
+        "id": "WINDOW_AMBIGUOUS",
+        "severity": "high"
+      },
+      {
+        "id": "REVERSIBLE_EVENT",
+        "severity": "high"
+      },
+      {
+        "id": "REVISION_CUTOFF_MISSING",
+        "severity": "medium"
+      }
+    ],
+    "definition": [
+      {
+        "id": "SUBJECTIVE_TERM",
+        "severity": "high"
+      },
+      {
+        "id": "THRESHOLD_AMBIGUITY",
+        "severity": "medium"
+      },
+      {
+        "id": "CONFLICTING_DEFINITIONS",
+        "severity": "high"
+      },
+      {
+        "id": "COMPOUND_CONDITION",
+        "severity": "medium"
+      },
+      {
+        "id": "TITLE_RULE_CONFLICT",
+        "severity": "high"
+      }
+    ]
+  }
+}

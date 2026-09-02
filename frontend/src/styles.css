@@ -1080,3 +1080,72 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- v0.4 contract intelligence ---- */
+.modal-wide { width: min(920px, calc(100vw - 34px)); max-height: 90vh; overflow: auto; }
+.design-result { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 18px; }
+.design-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.design-summary > div { border: 1px solid var(--line); background: #f8f9f7; padding: 12px; }
+.result-label { display: block; font: 10px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 5px; }
+.design-summary strong { font-family: 'Archivo', sans-serif; font-size: 18px; }
+.status-clean { color: var(--seal); }
+.status-monitored { color: var(--ochre); }
+.status-review { color: var(--brick); }
+.design-block { margin-top: 16px; }
+.design-block h4 { margin: 0 0 9px; font: 600 12px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.deficiency-list { display: flex; flex-direction: column; gap: 7px; }
+.deficiency { display: grid; grid-template-columns: 56px 80px 1fr; gap: 8px; align-items: center; border: 1px solid var(--line); padding: 9px 10px; background: #fff; font-size: 12.5px; }
+.severity { font: 9px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .06em; padding: 3px 5px; text-align: center; border-radius: 2px; }
+.severity.high { color: var(--brick); background: var(--brick-soft); }
+.severity.medium { color: var(--ochre); background: var(--ochre-soft); }
+.severity.low { color: var(--seal); background: var(--seal-soft); }
+.fix-card { border-left: 3px solid var(--seal); background: #f8faf8; border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px 12px; margin-bottom: 8px; }
+.fix-head { font-weight: 600; font-size: 13px; display: flex; gap: 9px; align-items: baseline; }
+.fix-head .mono { color: var(--seal); text-transform: uppercase; font-size: 10px; }
+.fix-card p { margin: 5px 0 0; font-size: 12.5px; color: var(--muted); }
+.drafting-fix { white-space: pre-wrap; word-break: break-word; margin: 0; padding: 12px; background: var(--ink); color: #e8ece9; border-radius: 2px; font: 11.5px/1.55 'IBM Plex Mono', monospace; max-height: 240px; overflow: auto; }
+.clean-copy { color: var(--seal); font-size: 13px; }
+.authority-note { margin: 15px 0 0; padding: 10px 12px; border: 1px solid var(--line); color: var(--muted); background: #fbfcfb; font-size: 11.5px; }
+
+@media (max-width: 700px) {
+  .design-summary { grid-template-columns: 1fr; }
+  .deficiency { grid-template-columns: 52px 70px 1fr; }
+}
+.risk-row .col:first-child { flex: 2; min-width: 260px; }
+.risk-row .col:last-child { flex: 1.4; color: var(--muted); }
+
+/* v0.5 benchmark */
+.benchmark-strip { padding-bottom: 30px; }
+.benchmark-metrics .metric { min-width: 135px; }
+.benchmark-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 34px 28px 64px;
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  gap: 22px;
+}
+.benchmark-card {
+  background: var(--card, #fff);
+  border: 1px solid rgba(20,24,31,.16);
+  padding: 24px;
+  box-shadow: 0 8px 28px rgba(20,24,31,.05);
+}
+.benchmark-table { margin-top: 14px; border-top: 1px solid rgba(20,24,31,.14); }
+.benchmark-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 0;
+  border-bottom: 1px solid rgba(20,24,31,.12);
+}
+.benchmark-code { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.benchmark-sub { margin-top: 4px; font-size: 12px; opacity: .62; }
+.benchmark-score { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; }
+.benchmark-method h3 { margin: 10px 0 8px; font-size: 24px; }
+.benchmark-method > p { line-height: 1.6; opacity: .78; }
+.benchmark-rule { margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(20,24,31,.12); display: grid; gap: 6px; }
+.benchmark-rule strong { font-size: 14px; }
+.benchmark-rule span { font-size: 13px; line-height: 1.55; opacity: .72; }
+@media (max-width: 850px) { .benchmark-wrap { grid-template-columns: 1fr; } }

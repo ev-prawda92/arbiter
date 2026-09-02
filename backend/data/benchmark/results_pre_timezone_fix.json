@@ -1,0 +1,1586 @@
+{
+  "benchmark": "ARB-SYN-v0.1",
+  "metrics": {
+    "total_cases": 90,
+    "valid_cases": 86,
+    "mutation_cases": 66,
+    "clean_cases": 20,
+    "defect_detection_rate": 0.9545,
+    "correct_lever_rate_on_detected": 0.8254,
+    "clean_auto_resolve_rate": 1.0,
+    "clean_false_positive_rate": 0.0,
+    "verdicts": {
+      "AUTO-RESOLVE": 34,
+      "MONITORED": 46,
+      "HOLD \u2014 REVIEW": 6
+    },
+    "by_expected_failure_mode": {
+      "SOURCE_MISSING": {
+        "n": 18,
+        "detected": 17
+      },
+      "SOURCE_VAGUE": {
+        "n": 18,
+        "detected": 18
+      },
+      "SUBJECTIVE_TERM": {
+        "n": 20,
+        "detected": 20
+      },
+      "TIMEZONE_MISSING": {
+        "n": 10,
+        "detected": 8
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "ARB-CLEAN-001",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-001-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-001",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 18,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-001-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-001",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 42,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-001-M-TZMISS",
+      "parent_id": "ARB-CLEAN-001",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-001-M-SUBJ",
+      "parent_id": "ARB-CLEAN-001",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-002",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-002-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-002",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 18,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-002-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-002",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 42,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-002-M-TZMISS",
+      "parent_id": "ARB-CLEAN-002",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-002-M-SUBJ",
+      "parent_id": "ARB-CLEAN-002",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-003",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-003-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-003",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 18,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-003-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-003",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 42,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-003-M-TZMISS",
+      "parent_id": "ARB-CLEAN-003",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 13,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "date-only cutoff \u2014 'as of' / 'by end of' is ambiguous"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-003-M-SUBJ",
+      "parent_id": "ARB-CLEAN-003",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-004",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-004-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-004",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 18,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-004-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-004",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 42,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-004-M-TZMISS",
+      "parent_id": "ARB-CLEAN-004",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-004-M-SUBJ",
+      "parent_id": "ARB-CLEAN-004",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-005",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-005-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-005",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 32,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-005-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-005",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "HOLD \u2014 REVIEW",
+      "actual_composite": 55,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-005-M-SUBJ",
+      "parent_id": "ARB-CLEAN-005",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-006",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-006-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-006",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 32,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-006-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-006",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "HOLD \u2014 REVIEW",
+      "actual_composite": 55,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-006-M-SUBJ",
+      "parent_id": "ARB-CLEAN-006",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-007",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-007-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-007",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 32,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-007-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-007",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "HOLD \u2014 REVIEW",
+      "actual_composite": 55,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-007-M-SUBJ",
+      "parent_id": "ARB-CLEAN-007",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-008",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-008-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-008",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 32,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-008-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-008",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "HOLD \u2014 REVIEW",
+      "actual_composite": 55,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-008-M-SUBJ",
+      "parent_id": "ARB-CLEAN-008",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-009",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 10,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-009-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-009",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 23,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-009-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-009",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 46,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "revision-prone source, revision rule unstated",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-009-M-TZMISS",
+      "parent_id": "ARB-CLEAN-009",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 23,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-009-M-SUBJ",
+      "parent_id": "ARB-CLEAN-009",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-010",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 10,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-010-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-010",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 23,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-010-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-010",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 46,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "revision-prone source, revision rule unstated",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-010-M-TZMISS",
+      "parent_id": "ARB-CLEAN-010",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 11,
+      "detected": false,
+      "lever_correct": false,
+      "flags": [
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-010-M-SUBJ",
+      "parent_id": "ARB-CLEAN-010",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-011",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 10,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-011-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-011",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 23,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "revision-prone source, revision rule unstated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-011-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-011",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 46,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "revision-prone source, revision rule unstated",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-011-M-TZMISS",
+      "parent_id": "ARB-CLEAN-011",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 23,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-011-M-SUBJ",
+      "parent_id": "ARB-CLEAN-011",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-012",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 7,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-012-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-012",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": false,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 7,
+      "detected": false,
+      "lever_correct": false,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-012-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-012",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": false,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-012-M-SUBJ",
+      "parent_id": "ARB-CLEAN-012",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 25,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-013",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-013-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-013",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": false,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": false,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-013-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-013",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": false,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 40,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-013-M-TZMISS",
+      "parent_id": "ARB-CLEAN-013",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 25,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "date-only cutoff \u2014 'as of' / 'by end of' is ambiguous"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-013-M-SUBJ",
+      "parent_id": "ARB-CLEAN-013",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-014",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 7,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-014-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-014",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 20,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-014-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-014",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 43,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-014-M-SUBJ",
+      "parent_id": "ARB-CLEAN-014",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 25,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-015",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 7,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-015-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-015",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 20,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-015-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-015",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 47,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-015-M-SUBJ",
+      "parent_id": "ARB-CLEAN-015",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 25,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-016",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 6,
+      "detected": false,
+      "lever_correct": true,
+      "flags": []
+    },
+    {
+      "id": "ARB-CLEAN-016-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-016",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 18,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-016-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-016",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 42,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-016-M-TZMISS",
+      "parent_id": "ARB-CLEAN-016",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-016-M-SUBJ",
+      "parent_id": "ARB-CLEAN-016",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-017",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-017-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-017",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-017-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-017",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 49,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "relies on vague / non-authoritative reporting",
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): credible"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-017-M-SUBJ",
+      "parent_id": "ARB-CLEAN-017",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-018",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-018-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-018",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 32,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "no explicit settlement time",
+        "no timezone specified"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-018-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-018",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "HOLD \u2014 REVIEW",
+      "actual_composite": 59,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): credible",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-018-M-SUBJ",
+      "parent_id": "ARB-CLEAN-018",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 37,
+      "detected": true,
+      "lever_correct": false,
+      "flags": [
+        "no explicit settlement time",
+        "no timezone specified",
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-019",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 11,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-019-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-019",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 24,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-019-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-019",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 47,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "interpretive term(s): credible",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-019-M-SUBJ",
+      "parent_id": "ARB-CLEAN-019",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 25,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "interpretive term(s): significant, meaningful"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-020",
+      "parent_id": null,
+      "kind": "gold_clean",
+      "expected_lever": "none",
+      "expected_failure_mode": "NONE",
+      "validator_pass": true,
+      "validator_note": "clean parent has criteria",
+      "actual_verdict": "AUTO-RESOLVE",
+      "actual_composite": 19,
+      "detected": false,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated",
+        "reversible event, no snapshot/duration rule",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-020-M-SRCMISS",
+      "parent_id": "ARB-CLEAN-020",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_MISSING",
+      "validator_pass": true,
+      "validator_note": "named authority removed and no vague substitute introduced",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 32,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "settlement source not explicitly designated",
+        "revision-prone source, revision rule unstated",
+        "reversible event, no snapshot/duration rule",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-020-M-SRCVAGUE",
+      "parent_id": "ARB-CLEAN-020",
+      "kind": "mutation",
+      "expected_lever": "source",
+      "expected_failure_mode": "SOURCE_VAGUE",
+      "validator_pass": true,
+      "validator_note": "vague reporting language is the governing source signal",
+      "actual_verdict": "HOLD \u2014 REVIEW",
+      "actual_composite": 56,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "no clearly authoritative source named",
+        "relies on vague / non-authoritative reporting",
+        "revision-prone source, revision rule unstated",
+        "reversible event, no snapshot/duration rule",
+        "interpretive term(s): credible",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-020-M-TZMISS",
+      "parent_id": "ARB-CLEAN-020",
+      "kind": "mutation",
+      "expected_lever": "timing",
+      "expected_failure_mode": "TIMEZONE_MISSING",
+      "validator_pass": true,
+      "validator_note": "clock remains but timezone removed",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 33,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated",
+        "no explicit settlement time",
+        "no timezone specified",
+        "reversible event, no snapshot/duration rule",
+        "compound condition (multiple clauses)"
+      ]
+    },
+    {
+      "id": "ARB-CLEAN-020-M-SUBJ",
+      "parent_id": "ARB-CLEAN-020",
+      "kind": "mutation",
+      "expected_lever": "definition",
+      "expected_failure_mode": "SUBJECTIVE_TERM",
+      "validator_pass": true,
+      "validator_note": "subjective term planted",
+      "actual_verdict": "MONITORED",
+      "actual_composite": 34,
+      "detected": true,
+      "lever_correct": true,
+      "flags": [
+        "revision-prone source, revision rule unstated",
+        "reversible event, no snapshot/duration rule",
+        "interpretive term(s): significant, meaningful"
+      ]
+    }
+  ]
+}

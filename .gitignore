@@ -1,0 +1,3 @@
+backend/data/benchmark/latest_results.json
+__pycache__/
+*.pyc

@@ -4,10 +4,11 @@ import './styles.css'
 import ReactDOM from 'react-dom/client'
 
 function App() {
-  const [view, setView] = useState('markets') // markets, monitoring, policy, analyze
+  const [view, setView] = useState('markets') // markets, monitoring, benchmark, policy, analyze
   const [markets, setMarkets] = useState([])
   const [monitoring, setMonitoring] = useState(null)
   const [policy, setPolicy] = useState(null)
+  const [benchmark, setBenchmark] = useState(null)
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -36,9 +37,19 @@ function App() {
 
   const loadMonitoring = async () => {
     try {
-      const r = await fetch('/api/monitoring')
+      const r = await fetch('/api/portfolio')
       const d = await r.json()
       setMonitoring(d)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const loadBenchmark = async () => {
+    try {
+      const r = await fetch('/api/benchmark')
+      const d = await r.json()
+      setBenchmark(d)
     } catch (e) {
       console.error(e)
     }
@@ -70,6 +81,9 @@ function App() {
     if (v === 'monitoring' && !monitoring) {
       await loadMonitoring()
     }
+    if (v === 'benchmark' && !benchmark) {
+      await loadBenchmark()
+    }
     if (v === 'policy' && !policy) {
       await loadPolicy()
     }
@@ -94,6 +108,10 @@ function App() {
         <MonitoringView data={monitoring} onViewMarkets={() => setView('markets')} />
       )}
       
+      {view === 'benchmark' && (
+        <BenchmarkView data={benchmark} />
+      )}
+
       {view === 'policy' && (
         <PolicyView data={policy} />
       )}
@@ -118,20 +136,26 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
       <div className="rail-in">
         <div className="brand">
           <span className="wordmark">ARBITER</span>
-          <span className="sub">Independent Resolution Layer</span>
+          <span className="sub">Resolution Intelligence Platform</span>
         </div>
         <div className="nav">
           <button
             className={`nav-btn ${view === 'markets' ? 'active' : ''}`}
             onClick={() => onViewChange('markets')}
           >
-            Markets
+            Resolution
           </button>
           <button
             className={`nav-btn ${view === 'monitoring' ? 'active' : ''}`}
             onClick={() => onViewChange('monitoring')}
           >
-            Monitoring
+            Intelligence
+          </button>
+          <button
+            className={`nav-btn ${view === 'benchmark' ? 'active' : ''}`}
+            onClick={() => onViewChange('benchmark')}
+          >
+            Benchmark
           </button>
           <button
             className={`nav-btn ${view === 'policy' ? 'active' : ''}`}
@@ -203,12 +227,10 @@ function MarketsView({ markets, selected, detail, loading, onSelectMarket, onAna
 function Strip({ count, clean, monitored, review, totalOI, reviewOI, onAnalyzeClick }) {
   return (
     <div className="strip">
-      <p className="eyebrow">Settlement Integrity Review</p>
-      <h1>Every contract gets an independent verdict before it pays out.</h1>
+      <p className="eyebrow">Resolution Workspace</p>
+      <h1>Design, monitor, and resolve event contracts with an auditable evidence trail.</h1>
       <p className="dek">
-        Arbiter scores each market's resolution terms on three levers — source, timing,
-        definition — and produces an auditable verdict. Contracts that can't resolve cleanly
-        are held for review before money moves, not after.
+        Arbiter evaluates resolution terms on source, timing, and definition; monitors the governing evidence; and produces a portable resolution record. Contracts that cannot resolve cleanly are held before money moves.
       </p>
       <div className="metrics">
         <div className="metric">
@@ -236,8 +258,8 @@ function Strip({ count, clean, monitored, review, totalOI, reviewOI, onAnalyzeCl
           <div className="l">notional held pre-payout</div>
         </div>
         <button className="metric cta" onClick={onAnalyzeClick}>
-          <span className="n">Analyze a contract →</span>
-          <span className="l">paste any resolution terms</span>
+          <span className="n">Review contract design →</span>
+          <span className="l">pre-listing resolution intelligence</span>
         </button>
       </div>
     </div>
@@ -375,18 +397,16 @@ function MonitoringView({ data, onViewMarkets }) {
   const s = data.summary || {}
   const by_cat = data.by_category || []
   const gaps = data.coverage_gaps || []
+  const pressure = data.lever_pressure || {}
+  const topRisks = data.top_risks || []
 
   return (
     <div className="view">
       <div className="strip">
-        <p className="eyebrow">Platform Intelligence · Read-Only</p>
-        <h1>Market-wide patterns and coverage gaps.</h1>
+        <p className="eyebrow">Portfolio Intelligence · Read-Only</p>
+        <h1>Where resolution risk concentrates across the contract portfolio.</h1>
         <p className="dek">
-          Because every contract now flows through one monitoring engine, we can see
-          platform-level trends — where disputes cluster, which categories need stricter
-          guidance, how to improve the next generation of templates. What the team does
-          with this intelligence is their call. Arbiter observes and reports; it never
-          alters how any contract resolves.
+          Because every contract flows through the same governed review, Arbiter can surface weak templates, held notional, recurring ambiguity, and the lever driving the most risk. This intelligence is read-only: it never changes an individual contract outcome.
         </p>
       </div>
 
@@ -412,6 +432,34 @@ function MonitoringView({ data, onViewMarkets }) {
             </div>
           </div>
         </div>
+
+        <div className="monitor-section">
+          <h2 className="sect-h">Primary risk driver</h2>
+          <div className="summary-grid">
+            {['source', 'timing', 'definition'].map(k => (
+              <div className={`summary-card ${pressure.primary_driver === k ? 'warn' : ''}`} key={k}>
+                <div className="n">{pressure.averages?.[k] ?? 0}</div>
+                <div className="l">{k} average risk</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {topRisks.length > 0 && (
+          <div className="monitor-section">
+            <h2 className="sect-h">Highest-risk contracts</h2>
+            <div className="table-like">
+              {topRisks.map(row => (
+                <div key={row.ticker} className="table-row risk-row">
+                  <div className="col"><span className="mono">{row.ticker}</span><br />{row.title}</div>
+                  <div className="col num">risk {row.composite}</div>
+                  <div className="col num">${(row.open_interest / 1e6).toFixed(1)}M</div>
+                  <div className="col">{row.primary_flag || 'no active flag'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="monitor-section">
           <h2 className="sect-h">Disputes by category</h2>
@@ -443,6 +491,69 @@ function MonitoringView({ data, onViewMarkets }) {
   )
 }
 
+
+function BenchmarkView({ data }) {
+  if (!data) return <div className="view"><p>Loading benchmark...</p></div>
+  const m = data.metrics || {}
+  const modes = m.by_expected_failure_mode || {}
+  const pct = (x) => x == null ? '—' : `${(x * 100).toFixed(1)}%`
+
+  return (
+    <div className="view benchmark-view">
+      <div className="strip benchmark-strip">
+        <p className="eyebrow">Arbiter Resolution Benchmark</p>
+        <h1>Test the resolution engine against known-clean contracts and controlled defects.</h1>
+        <p className="dek">
+          This is a development/calibration benchmark, not an external accuracy claim. Clean parents test false alarms; controlled mutations test whether Arbiter detects planted source, timing, and definition failures and attributes them to the correct lever.
+        </p>
+        <div className="metrics benchmark-metrics">
+          <div className="metric"><div className="n">{m.total_cases || 0}</div><div className="l">total eval cases</div></div>
+          <div className="metric"><div className="n">{m.clean_cases || 0}</div><div className="l">real clean parents</div></div>
+          <div className="metric"><div className="n">{m.mutation_cases || 0}</div><div className="l">controlled mutations</div></div>
+          <div className="metric"><div className="n">{pct(m.defect_detection_rate)}</div><div className="l">defect detection</div></div>
+          <div className="metric"><div className="n">{pct(m.correct_lever_rate_on_detected)}</div><div className="l">lever attribution</div></div>
+          <div className="metric"><div className="n">{pct(m.clean_auto_resolve_rate)}</div><div className="l">clean recognition</div></div>
+        </div>
+      </div>
+
+      <div className="benchmark-wrap">
+        <section className="benchmark-card">
+          <p className="sect-h">Controlled failure modes</p>
+          <div className="benchmark-table">
+            {Object.entries(modes).map(([name, row]) => (
+              <div className="benchmark-row" key={name}>
+                <div>
+                  <div className="benchmark-code">{name}</div>
+                  <div className="benchmark-sub">{row.n} validated cases</div>
+                </div>
+                <div className="benchmark-score">{row.detected}/{row.n}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="benchmark-card benchmark-method">
+          <p className="sect-h">Methodology boundary</p>
+          <h3>Development benchmark</h3>
+          <p>{data.methodology?.note}</p>
+          <div className="benchmark-rule">
+            <strong>Do not market these numbers as independent accuracy.</strong>
+            <span>The clean set was used during development. A separate untouched holdout is required before external performance claims.</span>
+          </div>
+          <div className="benchmark-rule">
+            <strong>Mutation lineage is explicit.</strong>
+            <span>Each synthetic case descends from a real clean parent and carries a known planted defect plus a deterministic validator.</span>
+          </div>
+          <div className="benchmark-rule">
+            <strong>Binding resolution remains deterministic.</strong>
+            <span>The benchmark evaluates the governed Arbiter engine; an LLM is not used to declare benchmark truth.</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}
+
 function PolicyView({ data }) {
   if (!data) return <div className="view"><p>Loading policy...</p></div>
 
@@ -455,7 +566,7 @@ function PolicyView({ data }) {
         <h1>Governed, versioned, auditable.</h1>
         <p className="dek">
           The weights and thresholds that decide when a contract auto-resolves, gets
-          monitored, or is held for review are owned by Kalshi's team but versioned
+          monitored, or is held for review are owned by the exchange or market operator, but versioned
           and logged. No policy changes happen quietly. Every shift is recorded with a
           timestamp, author, and note.
         </p>
@@ -508,6 +619,7 @@ function AnalyzeModal({ onClose, onSuccess }) {
   const [c, setC] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [err, setErr] = useState('')
+  const [result, setResult] = useState(null)
 
   const handleAnalyze = async () => {
     if (!q.trim() || !c.trim()) {
@@ -524,7 +636,8 @@ function AnalyzeModal({ onClose, onSuccess }) {
       })
       if (!r.ok) throw new Error('analysis failed')
       const d = await r.json()
-      onSuccess(d)
+      setResult(d)
+      if (onSuccess) onSuccess(d)
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -532,13 +645,16 @@ function AnalyzeModal({ onClose, onSuccess }) {
     }
   }
 
+  const design = result?.design
+  const report = result?.report
+
   return (
     <div className="scrim open" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+      <div className="modal modal-wide">
         <div className="modal-head">
           <div>
-            <h3>Analyze a contract</h3>
-            <p>Paste a market question and its resolution criteria. Arbiter scores it on the same three levers.</p>
+            <h3>Contract Intelligence</h3>
+            <p>Review resolution design before listing. Arbiter scores the contract, names the deficiencies, and proposes deterministic drafting fixes.</p>
           </div>
           <button className="x" onClick={onClose}>×</button>
         </div>
@@ -562,13 +678,60 @@ function AnalyzeModal({ onClose, onSuccess }) {
             />
           </div>
           {err && <div className="err show">{err}</div>}
-          <button
-            className="run"
-            onClick={handleAnalyze}
-            disabled={analyzing}
-          >
-            {analyzing ? '⟳ Reviewing…' : 'Run integrity review'}
+          <button className="run" onClick={handleAnalyze} disabled={analyzing}>
+            {analyzing ? '⟳ Reviewing…' : 'Run contract intelligence review'}
           </button>
+
+          {design && report && (
+            <div className="design-result">
+              <div className="design-summary">
+                <div>
+                  <span className="result-label">Listing readiness</span>
+                  <strong>{design.readiness_score}/100</strong>
+                </div>
+                <div>
+                  <span className="result-label">Status</span>
+                  <strong className={`status-${report.verdict.key}`}>{design.status}</strong>
+                </div>
+                <div>
+                  <span className="result-label">Dispute risk</span>
+                  <strong>{report.composite}/100</strong>
+                </div>
+              </div>
+
+              <div className="design-block">
+                <h4>Detected deficiencies</h4>
+                {design.deficiencies.length ? (
+                  <div className="deficiency-list">
+                    {design.deficiencies.map((d, i) => (
+                      <div className="deficiency" key={`${d.lever}-${i}`}>
+                        <span className={`severity ${d.severity}`}>{d.severity}</span>
+                        <span className="mono">{d.lever}</span>
+                        <span>{d.flag}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="clean-copy">No structural deficiencies detected by the governed rule set.</p>}
+              </div>
+
+              <div className="design-block">
+                <h4>Recommended drafting fixes</h4>
+                {design.recommended_clauses.length ? design.recommended_clauses.map((fix, i) => (
+                  <div className="fix-card" key={i}>
+                    <div className="fix-head"><span className="mono">{fix.lever}</span>{fix.title}</div>
+                    <p>{fix.text}</p>
+                  </div>
+                )) : <p className="clean-copy">No drafting additions recommended.</p>}
+              </div>
+
+              <div className="design-block">
+                <h4>Revised criteria package</h4>
+                <pre className="drafting-fix">{design.drafting_fix}</pre>
+              </div>
+
+              <p className="authority-note">{design.principle}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

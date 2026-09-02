@@ -1,0 +1,21 @@
+id,venue,domain,title,gold,verdict,verdict_label,composite,source_score,timing_score,definition_score,source_flags,timing_flags,definition_flags,pass
+ARB-CLEAN-001,Polymarket,crypto,"Will Bitcoin reach $65,000 before September?",clean,clean,AUTO-RESOLVE,6,6,8,4,,,,True
+ARB-CLEAN-002,Polymarket,crypto,"Ethereum above $2,600 on July 16?",clean,clean,AUTO-RESOLVE,6,6,8,4,,,,True
+ARB-CLEAN-003,Polymarket,elections,AP calls 2024 presidential election by Nov. 5?,clean,clean,AUTO-RESOLVE,6,6,8,4,,,,True
+ARB-CLEAN-004,Polymarket,macro,June 2026 unemployment rate,clean,clean,AUTO-RESOLVE,6,6,8,4,,,,True
+ARB-CLEAN-005,Polymarket,macro,Did US GDP grow more than 2.5% in Q4 2022?,clean,clean,AUTO-RESOLVE,19,6,52,4,,no explicit settlement time | no timezone specified,,True
+ARB-CLEAN-006,Polymarket,macro,US GDP growth in Q1 2026: 2.0%–2.5%,clean,clean,AUTO-RESOLVE,19,6,52,4,,no explicit settlement time | no timezone specified,,True
+ARB-CLEAN-007,Polymarket,macro,GDP growth in 2025 greater than 2.5%,clean,clean,AUTO-RESOLVE,19,6,52,4,,no explicit settlement time | no timezone specified,,True
+ARB-CLEAN-008,Polymarket,macro,Negative GDP growth in Q1 2025?,clean,clean,AUTO-RESOLVE,19,6,52,4,,no explicit settlement time | no timezone specified,,True
+ARB-CLEAN-009,Polymarket,macro,Annual inflation above 2.5% in August 2024?,clean,clean,AUTO-RESOLVE,10,20,8,4,"revision-prone source, revision rule unstated",,,True
+ARB-CLEAN-010,Polymarket,macro,September 2025 monthly inflation,clean,clean,AUTO-RESOLVE,10,20,8,4,"revision-prone source, revision rule unstated",,,True
+ARB-CLEAN-011,Polymarket,macro,August 2025 monthly inflation at least 0.4%,clean,clean,AUTO-RESOLVE,10,20,8,4,"revision-prone source, revision rule unstated",,,True
+ARB-CLEAN-012,Polymarket,sports,Tour de France 2025: 145+ riders finish?,clean,clean,AUTO-RESOLVE,7,6,12,4,,,,True
+ARB-CLEAN-013,Polymarket,sports,2026 Tour de France winner nationality: Slovenia,clean,clean,AUTO-RESOLVE,6,6,8,4,,,,True
+ARB-CLEAN-014,Polymarket,weather,"Highest temperature in Chicago on Aug. 27, 2026",clean,clean,AUTO-RESOLVE,7,6,12,4,,,,True
+ARB-CLEAN-015,Polymarket,weather,"Highest temperature in Dallas on Aug. 25, 2026",clean,clean,AUTO-RESOLVE,7,6,12,4,,,,True
+ARB-CLEAN-016,Polymarket,crypto,"Bitcoin above threshold on Aug. 29, 2026",clean,clean,AUTO-RESOLVE,6,6,8,4,,,,True
+ARB-CLEAN-017,Kalshi,macro,Will the Fed do a rate cut of more than 25bps in 2025?,clean,clean,AUTO-RESOLVE,19,6,52,4,,no explicit settlement time | no timezone specified,,True
+ARB-CLEAN-018,Kalshi,macro,Will rates hit zero in 2025?,clean,clean,AUTO-RESOLVE,19,6,52,4,,no explicit settlement time | no timezone specified,,True
+ARB-CLEAN-019,Kalshi,macro,Previous jobs revised higher? April 2026 Employment Situation,clean,clean,AUTO-RESOLVE,11,6,12,14,,,compound condition (multiple clauses),True
+ARB-CLEAN-020,Kalshi,macro,Core inflation in January 2026 above 2.4%,clean,clean,AUTO-RESOLVE,19,20,26,14,"revision-prone source, revision rule unstated","reversible event, no snapshot/duration rule",compound condition (multiple clauses),True
