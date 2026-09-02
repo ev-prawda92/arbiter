@@ -20,12 +20,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
-app = FastAPI(title="Arbiter", version="0.6.0")
+app = FastAPI(title="Arbiter", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _FRONTEND = os.path.join(os.path.dirname(__file__), "..", "dist")
@@ -46,7 +46,7 @@ def _reports(live=False):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.6.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.7.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
 
 @app.get("/api/markets")
@@ -124,11 +124,10 @@ def analyze(inp: AnalyzeIn):
     return out
 
 
-@app.get("/api/portfolio")
-def portfolio():
+def _portfolio_payload():
     reports = _CACHE["reports"] or _reports()
     ranked = sorted(reports, key=lambda r: (r["composite"], r.get("open_interest", 0)), reverse=True)
-    return {
+    return reports, {
         "summary": monitoring.summarize(reports),
         "lever_pressure": monitoring.lever_pressure(reports),
         "by_category": monitoring.by_category(reports),
@@ -146,6 +145,18 @@ def portfolio():
         ],
         "boundary": "portfolio intelligence is read-only and never changes a contract outcome",
     }
+
+
+@app.get("/api/portfolio")
+def portfolio():
+    _, payload = _portfolio_payload()
+    return payload
+
+
+@app.get("/api/executive")
+def executive_portfolio():
+    reports, payload = _portfolio_payload()
+    return executive.build(reports, payload, resolution_store.summary())
 
 
 # ---- resolution benchmark ----------------------------------------------------
@@ -265,7 +276,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.6.0", "domain": resolution_store.summary(), "controls": CONTROLS,
+    return {"version": "0.7.0", "domain": resolution_store.summary(), "controls": CONTROLS,
             "principle": "Define → Evidence → Resolve → Audit"}
 
 @app.get("/api/contracts")

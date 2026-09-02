@@ -38,9 +38,9 @@ function App() {
 
   const loadMonitoring = async () => {
     try {
-      const r = await fetch('/api/portfolio')
-      const d = await r.json()
-      setMonitoring(d)
+      const [portfolioR, executiveR] = await Promise.all([fetch('/api/portfolio'), fetch('/api/executive')])
+      const [portfolio, executive] = await Promise.all([portfolioR.json(), executiveR.json()])
+      setMonitoring({ ...portfolio, executive })
     } catch (e) {
       console.error(e)
     }
@@ -169,7 +169,7 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
             className={`nav-btn ${view === 'monitoring' ? 'active' : ''}`}
             onClick={() => onViewChange('monitoring')}
           >
-            Intelligence
+            Portfolio
           </button>
           <button
             className={`nav-btn ${view === 'benchmark' ? 'active' : ''}`}
@@ -418,49 +418,74 @@ function DetailPanel({ detail, market }) {
 }
 
 function MonitoringView({ data, onViewMarkets }) {
-  if (!data) return <div className="view"><p>Loading monitoring data...</p></div>
+  const [lens, setLens] = useState('executive')
+  if (!data) return <div className="view"><p>Loading portfolio intelligence...</p></div>
 
   const s = data.summary || {}
   const by_cat = data.by_category || []
   const gaps = data.coverage_gaps || []
   const pressure = data.lever_pressure || {}
   const topRisks = data.top_risks || []
+  const exec = data.executive || {}
+  const shared = exec.shared || {}
+  const lenses = exec.lenses || {}
+  const active = lenses[lens] || {}
+  const money = (n) => `$${((n || 0) / 1e6).toFixed(1)}M`
 
   return (
-    <div className="view">
-      <div className="strip">
-        <p className="eyebrow">Portfolio Intelligence · Read-Only</p>
-        <h1>Where resolution risk concentrates across the contract portfolio.</h1>
+    <div className="view portfolio-view">
+      <div className="strip portfolio-strip">
+        <p className="eyebrow">Portfolio Resolution Intelligence · Read-Only</p>
+        <h1>A shared resolution-risk control plane for the executive team.</h1>
         <p className="dek">
-          Because every contract flows through the same governed review, Arbiter can surface weak templates, held notional, recurring ambiguity, and the lever driving the most risk. This intelligence is read-only: it never changes an individual contract outcome.
+          Compliance, Market Operations, Finance, and leadership see the same governed contract and evidence state through different operating lenses. The lens changes prioritization—not settlement logic.
         </p>
+        <div className="metrics portfolio-metrics">
+          <div className="metric"><div className="n">{money(shared.total_notional)}</div><div className="l">portfolio notional</div></div>
+          <div className="metric"><div className="n">{money(shared.resolution_risk_notional)}</div><div className="l">resolution-risk notional</div></div>
+          <div className="metric"><div className="n">{money(shared.held_notional)}</div><div className="l">held before payout</div></div>
+          <div className="metric"><div className="n">{shared.resolution_risk_pct ?? 0}%</div><div className="l">notional monitored / held</div></div>
+          <div className="metric"><div className="n">{shared.primary_risk_driver || '—'}</div><div className="l">primary risk driver</div></div>
+          <div className="metric"><div className="n">{shared.audit_chain_ok === true ? 'VERIFIED' : 'CHECK'}</div><div className="l">audit chain</div></div>
+        </div>
       </div>
 
-      <div className="wrap monitor-wrap">
+      <div className="portfolio-wrap">
+        <section className="role-lens-card">
+          <div className="role-tabs">
+            {[
+              ['executive','Executive'], ['compliance','Compliance'], ['market_ops','Market Ops'], ['finance','Finance / CFO']
+            ].map(([key,label]) => (
+              <button key={key} className={`role-tab ${lens === key ? 'active' : ''}`} onClick={() => setLens(key)}>{label}</button>
+            ))}
+          </div>
+          <div className="role-lens-body">
+            <p className="eyebrow">{lens.replace('_',' ')} lens</p>
+            <h2>{active.question}</h2>
+            <p className="role-headline">{active.headline}</p>
+            <div className="priority-list">
+              {(active.priorities || []).map((p, i) => (
+                <div className="priority-row" key={`${p.name}-${i}`}>
+                  <span className={`priority-dot ${p.severity || 'medium'}`}></span>
+                  <div><strong>{p.name}</strong><p>{p.detail}</p></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <div className="monitor-section">
-          <h2 className="sect-h">Summary</h2>
+          <h2 className="sect-h">Portfolio posture</h2>
           <div className="summary-grid">
-            <div className="summary-card">
-              <div className="n">{s.reviewed || 0}</div>
-              <div className="l">contracts reviewed</div>
-            </div>
-            <div className="summary-card">
-              <div className="n">{s.counts?.clean || 0}</div>
-              <div className="l">auto-resolve clean</div>
-            </div>
-            <div className="summary-card">
-              <div className="n">{s.counts?.monitored || 0}</div>
-              <div className="l">monitored</div>
-            </div>
-            <div className="summary-card warn">
-              <div className="n">{s.counts?.review || 0}</div>
-              <div className="l">held for review</div>
-            </div>
+            <div className="summary-card"><div className="n">{s.reviewed || 0}</div><div className="l">contracts reviewed</div></div>
+            <div className="summary-card"><div className="n">{s.counts?.clean || 0}</div><div className="l">auto-resolve clean</div></div>
+            <div className="summary-card"><div className="n">{s.counts?.monitored || 0}</div><div className="l">monitored</div></div>
+            <div className="summary-card warn"><div className="n">{s.counts?.review || 0}</div><div className="l">held for review</div></div>
           </div>
         </div>
 
         <div className="monitor-section">
-          <h2 className="sect-h">Primary risk driver</h2>
+          <h2 className="sect-h">Risk pressure</h2>
           <div className="summary-grid">
             {['source', 'timing', 'definition'].map(k => (
               <div className={`summary-card ${pressure.primary_driver === k ? 'warn' : ''}`} key={k}>
@@ -479,7 +504,7 @@ function MonitoringView({ data, onViewMarkets }) {
                 <div key={row.ticker} className="table-row risk-row">
                   <div className="col"><span className="mono">{row.ticker}</span><br />{row.title}</div>
                   <div className="col num">risk {row.composite}</div>
-                  <div className="col num">${(row.open_interest / 1e6).toFixed(1)}M</div>
+                  <div className="col num">{money(row.open_interest)}</div>
                   <div className="col">{row.primary_flag || 'no active flag'}</div>
                 </div>
               ))}
@@ -488,14 +513,14 @@ function MonitoringView({ data, onViewMarkets }) {
         )}
 
         <div className="monitor-section">
-          <h2 className="sect-h">Disputes by category</h2>
+          <h2 className="sect-h">Risk by category</h2>
           <div className="table-like">
             {by_cat.map(row => (
               <div key={row.category} className="table-row">
                 <div className="col">{row.category}</div>
                 <div className="col num">{row.count} contracts</div>
-                <div className="col num">{row.review_count} reviewed ({row.review_rate}%)</div>
-                <div className="col num">${(row.held_notional / 1e6).toFixed(1)}M held</div>
+                <div className="col num">{row.review_count} held ({row.review_rate}%)</div>
+                <div className="col num">{money(row.held_notional)} held</div>
               </div>
             ))}
           </div>
@@ -505,18 +530,15 @@ function MonitoringView({ data, onViewMarkets }) {
           <div className="monitor-section">
             <h2 className="sect-h">Coverage gaps</h2>
             {gaps.map((g, i) => (
-              <div key={i} className="gap">
-                <p className="gap-cat">{g.category}</p>
-                <p className="gap-rec">{g.recommendation}</p>
-              </div>
+              <div key={i} className="gap"><p className="gap-cat">{g.category}</p><p className="gap-rec">{g.recommendation}</p></div>
             ))}
           </div>
         )}
+        <p className="boundary-note">{exec.boundary || data.boundary}</p>
       </div>
     </div>
   )
 }
-
 
 function BenchmarkView({ data }) {
   if (!data) return <div className="view"><p>Loading benchmark...</p></div>

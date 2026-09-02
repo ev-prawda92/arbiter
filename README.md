@@ -83,3 +83,9 @@ New APIs include `/api/infrastructure`, `/api/contracts`, `/api/authorities`, `/
 
 These controls support operational governance and auditability; they are not a legal
 determination of regulatory compliance.
+
+## v0.7 — Executive Portfolio Intelligence
+
+Arbiter now exposes the resolution-control state as a shared executive operating layer. Compliance, Market Operations, Finance, and leadership use the same underlying contract/evidence/resolution data through role-specific read-only lenses. The Portfolio view surfaces resolution-risk notional, held pre-payout exposure, dominant ambiguity drivers, category concentration, highest-risk contracts, coverage gaps, and audit-chain status.
+
+New API: `GET /api/executive`.
