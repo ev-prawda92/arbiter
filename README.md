@@ -60,3 +60,26 @@ The launcher installs backend/frontend dependencies, builds the React/Vite front
 - `feeds.py` — market and authoritative-source adapters
 - `monitoring.py` — read-only portfolio intelligence
 - `llm.py` — optional non-binding triage
+
+## v0.6 — Resolution Control Infrastructure
+
+Arbiter now includes a persistent reference control plane for the settlement lifecycle:
+
+**Define → Evidence → Resolve → Audit**
+
+Core domain objects:
+- `ResolutionSpecification` — version-pinned executable contract semantics.
+- `Authority` — governed resolution source definitions and versions.
+- `EvidenceRecord` — append-only normalized observations with provenance hashes.
+- `ResolutionRun` — replayable, version-pinned resolution executions.
+
+The v0.6 control library adds technical governance checks (`RES-001`–`RES-008`),
+including authority requirements, settlement timing, source precedence, evidence provenance,
+version pinning, and exception disposition. A SHA-256 hash-chained audit log records all
+control-plane mutations.
+
+New APIs include `/api/infrastructure`, `/api/contracts`, `/api/authorities`, `/api/evidence`,
+`/api/resolution-runs`, and `/api/audit`.
+
+These controls support operational governance and auditability; they are not a legal
+determination of regulatory compliance.

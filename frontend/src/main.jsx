@@ -4,11 +4,12 @@ import './styles.css'
 import ReactDOM from 'react-dom/client'
 
 function App() {
-  const [view, setView] = useState('markets') // markets, monitoring, benchmark, policy, analyze
+  const [view, setView] = useState('markets') // markets, monitoring, benchmark, infrastructure, policy, analyze
   const [markets, setMarkets] = useState([])
   const [monitoring, setMonitoring] = useState(null)
   const [policy, setPolicy] = useState(null)
   const [benchmark, setBenchmark] = useState(null)
+  const [infrastructure, setInfrastructure] = useState(null)
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -55,6 +56,18 @@ function App() {
     }
   }
 
+  const loadInfrastructure = async () => {
+    try {
+      const [infraR, authR, auditR] = await Promise.all([
+        fetch('/api/infrastructure'), fetch('/api/authorities'), fetch('/api/audit?limit=25')
+      ])
+      const [infra, authorities, audit] = await Promise.all([infraR.json(), authR.json(), auditR.json()])
+      setInfrastructure({ ...infra, authorities: authorities.authorities || [], audit })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const loadPolicy = async () => {
     try {
       const r = await fetch('/api/policy')
@@ -84,6 +97,9 @@ function App() {
     if (v === 'benchmark' && !benchmark) {
       await loadBenchmark()
     }
+    if (v === 'infrastructure' && !infrastructure) {
+      await loadInfrastructure()
+    }
     if (v === 'policy' && !policy) {
       await loadPolicy()
     }
@@ -112,6 +128,10 @@ function App() {
         <BenchmarkView data={benchmark} />
       )}
 
+      {view === 'infrastructure' && (
+        <InfrastructureView data={infrastructure} />
+      )}
+
       {view === 'policy' && (
         <PolicyView data={policy} />
       )}
@@ -136,7 +156,7 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
       <div className="rail-in">
         <div className="brand">
           <span className="wordmark">ARBITER</span>
-          <span className="sub">Resolution Intelligence Platform</span>
+          <span className="sub">Resolution Control Infrastructure</span>
         </div>
         <div className="nav">
           <button
@@ -156,6 +176,12 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
             onClick={() => onViewChange('benchmark')}
           >
             Benchmark
+          </button>
+          <button
+            className={`nav-btn ${view === 'infrastructure' ? 'active' : ''}`}
+            onClick={() => onViewChange('infrastructure')}
+          >
+            Controls
           </button>
           <button
             className={`nav-btn ${view === 'policy' ? 'active' : ''}`}
@@ -550,6 +576,55 @@ function BenchmarkView({ data }) {
           </div>
         </section>
       </div>
+    </div>
+  )
+}
+
+function InfrastructureView({ data }) {
+  if (!data) return <div className="view"><p>Loading resolution controls...</p></div>
+  const d = data.domain || {}
+  const controls = data.controls || []
+  const authorities = data.authorities || []
+  const audit = data.audit || {}
+  return (
+    <div className="view control-view">
+      <div className="section-head">
+        <p className="eyebrow">Resolution Control Infrastructure</p>
+        <h1>Define → Evidence → Resolve → Audit</h1>
+        <p>Persistent controls behind settlement: versioned contract specifications, governed authorities, append-only evidence, replayable resolution runs, and a hash-chained audit record.</p>
+      </div>
+      <div className="control-metrics">
+        {[
+          ['Contract versions', d.contracts || 0], ['Authorities', d.authorities || 0],
+          ['Evidence records', d.evidence_records || 0], ['Resolution runs', d.resolution_runs || 0],
+          ['Audit events', d.audit_events || 0], ['Audit chain', d.audit_chain?.ok ? 'VERIFIED' : 'CHECK']
+        ].map(([label,value]) => <div className="stat-card" key={label}><div className="n">{value}</div><div className="l">{label}</div></div>)}
+      </div>
+      <div className="control-grid">
+        <section className="control-panel">
+          <h2>Control library</h2>
+          {controls.map(c => <div className="control-row" key={c.id}>
+            <div><strong>{c.id}</strong> · {c.name}</div>
+            <span className={`control-severity ${c.severity}`}>{c.severity.toUpperCase()}</span>
+            <p>{c.description}</p>
+          </div>)}
+        </section>
+        <section className="control-panel">
+          <h2>Governed authorities</h2>
+          {authorities.map(a => <div className="authority-row" key={`${a.authority_id}-${a.version}`}>
+            <div><strong>{a.name}</strong></div><div className="mono">{a.authority_id} · v{a.version}</div>
+            <div className="muted">{a.organization} · {a.source_type}</div>
+          </div>)}
+        </section>
+      </div>
+      <section className="control-panel audit-panel">
+        <div className="panel-title-row"><h2>Audit chain</h2><span className={audit.chain?.ok ? 'audit-ok' : 'audit-bad'}>{audit.chain?.ok ? 'VERIFIED' : 'UNVERIFIED'}</span></div>
+        <div className="mono audit-head">HEAD {audit.chain?.head || '—'}</div>
+        {(audit.events || []).slice(0,8).map(e => <div className="audit-row" key={e.event_id}>
+          <span className="mono">#{e.sequence}</span><strong>{e.action}</strong><span>{e.object_type}:{e.object_id}</span><span className="muted">{e.actor}</span>
+        </div>)}
+      </section>
+      <p className="boundary-note">Technical governance controls support exchange compliance and auditability; they do not by themselves constitute a legal compliance determination.</p>
     </div>
   )
 }

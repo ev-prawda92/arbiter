@@ -21,9 +21,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from . import engine, feeds, monitoring, policy, llm, intelligence, evidence
+from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow)
+from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
-app = FastAPI(title="Arbiter", version="0.5.0")
+app = FastAPI(title="Arbiter", version="0.6.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _FRONTEND = os.path.join(os.path.dirname(__file__), "..", "dist")
@@ -44,7 +46,7 @@ def _reports(live=False):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.5.0", "llm": llm.available(), "product": "Resolution Intelligence Platform"}
+    return {"ok": True, "service": "arbiter", "version": "0.6.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
 
 @app.get("/api/markets")
@@ -195,6 +197,157 @@ def benchmark_run():
     with open(_BENCHMARK_RESULTS, "w") as f:
         json.dump(result, f, indent=2)
     return {"benchmark": result.get("benchmark"), "metrics": result.get("metrics", {})}
+
+
+# ---- v0.6 resolution infrastructure ----------------------------------------
+seed_reference_data()
+
+class ContractSpecIn(BaseModel):
+    contract_id: str
+    contract_version: int = 1
+    title: str
+    definition: dict
+    timing: dict
+    authority_ids: list[str]
+    source_precedence: list[str] = []
+    revision_policy: dict = {}
+    fallback_policy: dict = {}
+    approval_policy: dict = {}
+    metadata: dict = {}
+    actor: str = "exchange.market-ops"
+    status: str = "draft"
+
+class AuthorityIn(BaseModel):
+    authority_id: str
+    version: int = 1
+    name: str
+    organization: str
+    source_type: str
+    endpoint: str = ""
+    dataset: str = ""
+    field: str = ""
+    precision: str = ""
+    revision_behavior: dict = {}
+    availability_policy: dict = {}
+    approved_contract_classes: list[str] = []
+    status: str = "approved"
+    metadata: dict = {}
+    actor: str = "exchange.compliance"
+
+class EvidenceIn(BaseModel):
+    authority_id: str
+    authority_version: int = 1
+    normalized_value: object
+    raw_payload_hash: str
+    parser_version: str
+    observed_at: str | None = None
+    retrieved_at: str | None = None
+    contract_id: str | None = None
+    effective_at: str | None = None
+    revision_number: int = 1
+    supersedes: str | None = None
+    source_locator: str = ""
+    metadata: dict = {}
+    actor: str = "system:evidence"
+
+class ResolutionRunIn(BaseModel):
+    contract_id: str
+    contract_version: int
+    policy_version: str
+    engine_version: str = "0.6.0"
+    evidence_ids: list[str] = []
+    state: str = "completed"
+    outcome: str
+    exceptions: list[dict] = []
+    approvals: list[dict] = []
+    result: dict = {}
+    actor: str = "system:resolver"
+
+@app.get("/api/infrastructure")
+def infrastructure_summary():
+    return {"version": "0.6.0", "domain": resolution_store.summary(), "controls": CONTROLS,
+            "principle": "Define → Evidence → Resolve → Audit"}
+
+@app.get("/api/contracts")
+def contracts_registry():
+    return {"contracts": resolution_store.list_contracts()}
+
+@app.post("/api/contracts")
+def create_contract(inp: ContractSpecIn):
+    spec = ResolutionSpecification(**inp.model_dump(exclude={"actor", "status"}))
+    known = {a["authority_id"] for a in resolution_store.list_authorities()}
+    controls = evaluate_spec(spec.to_dict(), known)
+    if any(c["status"] == "BLOCK" for c in controls):
+        raise HTTPException(422, {"error": "contract_control_failure", "controls": controls})
+    try:
+        saved = resolution_store.save_contract(spec, actor=inp.actor, status=inp.status)
+    except Exception as e:
+        raise HTTPException(409, str(e)) from e
+    return {"contract": saved, "controls": controls}
+
+@app.get("/api/contracts/{contract_id}/resolution-spec")
+def get_resolution_spec(contract_id: str):
+    spec = resolution_store.latest_contract(contract_id)
+    if not spec:
+        raise HTTPException(404, "contract not found")
+    known = {a["authority_id"] for a in resolution_store.list_authorities()}
+    return {"spec": spec, "controls": evaluate_spec(spec, known)}
+
+@app.get("/api/authorities")
+def authorities_registry():
+    return {"authorities": resolution_store.list_authorities()}
+
+@app.post("/api/authorities")
+def create_authority(inp: AuthorityIn):
+    authority = Authority(**inp.model_dump(exclude={"actor"}))
+    try:
+        saved = resolution_store.save_authority(authority, actor=inp.actor)
+    except Exception as e:
+        raise HTTPException(409, str(e)) from e
+    return {"authority": saved}
+
+@app.get("/api/evidence")
+def evidence_registry(contract_id: str | None = None, limit: int = 100):
+    return {"evidence": resolution_store.list_evidence(contract_id=contract_id, limit=min(limit, 500))}
+
+@app.post("/api/evidence")
+def append_evidence(inp: EvidenceIn):
+    record = EvidenceRecord(
+        evidence_id=gen_id("evid"), authority_id=inp.authority_id, authority_version=inp.authority_version,
+        observed_at=inp.observed_at or utcnow(), retrieved_at=inp.retrieved_at or utcnow(),
+        normalized_value=inp.normalized_value, raw_payload_hash=inp.raw_payload_hash, parser_version=inp.parser_version,
+        contract_id=inp.contract_id, effective_at=inp.effective_at, revision_number=inp.revision_number,
+        supersedes=inp.supersedes, source_locator=inp.source_locator, metadata=inp.metadata)
+    try:
+        saved = resolution_store.append_evidence(record, actor=inp.actor)
+    except Exception as e:
+        raise HTTPException(422, str(e)) from e
+    return {"evidence": saved, "controls": evaluate_evidence(saved)}
+
+@app.get("/api/resolution-runs")
+def resolution_runs(contract_id: str | None = None, limit: int = 100):
+    return {"runs": resolution_store.list_runs(contract_id=contract_id, limit=min(limit, 500))}
+
+@app.post("/api/resolution-runs")
+def create_resolution_run(inp: ResolutionRunIn):
+    controls = evaluate_run(inp.model_dump())
+    if any(c["status"] == "BLOCK" for c in controls):
+        raise HTTPException(422, {"error": "resolution_control_failure", "controls": controls})
+    run = ResolutionRun(
+        run_id=gen_id("run"), contract_id=inp.contract_id, contract_version=inp.contract_version,
+        policy_version=inp.policy_version, engine_version=inp.engine_version, evidence_ids=inp.evidence_ids,
+        control_results=controls, state=inp.state, outcome=inp.outcome, started_at=utcnow(), completed_at=utcnow(),
+        exceptions=inp.exceptions, approvals=inp.approvals, result=inp.result)
+    try:
+        saved = resolution_store.save_run(run, actor=inp.actor)
+    except Exception as e:
+        raise HTTPException(422, str(e)) from e
+    return {"run": saved, "controls": controls}
+
+@app.get("/api/audit")
+def audit_log(limit: int = 100, object_type: str | None = None, object_id: str | None = None):
+    return {"chain": resolution_store.verify_audit_chain(),
+            "events": resolution_store.audit_log(limit=min(limit, 500), object_type=object_type, object_id=object_id)}
 
 
 # ---- static frontend ----
