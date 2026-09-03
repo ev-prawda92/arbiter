@@ -146,3 +146,6 @@ python3 scripts/coherence_test.py
 ```
 
 Canonical fixtures live at `tests/fixtures/coherence_cases.json`. The harness validates READY / REVIEW / BLOCK semantics, saved-case reruns, templates, cross-surface APIs, developer docs, audit-chain integrity, and the current development benchmark baseline. See `COHERENCE_TEST_PLAN.md`.
+
+## v0.10 enterprise boundary
+For production-oriented deployments, Arbiter now supports production-default auth, hashed/scoped API keys, explicit CORS origins, request/security headers, readiness gates, and venue-specific settlement boundaries. See `ENTERPRISE_READINESS.md` and `EXCHANGE_FIT.md`.

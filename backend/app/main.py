@@ -14,20 +14,20 @@ Serves the frontend at /.
 """
 
 import os
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.9.4",
+    version="0.10.0",
     description=(
         "Resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -36,7 +36,28 @@ app = FastAPI(
     docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
     contact={"name": "Arbiter Developer Platform"},
 )
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+runtime_config = enterprise.load_runtime_config()
+app.add_middleware(CORSMiddleware, allow_origins=list(runtime_config.cors_origins), allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "X-Arbiter-Key", "Idempotency-Key", "X-Request-ID"])
+
+@app.middleware("http")
+async def enterprise_boundary(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or __import__("secrets").token_hex(12)
+    # Fail closed on unsafe production configuration before serving control-plane APIs.
+    findings = enterprise.configuration_findings()
+    if request.url.path.startswith("/api/") and request.url.path not in {"/api/health", "/api/readiness", "/api/security-posture"}:
+        if any(f["severity"] == "BLOCK" for f in findings):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=503, content={"detail": "unsafe production configuration", "findings": findings}, headers=enterprise.security_headers(request_id))
+        if enterprise.load_runtime_config().require_auth:
+            try:
+                developer.authenticate(request.headers.get("X-Arbiter-Key"))
+            except HTTPException as e:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=e.status_code, content={"detail": e.detail}, headers=enterprise.security_headers(request_id))
+    response = await call_next(request)
+    for k, v in enterprise.security_headers(request_id).items():
+        response.headers[k] = v
+    return response
 
 _FRONTEND = os.path.join(os.path.dirname(__file__), "..", "dist")
 
@@ -65,11 +86,12 @@ class CompileIn(BaseModel):
     rules: str
     contract_version: int = 1
     metadata: dict = {}
+    exchange_profile: str = "generic"
     actor: str = "exchange.market-ops"
 
 
 @app.post("/api/compile", tags=["Compiler"])
-def compile_contract(inp: CompileIn, auth=Depends(developer.require_api_key)):
+def compile_contract(inp: CompileIn, auth=Depends(developer.require_scope("contracts:write"))):
     authorities = resolution_store.list_authorities()
     return compiler.compile_rules(
         contract_id=inp.contract_id,
@@ -77,12 +99,12 @@ def compile_contract(inp: CompileIn, auth=Depends(developer.require_api_key)):
         title=inp.title,
         rules=inp.rules,
         known_authorities=authorities,
-        metadata=inp.metadata,
+        metadata={**inp.metadata, "exchange_profile": inp.exchange_profile},
     )
 
 
 @app.post("/api/compile-and-create", tags=["Compiler"])
-def compile_and_create(inp: CompileIn, auth=Depends(developer.require_api_key)):
+def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("contracts:write"))):
     authorities = resolution_store.list_authorities()
     compiled = compiler.compile_rules(
         contract_id=inp.contract_id,
@@ -90,7 +112,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_api_key)):
         title=inp.title,
         rules=inp.rules,
         known_authorities=authorities,
-        metadata=inp.metadata,
+        metadata={**inp.metadata, "exchange_profile": inp.exchange_profile},
     )
     if compiled["status"] != "READY":
         raise HTTPException(422, {"error": "compilation_not_ready", "compilation": compiled})
@@ -106,8 +128,37 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_api_key)):
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.9.4", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.10.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
+
+
+
+@app.get("/api/readiness", tags=["Developer"])
+def readiness():
+    chain = resolution_store.verify_audit_chain()
+    findings = enterprise.configuration_findings()
+    ready = chain.get("ok") is True and not any(f["severity"] == "BLOCK" for f in findings)
+    payload = {
+        "ready": ready,
+        "service": "arbiter",
+        "version": "0.10.0",
+        "audit_chain": chain,
+        "configuration_findings": findings,
+        "database": resolution_store.summary(),
+    }
+    if not ready:
+        raise HTTPException(status_code=503, detail=payload)
+    return payload
+
+
+@app.get("/api/security-posture", tags=["Developer"])
+def security_posture():
+    return enterprise.posture()
+
+
+@app.get("/api/exchange-profiles", tags=["Developer"])
+def exchange_profile_registry():
+    return {"profiles": exchange_profiles.list_profiles()}
 
 @app.get("/api/markets")
 def markets(live: bool = False):
@@ -155,7 +206,7 @@ class PolicyUpdate(BaseModel):
 
 
 @app.post("/api/policy")
-def post_policy(u: PolicyUpdate, auth=Depends(developer.require_api_key)):
+def post_policy(u: PolicyUpdate, auth=Depends(developer.require_scope("policy:write"))):
     pol = policy.update_policy(u.weights, u.thresholds, u.by, u.note)
     _CACHE["reports"] = None  # rescore next fetch under new policy
     return pol
@@ -167,11 +218,12 @@ class AnalyzeIn(BaseModel):
     use_llm: bool = False
     case_id: str | None = None
     source_template_id: str | None = None
+    exchange_profile: str = "generic"
     actor: str = "operator:market-ops"
 
 
 @app.post("/api/analyze")
-def analyze(inp: AnalyzeIn):
+def analyze(inp: AnalyzeIn, auth=Depends(developer.require_scope("cases:write"))):
     pol = policy.load_policy()
     market = {"ticker": "LIVE-INPUT", "title": inp.question,
               "rules_primary": inp.criteria, "category": "live analysis"}
@@ -183,7 +235,7 @@ def analyze(inp: AnalyzeIn):
         title=inp.question,
         rules=inp.criteria,
         known_authorities=authorities,
-        metadata={"source": "live-analysis"},
+        metadata={"source": "live-analysis", "exchange_profile": inp.exchange_profile},
     )
     # Compiler/control gate dominates downstream resolution eligibility.
     if compilation["status"] == "BLOCK":
@@ -213,7 +265,8 @@ def analyze(inp: AnalyzeIn):
     else:
         resolution = engine.resolve(report, None)
     design = intelligence.design_review(report, inp.criteria)
-    out = {"report": report, "resolution": resolution, "design": design, "compilation": compilation}
+    boundary = exchange_profiles.integration_boundary(inp.exchange_profile, compilation.get("status", ""), resolution.get("outcome", ""))
+    out = {"report": report, "resolution": resolution, "design": design, "compilation": compilation, "integration_boundary": boundary}
     saved_case = resolution_store.save_analysis_case(
         title=inp.question, criteria=inp.criteria, result=out, actor=inp.actor,
         case_id=inp.case_id, source_template_id=inp.source_template_id,
@@ -262,7 +315,7 @@ def contract_templates():
 
 
 @app.post("/api/templates", tags=["Cases"])
-def create_template(inp: TemplateIn, auth=Depends(developer.require_api_key)):
+def create_template(inp: TemplateIn, auth=Depends(developer.require_scope("cases:write"))):
     try:
         template = resolution_store.save_template(
             name=inp.name, title=inp.title, criteria=inp.criteria, actor=inp.actor,
@@ -274,7 +327,7 @@ def create_template(inp: TemplateIn, auth=Depends(developer.require_api_key)):
 
 
 @app.post("/api/cases/{case_id}/template", tags=["Cases"])
-def template_from_case(case_id: str, inp: TemplateFromCaseIn, auth=Depends(developer.require_api_key)):
+def template_from_case(case_id: str, inp: TemplateFromCaseIn, auth=Depends(developer.require_scope("cases:write"))):
     case = resolution_store.get_analysis_case(case_id)
     if not case:
         raise HTTPException(404, "case not found")
@@ -357,7 +410,7 @@ class WorkItemUpdate(BaseModel):
 
 
 @app.post("/api/work-queue/{work_item_id}")
-def update_work_item(work_item_id: str, inp: WorkItemUpdate, auth=Depends(developer.require_api_key)):
+def update_work_item(work_item_id: str, inp: WorkItemUpdate, auth=Depends(developer.require_scope("operations:write"))):
     # Only state/ownership changes are persisted. The underlying work item is
     # always regenerated from governed Arbiter state.
     queue = _workflow_payload()[3]
@@ -412,7 +465,7 @@ def benchmark_failures():
     return benchmark_cases(failures_only=True)
 
 @app.post("/api/benchmark/run")
-def benchmark_run(auth=Depends(developer.require_api_key)):
+def benchmark_run(auth=Depends(developer.require_scope("benchmark:run"))):
     import json
     result = run_benchmark(engine, policy.load_policy(), _BENCHMARK_DATASET)
     os.makedirs(os.path.dirname(_BENCHMARK_RESULTS), exist_ok=True)
@@ -487,7 +540,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.9.4", "domain": resolution_store.summary(), "controls": CONTROLS,
+    return {"version": "0.10.0", "domain": resolution_store.summary(), "controls": CONTROLS,
             "principle": "Define → Evidence → Resolve → Audit"}
 
 @app.get("/api/contracts")
@@ -495,7 +548,7 @@ def contracts_registry():
     return {"contracts": resolution_store.list_contracts()}
 
 @app.post("/api/contracts")
-def create_contract(inp: ContractSpecIn, auth=Depends(developer.require_api_key)):
+def create_contract(inp: ContractSpecIn, auth=Depends(developer.require_scope("contracts:write"))):
     spec = ResolutionSpecification(**inp.model_dump(exclude={"actor", "status"}))
     known = {a["authority_id"] for a in resolution_store.list_authorities()}
     controls = evaluate_spec(spec.to_dict(), known)
@@ -520,7 +573,7 @@ def authorities_registry():
     return {"authorities": resolution_store.list_authorities()}
 
 @app.post("/api/authorities")
-def create_authority(inp: AuthorityIn, auth=Depends(developer.require_api_key)):
+def create_authority(inp: AuthorityIn, auth=Depends(developer.require_scope("authorities:write"))):
     authority = Authority(**inp.model_dump(exclude={"actor"}))
     try:
         saved = resolution_store.save_authority(authority, actor=inp.actor)
@@ -533,7 +586,7 @@ def evidence_registry(contract_id: str | None = None, limit: int = 100):
     return {"evidence": resolution_store.list_evidence(contract_id=contract_id, limit=min(limit, 500))}
 
 @app.post("/api/evidence")
-def append_evidence(inp: EvidenceIn, auth=Depends(developer.require_api_key)):
+def append_evidence(inp: EvidenceIn, auth=Depends(developer.require_scope("evidence:write"))):
     record = EvidenceRecord(
         evidence_id=gen_id("evid"), authority_id=inp.authority_id, authority_version=inp.authority_version,
         observed_at=inp.observed_at or utcnow(), retrieved_at=inp.retrieved_at or utcnow(),
@@ -551,7 +604,7 @@ def resolution_runs(contract_id: str | None = None, limit: int = 100):
     return {"runs": resolution_store.list_runs(contract_id=contract_id, limit=min(limit, 500))}
 
 @app.post("/api/resolution-runs")
-def create_resolution_run(inp: ResolutionRunIn, auth=Depends(developer.require_api_key)):
+def create_resolution_run(inp: ResolutionRunIn, auth=Depends(developer.require_scope("resolution:write"))):
     controls = evaluate_run(inp.model_dump())
     if any(c["status"] == "BLOCK" for c in controls):
         raise HTTPException(422, {"error": "resolution_control_failure", "controls": controls})
