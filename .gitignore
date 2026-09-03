@@ -5,3 +5,7 @@ backend/data/arbiter.db*
 backend/data/benchmark/latest_results.json
 backend/dist/
 frontend/node_modules/
+
+__pycache__/
+*.pyc
+.DS_Store
