@@ -20,12 +20,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
-app = FastAPI(title="Arbiter", version="0.7.0")
+app = FastAPI(title="Arbiter", version="0.8.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _FRONTEND = os.path.join(os.path.dirname(__file__), "..", "dist")
@@ -46,7 +46,7 @@ def _reports(live=False):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.7.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.8.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
 
 @app.get("/api/markets")
@@ -157,6 +157,53 @@ def portfolio():
 def executive_portfolio():
     reports, payload = _portfolio_payload()
     return executive.build(reports, payload, resolution_store.summary())
+
+
+def _workflow_payload():
+    reports, portfolio_payload = _portfolio_payload()
+    infra = resolution_store.summary()
+    infra["authorities"] = resolution_store.list_authorities()
+    exec_payload = executive.build(reports, portfolio_payload, infra)
+    queue = workflow.build_work_queue(reports, portfolio_payload, infra, resolution_store.list_work_states())
+    brief = workflow.build_agent_brief(queue, exec_payload)
+    overview = workflow.build_overview(exec_payload, queue, brief)
+    return reports, portfolio_payload, exec_payload, queue, brief, overview
+
+
+@app.get("/api/overview")
+def overview():
+    return _workflow_payload()[-1]
+
+
+@app.get("/api/work-queue")
+def work_queue():
+    return _workflow_payload()[3]
+
+
+@app.get("/api/agent/brief")
+def agent_brief():
+    return _workflow_payload()[4]
+
+
+class WorkItemUpdate(BaseModel):
+    status: str
+    owner: str = ""
+    note: str = ""
+    actor: str = "operator:compliance"
+
+
+@app.post("/api/work-queue/{work_item_id}")
+def update_work_item(work_item_id: str, inp: WorkItemUpdate):
+    # Only state/ownership changes are persisted. The underlying work item is
+    # always regenerated from governed Arbiter state.
+    queue = _workflow_payload()[3]
+    if not any(i["id"] == work_item_id for i in queue.get("items", [])):
+        raise HTTPException(404, "work item not found")
+    try:
+        state = resolution_store.set_work_state(work_item_id, inp.status, inp.owner, inp.note, inp.actor)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"state": state, "queue": _workflow_payload()[3]}
 
 
 # ---- resolution benchmark ----------------------------------------------------
@@ -276,7 +323,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.7.0", "domain": resolution_store.summary(), "controls": CONTROLS,
+    return {"version": "0.8.0", "domain": resolution_store.summary(), "controls": CONTROLS,
             "principle": "Define → Evidence → Resolve → Audit"}
 
 @app.get("/api/contracts")

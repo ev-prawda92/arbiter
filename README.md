@@ -89,3 +89,15 @@ determination of regulatory compliance.
 Arbiter now exposes the resolution-control state as a shared executive operating layer. Compliance, Market Operations, Finance, and leadership use the same underlying contract/evidence/resolution data through role-specific read-only lenses. The Portfolio view surfaces resolution-risk notional, held pre-payout exposure, dominant ambiguity drivers, category concentration, highest-risk contracts, coverage gaps, and audit-chain status.
 
 New API: `GET /api/executive`.
+
+## v0.8 — Operational Workflow
+
+Arbiter now presents two distinct operating surfaces on top of the same governed resolution state:
+
+**Executive Overview** — a read-only, low-click view of portfolio posture, payout holds, resolution-risk notional, primary risk drivers, audit integrity, and the most important actions.
+
+**Compliance / Resolution Operations Work Queue** — a prioritized exception queue for the people doing the work. HOLDs, monitored contracts, authority issues, evidence gaps, and audit-integrity failures become actionable work items with persisted operator status.
+
+The first **Arbiter Resolution Operations Agent** sits above the control plane as an advisory layer. It summarizes and prioritizes; it cannot change contract terms, evidence, policy, settlement outcomes, or payout authorization.
+
+New APIs: `/api/overview`, `/api/work-queue`, `/api/work-queue/{work_item_id}`, and `/api/agent/brief`.

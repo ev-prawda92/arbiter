@@ -245,6 +245,15 @@ class ResolutionStore:
                 );
                 CREATE INDEX IF NOT EXISTS ix_audit_object
                     ON audit_events(object_type, object_id, sequence);
+
+                CREATE TABLE IF NOT EXISTS work_item_state (
+                    work_item_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    owner TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL,
+                    updated_by TEXT NOT NULL
+                );
                 """
             )
 
@@ -386,6 +395,29 @@ class ResolutionStore:
             sql, args = "SELECT run_json FROM resolution_runs ORDER BY started_at DESC LIMIT ?", (limit,)
         return self._json_rows(sql, args, "run_json")
 
+
+    def list_work_states(self) -> dict[str, dict[str, Any]]:
+        with self.connect() as db:
+            rows = db.execute("SELECT * FROM work_item_state ORDER BY updated_at DESC").fetchall()
+        return {r["work_item_id"]: {
+            "work_item_id": r["work_item_id"], "status": r["status"], "owner": r["owner"],
+            "note": r["note"], "updated_at": r["updated_at"], "updated_by": r["updated_by"],
+        } for r in rows}
+
+    def set_work_state(self, work_item_id: str, status: str, owner: str = "", note: str = "", actor: str = "operator") -> dict[str, Any]:
+        if status not in {"open", "in_progress", "resolved"}:
+            raise ValueError("status must be open, in_progress, or resolved")
+        now = utcnow()
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO work_item_state(work_item_id,status,owner,note,updated_at,updated_by) VALUES(?,?,?,?,?,?) "
+                "ON CONFLICT(work_item_id) DO UPDATE SET status=excluded.status, owner=excluded.owner, note=excluded.note, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
+                (work_item_id, status, owner, note, now, actor),
+            )
+        self._audit(actor, "work_item.updated", "work_item", work_item_id,
+                    {"status": status, "owner": owner, "note": note})
+        return {"work_item_id": work_item_id, "status": status, "owner": owner, "note": note, "updated_at": now, "updated_by": actor}
+
     def audit_log(self, limit: int = 100, object_type: str | None = None, object_id: str | None = None) -> list[dict[str, Any]]:
         clauses, args = [], []
         if object_type:
@@ -433,6 +465,7 @@ class ResolutionStore:
                 "evidence_records": count("evidence_records"),
                 "resolution_runs": count("resolution_runs"),
                 "audit_events": count("audit_events"),
+                "work_item_states": count("work_item_state"),
                 "audit_chain": self.verify_audit_chain(),
             }
 

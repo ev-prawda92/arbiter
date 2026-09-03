@@ -4,9 +4,11 @@ import './styles.css'
 import ReactDOM from 'react-dom/client'
 
 function App() {
-  const [view, setView] = useState('markets') // markets, monitoring, benchmark, infrastructure, policy, analyze
+  const [view, setView] = useState('overview') // overview, work, markets, monitoring, benchmark, infrastructure, policy
   const [markets, setMarkets] = useState([])
   const [monitoring, setMonitoring] = useState(null)
+  const [overview, setOverview] = useState(null)
+  const [workQueue, setWorkQueue] = useState(null)
   const [policy, setPolicy] = useState(null)
   const [benchmark, setBenchmark] = useState(null)
   const [infrastructure, setInfrastructure] = useState(null)
@@ -18,6 +20,7 @@ function App() {
 
   useEffect(() => {
     loadMarkets()
+    loadOverview()
   }, [])
 
   const loadMarkets = async (live = false) => {
@@ -34,6 +37,34 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+
+  const loadOverview = async () => {
+    try {
+      const r = await fetch('/api/overview')
+      setOverview(await r.json())
+    } catch (e) { console.error(e) }
+  }
+
+  const loadWorkQueue = async () => {
+    try {
+      const r = await fetch('/api/work-queue')
+      setWorkQueue(await r.json())
+    } catch (e) { console.error(e) }
+  }
+
+  const updateWorkItem = async (id, status) => {
+    try {
+      const r = await fetch(`/api/work-queue/${id}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, actor: 'operator:compliance' })
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.detail || 'update failed')
+      setWorkQueue(d.queue)
+      await loadOverview()
+    } catch (e) { console.error(e) }
   }
 
   const loadMonitoring = async () => {
@@ -91,6 +122,12 @@ function App() {
 
   const handleViewChange = async (v) => {
     setView(v)
+    if (v === 'overview' && !overview) {
+      await loadOverview()
+    }
+    if (v === 'work' && !workQueue) {
+      await loadWorkQueue()
+    }
     if (v === 'monitoring' && !monitoring) {
       await loadMonitoring()
     }
@@ -107,7 +144,15 @@ function App() {
 
   return (
     <div className="arbiter">
-      <Rail markets={markets} view={view} onViewChange={handleViewChange} onRefresh={() => loadMarkets()} />
+      <Rail markets={markets} view={view} onViewChange={handleViewChange} onRefresh={() => { loadMarkets(); loadOverview(); loadWorkQueue(); }} />
+
+      {view === 'overview' && (
+        <OverviewView data={overview} onWork={() => handleViewChange('work')} onResolution={() => handleViewChange('markets')} />
+      )}
+
+      {view === 'work' && (
+        <WorkQueueView data={workQueue} onUpdate={updateWorkItem} />
+      )}
       
       {view === 'markets' && (
         <MarketsView
@@ -159,6 +204,8 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
           <span className="sub">Resolution Control Infrastructure</span>
         </div>
         <div className="nav">
+          <button className={`nav-btn ${view === 'overview' ? 'active' : ''}`} onClick={() => onViewChange('overview')}>Overview</button>
+          <button className={`nav-btn ${view === 'work' ? 'active' : ''}`} onClick={() => onViewChange('work')}>Work Queue</button>
           <button
             className={`nav-btn ${view === 'markets' ? 'active' : ''}`}
             onClick={() => onViewChange('markets')}
@@ -194,6 +241,66 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function OverviewView({ data, onWork, onResolution }) {
+  if (!data) return <div className="view"><p>Loading exchange resolution health...</p></div>
+  const h = data.health || {}
+  const a = data.attention || {}
+  const brief = data.agent_brief || {}
+  const money = n => `$${((n || 0) / 1e6).toFixed(1)}M`
+  return (
+    <div className="view executive-overview">
+      <div className="strip overview-strip">
+        <p className="eyebrow">Exchange Resolution Health · Executive Overview</p>
+        <h1>What needs attention, what money is exposed, and whether settlement controls are working.</h1>
+        <p className="dek">A read-only view for leadership. Arbiter compresses contract, evidence, control, resolution, and audit state into one operating picture.</p>
+        <div className="metrics overview-metrics">
+          <div className="metric"><div className="n">{String(h.posture || '—').toUpperCase()}</div><div className="l">portfolio posture</div></div>
+          <div className="metric"><div className="n">{money(h.resolution_risk_notional)}</div><div className="l">resolution-risk notional</div></div>
+          <div className="metric warn"><div className="n">{money(h.held_notional)}</div><div className="l">held before payout</div></div>
+          <div className="metric"><div className="n">{a.active || 0}</div><div className="l">active operator items</div></div>
+          <div className="metric"><div className="n">{h.primary_risk_driver || '—'}</div><div className="l">primary risk driver</div></div>
+          <div className="metric"><div className="n">{h.audit_chain_ok === true ? 'VERIFIED' : 'CHECK'}</div><div className="l">audit integrity</div></div>
+        </div>
+      </div>
+      <div className="overview-wrap">
+        <section className="agent-brief-card">
+          <div className="brief-head"><div><p className="eyebrow">Resolution Operations Agent · Advisory</p><h2>{brief.headline}</h2></div><span className="agent-mode">NON-BINDING</span></div>
+          <div className="brief-grid">
+            <div><h3>Today</h3>{(brief.brief || []).map((x,i)=><p key={i} className="brief-line">{x}</p>)}</div>
+            <div><h3>Top actions</h3>{(brief.top_actions || []).map(x=><div className="action-card" key={x.id}><span className={`severity ${x.severity}`}>{x.severity}</span><strong>{x.title}</strong><p>{x.recommended_action}</p></div>)}</div>
+          </div>
+          <div className="overview-actions"><button onClick={onWork}>Open operator work queue →</button><button className="secondary" onClick={onResolution}>Inspect resolution cases</button></div>
+        </section>
+        <section className="exec-risk-list">
+          <h2 className="sect-h">Highest-risk contracts</h2>
+          {(data.top_risks || []).map(r => <div className="exec-risk-row" key={r.ticker}><div><span className="mono">{r.ticker}</span><strong>{r.title}</strong></div><span>risk {r.composite}</span><span>{money(r.open_interest)}</span></div>)}
+        </section>
+        <p className="boundary-note">{brief.boundary || data.boundary}</p>
+      </div>
+    </div>
+  )
+}
+
+function WorkQueueView({ data, onUpdate }) {
+  if (!data) return <div className="view"><p>Loading compliance work queue...</p></div>
+  const s = data.summary || {}
+  const active = (data.items || []).filter(i => i.status !== 'resolved')
+  const resolved = (data.items || []).filter(i => i.status === 'resolved')
+  const money = n => `$${((n || 0) / 1e6).toFixed(1)}M`
+  const row = item => (
+    <div className={`work-row ${item.severity}`} key={item.id}>
+      <div className="work-main"><div className="work-meta"><span className={`severity ${item.severity}`}>{item.severity}</span><span>{item.kind.replaceAll('_',' ')}</span><span>{item.owner_role}</span></div><h3>{item.title}</h3><p>{item.detail}</p><div className="work-action"><strong>Recommended:</strong> {item.recommended_action}</div></div>
+      <div className="work-side"><div className="work-money">{item.notional ? money(item.notional) : '—'}</div><select value={item.status} onChange={e => onUpdate(item.id, e.target.value)}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></div>
+    </div>
+  )
+  return (
+    <div className="view work-view">
+      <div className="strip work-strip"><p className="eyebrow">Compliance / Resolution Operations Workspace</p><h1>Handle exceptions, not dashboards.</h1><p className="dek">Arbiter continuously derives work from contract risk, authority state, evidence gaps, HOLDs, and audit integrity. The operator handles the exceptions that actually require judgment.</p><div className="metrics"><div className="metric"><div className="n">{s.active || 0}</div><div className="l">active items</div></div><div className="metric warn"><div className="n">{s.critical || 0}</div><div className="l">critical</div></div><div className="metric"><div className="n">{s.high || 0}</div><div className="l">high priority</div></div><div className="metric"><div className="n">{money(s.notional)}</div><div className="l">notional represented</div></div></div></div>
+      <div className="work-wrap"><h2 className="sect-h">Needs attention</h2>{active.length ? active.map(row) : <div className="empty-work">No active exceptions. Arbiter will surface new work here as governed state changes.</div>}{resolved.length > 0 && <><h2 className="sect-h resolved-h">Resolved</h2>{resolved.map(row)}</>}<p className="boundary-note">{data.boundary}</p></div>
     </div>
   )
 }
