@@ -4,7 +4,7 @@ import './styles.css'
 import ReactDOM from 'react-dom/client'
 
 function App() {
-  const [view, setView] = useState('overview') // overview, work, markets, monitoring, benchmark, infrastructure, policy
+  const [view, setView] = useState('overview') // overview, work, cases, markets, monitoring, benchmark, infrastructure, policy
   const [markets, setMarkets] = useState([])
   const [monitoring, setMonitoring] = useState(null)
   const [overview, setOverview] = useState(null)
@@ -16,6 +16,8 @@ function App() {
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
   const [analyzeModal, setAnalyzeModal] = useState(false)
+  const [analysisSeed, setAnalysisSeed] = useState(null)
+  const [casesData, setCasesData] = useState({ cases: [], templates: [] })
   const [analyzingLive, setAnalyzingLive] = useState(false)
 
   useEffect(() => {
@@ -39,6 +41,35 @@ function App() {
     }
   }
 
+
+
+  const loadCases = async () => {
+    try {
+      const [casesR, templatesR] = await Promise.all([fetch('/api/cases'), fetch('/api/templates')])
+      const [cases, templates] = await Promise.all([casesR.json(), templatesR.json()])
+      setCasesData({ cases: cases.cases || [], templates: templates.templates || [] })
+    } catch (e) { console.error(e) }
+  }
+
+
+  const saveCaseAsTemplate = async (caseItem) => {
+    const name = window.prompt('Template name', caseItem.title.slice(0, 60))
+    if (!name) return
+    try {
+      const r = await fetch(`/api/cases/${caseItem.case_id}/template`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, actor: 'operator:market-ops' })
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.detail || 'template creation failed')
+      await loadCases()
+    } catch (e) { console.error(e); window.alert(e.message) }
+  }
+
+  const openNewAnalysis = (seed = null) => {
+    setAnalysisSeed(seed)
+    setAnalyzeModal(true)
+  }
 
   const loadOverview = async () => {
     try {
@@ -89,11 +120,11 @@ function App() {
 
   const loadInfrastructure = async () => {
     try {
-      const [infraR, authR, auditR] = await Promise.all([
-        fetch('/api/infrastructure'), fetch('/api/authorities'), fetch('/api/audit?limit=25')
+      const [infraR, authR, auditR, devR] = await Promise.all([
+        fetch('/api/infrastructure'), fetch('/api/authorities'), fetch('/api/audit?limit=25'), fetch('/api/developer')
       ])
-      const [infra, authorities, audit] = await Promise.all([infraR.json(), authR.json(), auditR.json()])
-      setInfrastructure({ ...infra, authorities: authorities.authorities || [], audit })
+      const [infra, authorities, audit, developer] = await Promise.all([infraR.json(), authR.json(), auditR.json(), devR.json()])
+      setInfrastructure({ ...infra, authorities: authorities.authorities || [], audit, developer })
     } catch (e) {
       console.error(e)
     }
@@ -128,6 +159,9 @@ function App() {
     if (v === 'work' && !workQueue) {
       await loadWorkQueue()
     }
+    if (v === 'cases') {
+      await loadCases()
+    }
     if (v === 'monitoring' && !monitoring) {
       await loadMonitoring()
     }
@@ -154,6 +188,10 @@ function App() {
         <WorkQueueView data={workQueue} onUpdate={updateWorkItem} />
       )}
       
+      {view === 'cases' && (
+        <CasesView data={casesData} onNew={() => openNewAnalysis()} onOpen={(seed) => openNewAnalysis(seed)} onTemplate={saveCaseAsTemplate} />
+      )}
+
       {view === 'markets' && (
         <MarketsView
           markets={markets}
@@ -161,7 +199,7 @@ function App() {
           detail={detail}
           loading={loading}
           onSelectMarket={selectMarket}
-          onAnalyzeClick={() => setAnalyzeModal(true)}
+          onAnalyzeClick={() => openNewAnalysis()}
         />
       )}
       
@@ -183,11 +221,27 @@ function App() {
 
       {analyzeModal && (
         <AnalyzeModal
-          onClose={() => setAnalyzeModal(false)}
+          initial={analysisSeed}
+          onClose={() => { setAnalyzeModal(false); setAnalysisSeed(null) }}
           onSuccess={(result) => {
             setAnalyzeModal(false)
-            // Show result inline or in detail
-            setDetail({ report: result.report, resolution: result.resolution })
+            setAnalysisSeed(null)
+            loadCases()
+            setSelected({
+              ticker: result.report.ticker || 'LIVE-INPUT',
+              title: result.report.title,
+              category: result.report.category || 'live analysis',
+              open_interest: 0,
+              verdict: result.report.verdict,
+              rules_primary: result.report.rules_primary || ''
+            })
+            setDetail({
+              report: result.report,
+              resolution: result.resolution,
+              design: result.design,
+              compilation: result.compilation
+            })
+            setView('markets')
           }}
         />
       )}
@@ -206,6 +260,7 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
         <div className="nav">
           <button className={`nav-btn ${view === 'overview' ? 'active' : ''}`} onClick={() => onViewChange('overview')}>Overview</button>
           <button className={`nav-btn ${view === 'work' ? 'active' : ''}`} onClick={() => onViewChange('work')}>Work Queue</button>
+          <button className={`nav-btn ${view === 'cases' ? 'active' : ''}`} onClick={() => onViewChange('cases')}>Cases</button>
           <button
             className={`nav-btn ${view === 'markets' ? 'active' : ''}`}
             onClick={() => onViewChange('markets')}
@@ -416,15 +471,22 @@ function DetailPanel({ detail, market }) {
     return 'hi'
   }
 
+  const compilerGate = detail.compilation?.status
+  const effectiveVerdict = compilerGate === 'BLOCK'
+    ? { key: 'review', label: 'BLOCKED', note: 'specification gate' }
+    : compilerGate === 'REVIEW'
+      ? { key: 'review', label: 'REVIEW', note: 'human review required' }
+      : verdict
+
   return (
     <div className="panel">
       <div className="panel-head">
         <div className="id">{report.ticker}</div>
         <div className="cat2">{report.category}</div>
         <h2>{report.title}</h2>
-        <div className={`stamp ${verdict.key}`}>
-          <span className="v">{verdict.label.replace(' — ', ' ')}</span>
-          <span className="s">{verdict.note} · {composite}</span>
+        <div className={`stamp ${effectiveVerdict.key}`}>
+          <span className="v">{effectiveVerdict.label.replace(' — ', ' ')}</span>
+          <span className="s">{effectiveVerdict.note}{compilerGate ? ` · ${compilerGate}` : ` · ${composite}`}</span>
         </div>
       </div>
 
@@ -433,10 +495,32 @@ function DetailPanel({ detail, market }) {
         <div className="crit">
           <div className="row">
             <span className="k">Source</span>
-            {market.rules_primary}
+            {report.rules_primary || market?.rules_primary || 'No resolution criteria available.'}
           </div>
         </div>
       </div>
+
+      {detail.compilation && (
+        <div className="sect">
+          <p className="sect-h">Compiled resolution specification</p>
+          <div className="compiler-inline">
+            <div className="panel-title-row"><strong>Compiler status</strong><span className={`compile-status ${detail.compilation.status.toLowerCase()}`}>{detail.compilation.status}</span></div>
+            <div className="compiler-grid">
+              <div><span className="result-label">Authorities</span><strong>{detail.compilation.proposed_spec.authority_ids.join(', ') || 'UNRESOLVED'}</strong></div>
+              <div><span className="result-label">Definition</span><strong>{detail.compilation.proposed_spec.definition.type || 'UNRESOLVED'}</strong></div>
+              <div><span className="result-label">Compiler</span><strong>v{detail.compilation.compiler_version}</strong></div>
+            </div>
+            {detail.compilation.unresolved_fields.length > 0 && <div className="unresolved"><strong>Unresolved:</strong> {detail.compilation.unresolved_fields.join(' · ')}</div>}
+            {detail.compilation.recommended_fixes?.length > 0 && (
+              <div className="compiler-fixes">
+                <strong>Recommended fixes</strong>
+                {detail.compilation.recommended_fixes.map((f, i) => <div key={`${f.field}-${i}`}>• {f.action}</div>)}
+              </div>
+            )}
+            <details><summary>View proposed machine-readable specification</summary><pre>{JSON.stringify(detail.compilation.proposed_spec, null, 2)}</pre></details>
+          </div>
+        </div>
+      )}
 
       <div className="sect">
         <p className="sect-h">Ambiguity by lever</p>
@@ -470,7 +554,7 @@ function DetailPanel({ detail, market }) {
         <div className="composite">
           <span className="big">{composite}</span>
           <span className="txt">
-            Composite dispute-risk score · <b>{verdict.label}</b>
+            Composite dispute-risk score · <b>{compilerGate === 'BLOCK' ? 'BLOCKED BY SPECIFICATION' : compilerGate === 'REVIEW' ? 'REVIEW REQUIRED' : verdict.label}</b>
             <br />
             weighted: source 0.30 · timing 0.30 · definition 0.40
           </span>
@@ -746,6 +830,16 @@ function InfrastructureView({ data }) {
           </div>)}
         </section>
       </div>
+      <section className="control-panel developer-panel">
+        <div className="panel-title-row"><h2>Developer platform</h2><span className="audit-ok">v1 PREVIEW</span></div>
+        <p>Integrate Arbiter directly into market-listing, evidence, resolution, and audit pipelines.</p>
+        <div className="developer-links">
+          <a href="/docs" target="_blank" rel="noreferrer">Interactive API docs ↗</a>
+          <a href="/redoc" target="_blank" rel="noreferrer">ReDoc reference ↗</a>
+          <a href="/openapi.json" target="_blank" rel="noreferrer">OpenAPI schema ↗</a>
+        </div>
+        <div className="mono muted">Auth: {data.developer?.auth?.enabled ? 'X-Arbiter-Key required' : 'local-open · configure ARBITER_API_KEYS for protected writes'}</div>
+      </section>
       <section className="control-panel audit-panel">
         <div className="panel-title-row"><h2>Audit chain</h2><span className={audit.chain?.ok ? 'audit-ok' : 'audit-bad'}>{audit.chain?.ok ? 'VERIFIED' : 'UNVERIFIED'}</span></div>
         <div className="mono audit-head">HEAD {audit.chain?.head || '—'}</div>
@@ -818,9 +912,50 @@ function PolicyView({ data }) {
   )
 }
 
-function AnalyzeModal({ onClose, onSuccess }) {
-  const [q, setQ] = useState('')
-  const [c, setC] = useState('')
+function CasesView({ data, onNew, onOpen, onTemplate }) {
+  const cases = data?.cases || []
+  const templates = data?.templates || []
+  return (
+    <main className="cases-view page-shell">
+      <div className="eyebrow">CASE REGISTRY · REUSABLE CONTRACT WORK</div>
+      <div className="page-title-row">
+        <div>
+          <h1>Saved cases and contract templates.</h1>
+          <p>Every compiler run is retained. Reopen a case, revise it, rerun it, or start a new contract from a reusable template.</p>
+        </div>
+        <button className="run" onClick={onNew}>New contract review</button>
+      </div>
+      <section className="cases-section">
+        <h2 className="sect-h">Recent cases</h2>
+        <div className="case-list">
+          {cases.length ? cases.map(c => (
+            <div className="case-row" key={c.case_id}>
+              <button className="case-main" onClick={() => onOpen({ question: c.title, criteria: c.criteria, case_id: c.case_id })}>
+                <div><span className="mono tiny">{c.case_id}</span><strong>{c.title}</strong><span className="muted">Updated {new Date(c.updated_at).toLocaleString()}</span></div>
+                <div className="case-meta"><span className={`compile-status ${(c.compiler_status || '').toLowerCase()}`}>{c.compiler_status}</span><span>{c.resolution_outcome}</span></div>
+              </button>
+              <button className="template-action" onClick={() => onTemplate(c)}>Save as template</button>
+            </div>
+          )) : <div className="empty-card">No saved cases yet. Compile a contract and it will appear here automatically.</div>}
+        </div>
+      </section>
+      <section className="cases-section">
+        <h2 className="sect-h">Templates</h2>
+        <div className="template-grid">
+          {templates.length ? templates.map(t => (
+            <button className="template-card" key={t.template_id} onClick={() => onOpen({ question: t.title, criteria: t.criteria, source_template_id: t.template_id })}>
+              <span className="mono tiny">{t.template_id}</span><strong>{t.name}</strong><span>{t.title}</span><small>Start new case from template →</small>
+            </button>
+          )) : <div className="empty-card">No templates yet. Templates can be created from validated recurring contract structures.</div>}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function AnalyzeModal({ onClose, onSuccess, initial = null }) {
+  const [q, setQ] = useState(initial?.question || '')
+  const [c, setC] = useState(initial?.criteria || '')
   const [analyzing, setAnalyzing] = useState(false)
   const [err, setErr] = useState('')
   const [result, setResult] = useState(null)
@@ -833,13 +968,12 @@ function AnalyzeModal({ onClose, onSuccess }) {
     setAnalyzing(true)
     setErr('')
     try {
-      const r = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q, criteria: c, use_llm: false })
+      const analysisR = await fetch('/api/analyze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, criteria: c, use_llm: false, case_id: initial?.case_id || null, source_template_id: initial?.source_template_id || null })
       })
-      if (!r.ok) throw new Error('analysis failed')
-      const d = await r.json()
+      if (!analysisR.ok) throw new Error('analysis or compilation failed')
+      const d = await analysisR.json()
       setResult(d)
       if (onSuccess) onSuccess(d)
     } catch (e) {
@@ -857,8 +991,8 @@ function AnalyzeModal({ onClose, onSuccess }) {
       <div className="modal modal-wide">
         <div className="modal-head">
           <div>
-            <h3>Contract Intelligence</h3>
-            <p>Review resolution design before listing. Arbiter scores the contract, names the deficiencies, and proposes deterministic drafting fixes.</p>
+            <h3>Resolution Compiler</h3>
+            <p>Compile natural-language market rules into a proposed executable Resolution Specification, then run the same governed integrity review before listing.</p>
           </div>
           <button className="x" onClick={onClose}>×</button>
         </div>
@@ -883,8 +1017,27 @@ function AnalyzeModal({ onClose, onSuccess }) {
           </div>
           {err && <div className="err show">{err}</div>}
           <button className="run" onClick={handleAnalyze} disabled={analyzing}>
-            {analyzing ? '⟳ Reviewing…' : 'Run contract intelligence review'}
+            {analyzing ? '⟳ Compiling…' : 'Compile + review contract'}
           </button>
+
+          {result?.compilation && (
+            <div className="design-block compiler-result">
+              <div className="panel-title-row"><h4>Resolution Specification</h4><span className={`compile-status ${result.compilation.status.toLowerCase()}`}>{result.compilation.status}</span></div>
+              <div className="compiler-grid">
+                <div><span className="result-label">Authorities</span><strong>{result.compilation.proposed_spec.authority_ids.join(', ') || 'UNRESOLVED'}</strong></div>
+                <div><span className="result-label">Definition</span><strong>{result.compilation.proposed_spec.definition.type || 'UNRESOLVED'}</strong></div>
+                <div><span className="result-label">Compiler</span><strong>v{result.compilation.compiler_version}</strong></div>
+              </div>
+              {result.compilation.unresolved_fields.length > 0 && <div className="unresolved"><strong>Unresolved:</strong> {result.compilation.unresolved_fields.join(' · ')}</div>}
+              {result.compilation.recommended_fixes?.length > 0 && (
+                <div className="compiler-fixes">
+                  <strong>Recommended fixes</strong>
+                  {result.compilation.recommended_fixes.map((f, i) => <div key={`${f.field}-${i}`}>• {f.action}</div>)}
+                </div>
+              )}
+              <details><summary>View proposed machine-readable specification</summary><pre>{JSON.stringify(result.compilation.proposed_spec, null, 2)}</pre></details>
+            </div>
+          )}
 
           {design && report && (
             <div className="design-result">

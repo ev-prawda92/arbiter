@@ -14,18 +14,28 @@ Serves the frontend at /.
 """
 
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow
-from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow)
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer
+from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
-app = FastAPI(title="Arbiter", version="0.8.0")
+app = FastAPI(
+    title="Arbiter API",
+    version="0.9.4",
+    description=(
+        "Resolution control infrastructure for event-contract exchanges. "
+        "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
+        "triage operator work, and verify the audit chain. Advisory intelligence is non-binding."
+    ),
+    docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
+    contact={"name": "Arbiter Developer Platform"},
+)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _FRONTEND = os.path.join(os.path.dirname(__file__), "..", "dist")
@@ -44,9 +54,59 @@ def _reports(live=False):
     return reports
 
 
-@app.get("/api/health")
+@app.get("/api/developer", tags=["Developer"])
+def developer_manifest():
+    return developer.developer_manifest()
+
+
+class CompileIn(BaseModel):
+    contract_id: str
+    title: str
+    rules: str
+    contract_version: int = 1
+    metadata: dict = {}
+    actor: str = "exchange.market-ops"
+
+
+@app.post("/api/compile", tags=["Compiler"])
+def compile_contract(inp: CompileIn, auth=Depends(developer.require_api_key)):
+    authorities = resolution_store.list_authorities()
+    return compiler.compile_rules(
+        contract_id=inp.contract_id,
+        contract_version=inp.contract_version,
+        title=inp.title,
+        rules=inp.rules,
+        known_authorities=authorities,
+        metadata=inp.metadata,
+    )
+
+
+@app.post("/api/compile-and-create", tags=["Compiler"])
+def compile_and_create(inp: CompileIn, auth=Depends(developer.require_api_key)):
+    authorities = resolution_store.list_authorities()
+    compiled = compiler.compile_rules(
+        contract_id=inp.contract_id,
+        contract_version=inp.contract_version,
+        title=inp.title,
+        rules=inp.rules,
+        known_authorities=authorities,
+        metadata=inp.metadata,
+    )
+    if compiled["status"] != "READY":
+        raise HTTPException(422, {"error": "compilation_not_ready", "compilation": compiled})
+    spec_data = dict(compiled["proposed_spec"])
+    spec_data.pop("schema", None)
+    spec = ResolutionSpecification(**spec_data)
+    try:
+        saved = resolution_store.save_contract(spec, actor=inp.actor, status="approved")
+    except Exception as e:
+        raise HTTPException(409, str(e)) from e
+    return {"compilation": compiled, "contract": saved}
+
+
+@app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.8.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.9.4", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
 
 @app.get("/api/markets")
@@ -95,7 +155,7 @@ class PolicyUpdate(BaseModel):
 
 
 @app.post("/api/policy")
-def post_policy(u: PolicyUpdate):
+def post_policy(u: PolicyUpdate, auth=Depends(developer.require_api_key)):
     pol = policy.update_policy(u.weights, u.thresholds, u.by, u.note)
     _CACHE["reports"] = None  # rescore next fetch under new policy
     return pol
@@ -105,6 +165,9 @@ class AnalyzeIn(BaseModel):
     question: str
     criteria: str
     use_llm: bool = False
+    case_id: str | None = None
+    source_template_id: str | None = None
+    actor: str = "operator:market-ops"
 
 
 @app.post("/api/analyze")
@@ -113,15 +176,116 @@ def analyze(inp: AnalyzeIn):
     market = {"ticker": "LIVE-INPUT", "title": inp.question,
               "rules_primary": inp.criteria, "category": "live analysis"}
     report = engine.analyze(market, pol)
-    resolution = engine.resolve(report, None)
+    authorities = resolution_store.list_authorities()
+    compilation = compiler.compile_rules(
+        contract_id="LIVE-INPUT",
+        contract_version=1,
+        title=inp.question,
+        rules=inp.criteria,
+        known_authorities=authorities,
+        metadata={"source": "live-analysis"},
+    )
+    # Compiler/control gate dominates downstream resolution eligibility.
+    if compilation["status"] == "BLOCK":
+        resolution = {
+            "outcome": "HELD",
+            "gate": "COMPILER_BLOCK",
+            "trail": [{
+                "act": "Resolution HELD",
+                "ts": utcnow(),
+                "detail": "Contract compilation is BLOCKED. Resolution and payout authorization are disabled until the specification is corrected or governed review changes the state.",
+                "sig": canonical_hash({"contract": "LIVE-INPUT", "gate": "COMPILER_BLOCK", "unresolved": compilation.get("unresolved_fields", [])})[:18],
+                "hold": True,
+            }],
+        }
+    elif compilation["status"] == "REVIEW":
+        resolution = {
+            "outcome": "HELD",
+            "gate": "COMPILER_REVIEW",
+            "trail": [{
+                "act": "Human review required",
+                "ts": utcnow(),
+                "detail": "Contract compilation requires governed human review before automated resolution can proceed.",
+                "sig": canonical_hash({"contract": "LIVE-INPUT", "gate": "COMPILER_REVIEW", "unresolved": compilation.get("unresolved_fields", [])})[:18],
+                "hold": True,
+            }],
+        }
+    else:
+        resolution = engine.resolve(report, None)
     design = intelligence.design_review(report, inp.criteria)
-    out = {"report": report, "resolution": resolution, "design": design}
+    out = {"report": report, "resolution": resolution, "design": design, "compilation": compilation}
+    saved_case = resolution_store.save_analysis_case(
+        title=inp.question, criteria=inp.criteria, result=out, actor=inp.actor,
+        case_id=inp.case_id, source_template_id=inp.source_template_id,
+    )
+    out["case"] = saved_case
     if inp.use_llm:
         try:
             out["llm_triage"] = llm.triage(inp.question, inp.criteria)
         except Exception as e:  # noqa: BLE001
             out["llm_triage"] = {"error": "llm_failed", "message": str(e)}
     return out
+
+
+
+
+@app.get("/api/cases", tags=["Cases"])
+def analysis_cases(limit: int = 50):
+    return {"cases": resolution_store.list_analysis_cases(limit=min(limit, 200))}
+
+
+@app.get("/api/cases/{case_id}", tags=["Cases"])
+def analysis_case(case_id: str):
+    case = resolution_store.get_analysis_case(case_id)
+    if not case:
+        raise HTTPException(404, "case not found")
+    return {"case": case}
+
+
+class TemplateIn(BaseModel):
+    name: str
+    title: str
+    criteria: str
+    source_case_id: str | None = None
+    metadata: dict = {}
+    actor: str = "operator:market-ops"
+
+
+class TemplateFromCaseIn(BaseModel):
+    name: str
+    actor: str = "operator:market-ops"
+
+
+@app.get("/api/templates", tags=["Cases"])
+def contract_templates():
+    return {"templates": resolution_store.list_templates()}
+
+
+@app.post("/api/templates", tags=["Cases"])
+def create_template(inp: TemplateIn, auth=Depends(developer.require_api_key)):
+    try:
+        template = resolution_store.save_template(
+            name=inp.name, title=inp.title, criteria=inp.criteria, actor=inp.actor,
+            source_case_id=inp.source_case_id, metadata=inp.metadata,
+        )
+    except Exception as e:
+        raise HTTPException(409, str(e)) from e
+    return {"template": template}
+
+
+@app.post("/api/cases/{case_id}/template", tags=["Cases"])
+def template_from_case(case_id: str, inp: TemplateFromCaseIn, auth=Depends(developer.require_api_key)):
+    case = resolution_store.get_analysis_case(case_id)
+    if not case:
+        raise HTTPException(404, "case not found")
+    try:
+        template = resolution_store.save_template(
+            name=inp.name, title=case["title"], criteria=case["criteria"], actor=inp.actor,
+            source_case_id=case_id, metadata={"compiler_status": case["compiler_status"]},
+        )
+    except Exception as e:
+        raise HTTPException(409, str(e)) from e
+    return {"template": template}
 
 
 def _portfolio_payload():
@@ -193,7 +357,7 @@ class WorkItemUpdate(BaseModel):
 
 
 @app.post("/api/work-queue/{work_item_id}")
-def update_work_item(work_item_id: str, inp: WorkItemUpdate):
+def update_work_item(work_item_id: str, inp: WorkItemUpdate, auth=Depends(developer.require_api_key)):
     # Only state/ownership changes are persisted. The underlying work item is
     # always regenerated from governed Arbiter state.
     queue = _workflow_payload()[3]
@@ -248,7 +412,7 @@ def benchmark_failures():
     return benchmark_cases(failures_only=True)
 
 @app.post("/api/benchmark/run")
-def benchmark_run():
+def benchmark_run(auth=Depends(developer.require_api_key)):
     import json
     result = run_benchmark(engine, policy.load_policy(), _BENCHMARK_DATASET)
     os.makedirs(os.path.dirname(_BENCHMARK_RESULTS), exist_ok=True)
@@ -323,7 +487,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.8.0", "domain": resolution_store.summary(), "controls": CONTROLS,
+    return {"version": "0.9.4", "domain": resolution_store.summary(), "controls": CONTROLS,
             "principle": "Define → Evidence → Resolve → Audit"}
 
 @app.get("/api/contracts")
@@ -331,7 +495,7 @@ def contracts_registry():
     return {"contracts": resolution_store.list_contracts()}
 
 @app.post("/api/contracts")
-def create_contract(inp: ContractSpecIn):
+def create_contract(inp: ContractSpecIn, auth=Depends(developer.require_api_key)):
     spec = ResolutionSpecification(**inp.model_dump(exclude={"actor", "status"}))
     known = {a["authority_id"] for a in resolution_store.list_authorities()}
     controls = evaluate_spec(spec.to_dict(), known)
@@ -356,7 +520,7 @@ def authorities_registry():
     return {"authorities": resolution_store.list_authorities()}
 
 @app.post("/api/authorities")
-def create_authority(inp: AuthorityIn):
+def create_authority(inp: AuthorityIn, auth=Depends(developer.require_api_key)):
     authority = Authority(**inp.model_dump(exclude={"actor"}))
     try:
         saved = resolution_store.save_authority(authority, actor=inp.actor)
@@ -369,7 +533,7 @@ def evidence_registry(contract_id: str | None = None, limit: int = 100):
     return {"evidence": resolution_store.list_evidence(contract_id=contract_id, limit=min(limit, 500))}
 
 @app.post("/api/evidence")
-def append_evidence(inp: EvidenceIn):
+def append_evidence(inp: EvidenceIn, auth=Depends(developer.require_api_key)):
     record = EvidenceRecord(
         evidence_id=gen_id("evid"), authority_id=inp.authority_id, authority_version=inp.authority_version,
         observed_at=inp.observed_at or utcnow(), retrieved_at=inp.retrieved_at or utcnow(),
@@ -387,7 +551,7 @@ def resolution_runs(contract_id: str | None = None, limit: int = 100):
     return {"runs": resolution_store.list_runs(contract_id=contract_id, limit=min(limit, 500))}
 
 @app.post("/api/resolution-runs")
-def create_resolution_run(inp: ResolutionRunIn):
+def create_resolution_run(inp: ResolutionRunIn, auth=Depends(developer.require_api_key)):
     controls = evaluate_run(inp.model_dump())
     if any(c["status"] == "BLOCK" for c in controls):
         raise HTTPException(422, {"error": "resolution_control_failure", "controls": controls})

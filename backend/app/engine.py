@@ -78,7 +78,7 @@ def score_source(text, title):
         score += 26
         flags.append("multiple sources, no stated hierarchy")
 
-    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(r"initial (print|release|estimate)|first (print|release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob):
+    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(r"initial (print|release|estimate)|first (print|release|published release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob):
         score += 14
         flags.append("revision-prone source, revision rule unstated")
 
@@ -107,7 +107,7 @@ def score_timing(text, title):
     daily_obs = bool(re.search(r"calendar day|daily (maximum|minimum|climate|total|high|low)|nws daily|highest temperature.*on|lowest temperature.*on|all times on this day", blob))
     reversible = bool(re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", title.lower()))
     revision = any(re.search(p, blob) for p in REVISION_PRONE)
-    revision_resolved = bool(re.search(r"initial|first (print|release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob))
+    revision_resolved = bool(re.search(r"initial|first (print|release|published release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob))
     if daily_obs and not reversible and (not revision or revision_resolved):
         return _clamp(12), flags
 

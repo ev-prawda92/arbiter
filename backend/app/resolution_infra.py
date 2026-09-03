@@ -254,6 +254,48 @@ class ResolutionStore:
                     updated_at TEXT NOT NULL,
                     updated_by TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS analysis_cases (
+                    case_id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    criteria TEXT NOT NULL,
+                    compiler_status TEXT NOT NULL,
+                    resolution_outcome TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    created_by TEXT NOT NULL,
+                    latest_run_id TEXT,
+                    source_template_id TEXT
+                );
+                CREATE INDEX IF NOT EXISTS ix_analysis_cases_updated
+                    ON analysis_cases(updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS analysis_case_runs (
+                    run_id TEXT PRIMARY KEY,
+                    case_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    input_json TEXT NOT NULL,
+                    result_json TEXT NOT NULL,
+                    input_hash TEXT NOT NULL,
+                    result_hash TEXT NOT NULL,
+                    FOREIGN KEY(case_id) REFERENCES analysis_cases(case_id)
+                );
+                CREATE INDEX IF NOT EXISTS ix_analysis_case_runs_case
+                    ON analysis_case_runs(case_id, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS contract_templates (
+                    template_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    criteria TEXT NOT NULL,
+                    source_case_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    created_by TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    UNIQUE(name)
+                );
                 """
             )
 
@@ -418,6 +460,83 @@ class ResolutionStore:
                     {"status": status, "owner": owner, "note": note})
         return {"work_item_id": work_item_id, "status": status, "owner": owner, "note": note, "updated_at": now, "updated_by": actor}
 
+
+    def save_analysis_case(self, title: str, criteria: str, result: dict[str, Any], actor: str = "operator", case_id: str | None = None, source_template_id: str | None = None) -> dict[str, Any]:
+        """Persist every compiler/analyze run while keeping one stable case identity."""
+        case_id = case_id or gen_id("case")
+        run_id = gen_id("case_run")
+        now = utcnow()
+        compiler_status = str((result.get("compilation") or {}).get("status") or "UNKNOWN")
+        resolution_outcome = str((result.get("resolution") or {}).get("outcome") or "UNKNOWN")
+        inp = {"title": title, "criteria": criteria, "source_template_id": source_template_id}
+        input_hash = canonical_hash(inp)
+        result_hash = canonical_hash(result)
+        with self.connect() as db:
+            existing = db.execute("SELECT case_id, created_at, created_by FROM analysis_cases WHERE case_id=?", (case_id,)).fetchone()
+            if existing:
+                db.execute(
+                    "UPDATE analysis_cases SET title=?,criteria=?,compiler_status=?,resolution_outcome=?,updated_at=?,latest_run_id=?,source_template_id=COALESCE(?,source_template_id) WHERE case_id=?",
+                    (title, criteria, compiler_status, resolution_outcome, now, run_id, source_template_id, case_id),
+                )
+                created_at, created_by = existing["created_at"], existing["created_by"]
+            else:
+                created_at, created_by = now, actor
+                db.execute(
+                    "INSERT INTO analysis_cases(case_id,title,criteria,compiler_status,resolution_outcome,created_at,updated_at,created_by,latest_run_id,source_template_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (case_id, title, criteria, compiler_status, resolution_outcome, now, now, actor, run_id, source_template_id),
+                )
+            db.execute(
+                "INSERT INTO analysis_case_runs(run_id,case_id,created_at,actor,input_json,result_json,input_hash,result_hash) VALUES(?,?,?,?,?,?,?,?)",
+                (run_id, case_id, now, actor, json.dumps(inp, sort_keys=True), json.dumps(result, sort_keys=True), input_hash, result_hash),
+            )
+        self._audit(actor, "analysis_case.run.recorded", "analysis_case", case_id,
+                    {"run_id": run_id, "compiler_status": compiler_status, "resolution_outcome": resolution_outcome, "input_hash": input_hash, "result_hash": result_hash})
+        return {"case_id": case_id, "run_id": run_id, "title": title, "criteria": criteria,
+                "compiler_status": compiler_status, "resolution_outcome": resolution_outcome,
+                "created_at": created_at, "updated_at": now, "created_by": created_by,
+                "source_template_id": source_template_id}
+
+    def list_analysis_cases(self, limit: int = 50) -> list[dict[str, Any]]:
+        with self.connect() as db:
+            rows = db.execute("SELECT * FROM analysis_cases ORDER BY updated_at DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_analysis_case(self, case_id: str) -> dict[str, Any] | None:
+        with self.connect() as db:
+            case = db.execute("SELECT * FROM analysis_cases WHERE case_id=?", (case_id,)).fetchone()
+            if not case:
+                return None
+            runs = db.execute("SELECT * FROM analysis_case_runs WHERE case_id=? ORDER BY created_at DESC", (case_id,)).fetchall()
+        out = dict(case)
+        out["runs"] = [{
+            "run_id": r["run_id"], "created_at": r["created_at"], "actor": r["actor"],
+            "input": json.loads(r["input_json"]), "result": json.loads(r["result_json"]),
+            "input_hash": r["input_hash"], "result_hash": r["result_hash"],
+        } for r in runs]
+        return out
+
+    def save_template(self, name: str, title: str, criteria: str, actor: str = "operator", source_case_id: str | None = None, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+        template_id = gen_id("tpl")
+        now = utcnow()
+        metadata = metadata or {}
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO contract_templates(template_id,name,title,criteria,source_case_id,created_at,updated_at,created_by,metadata_json) VALUES(?,?,?,?,?,?,?,?,?)",
+                (template_id, name, title, criteria, source_case_id, now, now, actor, json.dumps(metadata, sort_keys=True)),
+            )
+        self._audit(actor, "contract_template.created", "contract_template", template_id, {"name": name, "source_case_id": source_case_id})
+        return {"template_id": template_id, "name": name, "title": title, "criteria": criteria, "source_case_id": source_case_id, "created_at": now, "updated_at": now, "created_by": actor, "metadata": metadata}
+
+    def list_templates(self) -> list[dict[str, Any]]:
+        with self.connect() as db:
+            rows = db.execute("SELECT * FROM contract_templates ORDER BY updated_at DESC").fetchall()
+        return [{**dict(r), "metadata": json.loads(r["metadata_json"])} for r in rows]
+
+    def get_template(self, template_id: str) -> dict[str, Any] | None:
+        with self.connect() as db:
+            r = db.execute("SELECT * FROM contract_templates WHERE template_id=?", (template_id,)).fetchone()
+        return ({**dict(r), "metadata": json.loads(r["metadata_json"])}) if r else None
+
     def audit_log(self, limit: int = 100, object_type: str | None = None, object_id: str | None = None) -> list[dict[str, Any]]:
         clauses, args = [], []
         if object_type:
@@ -466,6 +585,9 @@ class ResolutionStore:
                 "resolution_runs": count("resolution_runs"),
                 "audit_events": count("audit_events"),
                 "work_item_states": count("work_item_state"),
+                "analysis_cases": count("analysis_cases"),
+                "analysis_case_runs": count("analysis_case_runs"),
+                "contract_templates": count("contract_templates"),
                 "audit_chain": self.verify_audit_chain(),
             }
 

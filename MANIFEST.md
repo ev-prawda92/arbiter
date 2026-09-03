@@ -158,3 +158,9 @@ Expected output: 4 clean (weather + simple thresholds), 5 monitored (macro with 
 ## Support
 
 This is production-ready code. The architecture is clean, the logic is transparent, and the design is institutional. Use it, extend it, deploy it. If questions come up, the code is small enough to read in an afternoon.
+
+## v0.9.4 additions
+- Persistent Analysis Case registry and append-only case-run history
+- Persistent Contract Templates
+- Case/template APIs and Cases operator UI
+- Reopen/rerun without re-entering contract criteria

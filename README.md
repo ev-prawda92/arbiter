@@ -101,3 +101,38 @@ Arbiter now presents two distinct operating surfaces on top of the same governed
 The first **Arbiter Resolution Operations Agent** sits above the control plane as an advisory layer. It summarizes and prioritizes; it cannot change contract terms, evidence, policy, settlement outcomes, or payout authorization.
 
 New APIs: `/api/overview`, `/api/work-queue`, `/api/work-queue/{work_item_id}`, and `/api/agent/brief`.
+
+## v0.9 — Developer Platform + Resolution Compiler
+
+Arbiter can now be consumed as infrastructure, not only through its operator UI.
+
+Developer surfaces:
+
+- `/docs` — interactive Swagger API documentation
+- `/redoc` — ReDoc API reference
+- `/openapi.json` — machine-readable OpenAPI schema
+- `/api/developer` — developer-platform manifest
+- `docs/DEVELOPER_QUICKSTART.md` — integration walkthrough
+- `sdk/python/arbiter_sdk.py` — dependency-free Python SDK preview
+
+The new Resolution Compiler connects prose market rules to the governed v0.6 domain model:
+
+**Natural-language rules → proposed ResolutionSpecification → controls → READY / REVIEW / BLOCK**
+
+`POST /api/compile` returns the proposed specification, source spans/provenance, unresolved fields, technical controls, compiler version, and compilation hash. It does not fabricate missing fields. `POST /api/compile-and-create` only persists a contract when compilation is READY.
+
+API-key protection can be enabled for writes by setting `ARBITER_API_KEYS` and sending `X-Arbiter-Key`. Local development remains open when the environment variable is unset.
+
+## v0.9.2 — Resolution Gate Coherence
+
+The compiler is now an authoritative pre-resolution gate. `BLOCK` and `REVIEW` states hold automated resolution; only `READY` contracts may continue to normal evidence-bound resolution. Live analysis returns compilation, integrity analysis, and gated resolution atomically to prevent inconsistent UI states. Title/rules conflicts are compiled from governing rules only, and title-derived fields are marked conflicted rather than trusted.
+
+## v0.9.3 — Review Semantics
+
+Arbiter now distinguishes repairable specification incompleteness from hard blocking defects. A coherent contract with an approved authority, objective condition, and recognizable settlement window can enter `REVIEW` when details such as exact cutoff time or timezone remain missing. `BLOCK` is reserved for hard inconsistencies or missing binding concepts. Compiler results also include deterministic recommended drafting fixes.
+
+## v0.9.4 — Case Registry & Templates
+
+Arbiter now retains every contract review as a saved **Analysis Case**. Reopening and rerunning a case appends a run to its history rather than requiring the operator to re-enter the market question and resolution criteria. Reusable **Contract Templates** can be created from prior cases and used to prefill new cases, while every derived contract is recompiled and re-evaluated under current controls.
+
+New workflow: **Template or New Draft → Saved Case → Compile/Review → Revise/Rerun → Approve → Monitor → Resolve**.
