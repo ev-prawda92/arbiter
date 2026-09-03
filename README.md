@@ -136,3 +136,13 @@ Arbiter now distinguishes repairable specification incompleteness from hard bloc
 Arbiter now retains every contract review as a saved **Analysis Case**. Reopening and rerunning a case appends a run to its history rather than requiring the operator to re-enter the market question and resolution criteria. Reusable **Contract Templates** can be created from prior cases and used to prefill new cases, while every derived contract is recompiled and re-evaluated under current controls.
 
 New workflow: **Template or New Draft → Saved Case → Compile/Review → Revise/Rerun → Approve → Monitor → Resolve**.
+
+## v0.9.5 — Automated coherence harness
+
+Run the full API-driven release smoke test against a running local Arbiter instance:
+
+```bash
+python3 scripts/coherence_test.py
+```
+
+Canonical fixtures live at `tests/fixtures/coherence_cases.json`. The harness validates READY / REVIEW / BLOCK semantics, saved-case reruns, templates, cross-surface APIs, developer docs, audit-chain integrity, and the current development benchmark baseline. See `COHERENCE_TEST_PLAN.md`.
