@@ -93,7 +93,7 @@ def require_scope(scope: str) -> Callable:
 
 WEBHOOK_EVENTS = [
     "contract.created", "contract.blocked", "contract.review_required",
-    "evidence.received", "evidence.revised", "resolution.pending",
+    "evidence.received", "evidence.revised", "evidence.conflict", "evidence.source_outage", "resolution.reevaluation_requested", "resolution.pending",
     "resolution.held", "resolution.completed", "control.failed",
     "work_item.updated", "audit.chain_failed",
 ]
@@ -103,7 +103,7 @@ def developer_manifest() -> dict:
     cfg = load_runtime_config()
     return {
         "api_version": "v1-preview",
-        "product_version": "0.10.0",
+        "product_version": "0.11.0",
         "auth": {
             "enabled": api_auth_enabled(),
             "required": cfg.require_auth,
@@ -114,7 +114,7 @@ def developer_manifest() -> dict:
             "note": "Local development can remain open. Production defaults to fail-closed authentication.",
         },
         "docs": {"swagger": "/docs", "redoc": "/redoc", "openapi": "/openapi.json"},
-        "core_resources": ["contracts", "authorities", "evidence", "resolution-runs", "work-queue", "portfolio", "audit"],
+        "core_resources": ["contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "work-queue", "portfolio", "audit"],
         "compiler": {"endpoint": "/api/compile", "version": "0.1.2"},
         "webhook_event_catalog": WEBHOOK_EVENTS,
         "stability": "preview — endpoint contracts may evolve before v1.0",

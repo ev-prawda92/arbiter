@@ -20,14 +20,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.10.0",
+    version="0.11.0",
     description=(
         "Resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -128,7 +128,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.10.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.11.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
 
 
@@ -141,7 +141,7 @@ def readiness():
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.10.0",
+        "version": "0.11.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
@@ -380,6 +380,9 @@ def _workflow_payload():
     reports, portfolio_payload = _portfolio_payload()
     infra = resolution_store.summary()
     infra["authorities"] = resolution_store.list_authorities()
+    evsvc = active_evidence.get_service(resolution_store)
+    infra["active_evidence"] = evsvc.summary()
+    infra["evidence_exceptions"] = evsvc.list_exceptions(active_only=True)
     exec_payload = executive.build(reports, portfolio_payload, infra)
     queue = workflow.build_work_queue(reports, portfolio_payload, infra, resolution_store.list_work_states())
     brief = workflow.build_agent_brief(queue, exec_payload)
@@ -540,8 +543,9 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.10.0", "domain": resolution_store.summary(), "controls": CONTROLS,
-            "principle": "Define → Evidence → Resolve → Audit"}
+    return {"version": "0.11.0", "domain": resolution_store.summary(),
+            "active_evidence": active_evidence.get_service(resolution_store).summary(),
+            "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Audit"}
 
 @app.get("/api/contracts")
 def contracts_registry():
@@ -623,6 +627,83 @@ def create_resolution_run(inp: ResolutionRunIn, auth=Depends(developer.require_s
 def audit_log(limit: int = 100, object_type: str | None = None, object_id: str | None = None):
     return {"chain": resolution_store.verify_audit_chain(),
             "events": resolution_store.audit_log(limit=min(limit, 500), object_type=object_type, object_id=object_id)}
+
+
+# ---- v0.11 Active Evidence Infrastructure ----
+class EvidenceMonitorIn(BaseModel):
+    contract_id: str
+    authority_id: str
+    authority_version: int = 1
+    adapter_type: str = "static"
+    config: dict = {}
+    schedule_seconds: int = 300
+    enabled: bool = True
+    actor: str = "system:evidence-ops"
+
+class EvidenceMonitorUpdate(BaseModel):
+    config: dict | None = None
+    schedule_seconds: int | None = None
+    enabled: bool | None = None
+    actor: str = "system:evidence-ops"
+
+class EvidenceObservationIn(BaseModel):
+    normalized_value: object
+    raw_payload: object
+    observed_at: str | None = None
+    source_locator: str = ""
+    parser_version: str = "active-evidence.v1"
+    actor: str = "system:evidence-worker"
+
+@app.get("/api/evidence-monitors", tags=["Active Evidence"])
+def list_evidence_monitors(contract_id: str | None = None):
+    return {"monitors": active_evidence.get_service(resolution_store).list_monitors(contract_id)}
+
+@app.post("/api/evidence-monitors", tags=["Active Evidence"])
+def create_evidence_monitor(inp: EvidenceMonitorIn, auth=Depends(developer.require_scope("evidence:write"))):
+    try:
+        monitor = active_evidence.get_service(resolution_store).create_monitor(**inp.model_dump())
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"monitor": monitor}
+
+@app.post("/api/evidence-monitors/{monitor_id}", tags=["Active Evidence"])
+def update_evidence_monitor(monitor_id: str, inp: EvidenceMonitorUpdate, auth=Depends(developer.require_scope("evidence:write"))):
+    try:
+        monitor = active_evidence.get_service(resolution_store).update_monitor(monitor_id, **inp.model_dump())
+    except ValueError as e:
+        raise HTTPException(404 if "not found" in str(e) else 422, str(e)) from e
+    return {"monitor": monitor}
+
+@app.post("/api/evidence-monitors/{monitor_id}/observe", tags=["Active Evidence"])
+def observe_evidence(monitor_id: str, inp: EvidenceObservationIn, auth=Depends(developer.require_scope("evidence:write"))):
+    try:
+        result = active_evidence.get_service(resolution_store).observe(monitor_id, **inp.model_dump())
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return result.to_dict()
+
+@app.post("/api/evidence-monitors/{monitor_id}/poll", tags=["Active Evidence"])
+def poll_evidence_monitor(monitor_id: str, auth=Depends(developer.require_scope("evidence:write"))):
+    try:
+        return active_evidence.get_service(resolution_store).poll(monitor_id)
+    except ValueError as e:
+        raise HTTPException(404 if "not found" in str(e) else 422, str(e)) from e
+
+@app.post("/api/evidence-poll-due", tags=["Active Evidence"])
+def poll_due_evidence(limit: int = 50, auth=Depends(developer.require_scope("evidence:write"))):
+    return active_evidence.get_service(resolution_store).poll_due(limit=min(limit, 100))
+
+@app.get("/api/source-health", tags=["Active Evidence"])
+def source_health():
+    return active_evidence.get_service(resolution_store).source_health()
+
+@app.get("/api/evidence-exceptions", tags=["Active Evidence"])
+def evidence_exceptions(active_only: bool = True):
+    return {"exceptions": active_evidence.get_service(resolution_store).list_exceptions(active_only=active_only)}
+
+@app.get("/api/resolution-reevaluations", tags=["Active Evidence"])
+def resolution_reevaluations(status: str | None = None):
+    return {"requests": active_evidence.get_service(resolution_store).list_reevaluations(status=status)}
 
 
 # ---- static frontend ----

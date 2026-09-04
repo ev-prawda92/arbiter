@@ -149,3 +149,23 @@ Canonical fixtures live at `tests/fixtures/coherence_cases.json`. The harness va
 
 ## v0.10 enterprise boundary
 For production-oriented deployments, Arbiter now supports production-default auth, hashed/scoped API keys, explicit CORS origins, request/security headers, readiness gates, and venue-specific settlement boundaries. See `ENTERPRISE_READINESS.md` and `EXCHANGE_FIT.md`.
+
+## v0.11 — Active Evidence Infrastructure
+Arbiter can now register governed evidence monitors, capture normalized observations, preserve append-only revisions, detect source conflicts/outages, create reevaluation requests, and surface evidence exceptions into the Work Queue.
+
+Run the worker locally:
+```bash
+python3 scripts/evidence_worker.py --base-url http://127.0.0.1:8000
+```
+For a single due-poll cycle:
+```bash
+python3 scripts/evidence_worker.py --once
+```
+HTTP source adapters are disabled by default. They require approved HTTPS authority endpoints and `ARBITER_ENABLE_HTTP_SOURCE_ADAPTERS=true`.
+
+Release gates:
+```bash
+python3 scripts/coherence_test.py
+python3 scripts/enterprise_gate.py
+python3 scripts/evidence_gate.py
+```
