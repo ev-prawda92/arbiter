@@ -1,10 +1,10 @@
-# Arbiter — Resolution Intelligence Platform (v0.4)
+# Arbiter — Resolution Control Infrastructure (v0.12)
 
 Arbiter is an auditable resolution-intelligence platform for event contracts. It helps market operators **design**, **monitor**, **resolve**, **explain**, and **audit** event contracts without turning an opaque model into the authority that decides payouts.
 
-## v0.4 product loop
+## Current product loop
 
-**Define → Monitor → Resolve → Explain → Audit**
+**Define → Evidence → Resolve → Approve → Authorize → Audit**
 
 ### 1. Contract Intelligence
 Paste draft resolution terms before listing. Arbiter runs the governed Source / Timing / Definition engine, identifies structural deficiencies, calculates listing readiness, and generates deterministic drafting recommendations.
@@ -169,3 +169,14 @@ python3 scripts/coherence_test.py
 python3 scripts/enterprise_gate.py
 python3 scripts/evidence_gate.py
 ```
+
+
+## v0.12 — Approval & Settlement Control
+
+Arbiter now adds a governed authorization boundary between a deterministic resolution outcome and any downstream settlement/oracle workflow. The release introduces maker-checker approval requests, duplicate-decision prevention, signed settlement authorization packets, venue-specific terminal handoff semantics, and a governed policy draft workflow.
+
+The settlement boundary is deliberately explicit: **v0.12 creates authorization packets; it does not execute an exchange settlement or an oracle transaction.** Kalshi/DCM-profile runs produce an exchange-resolution authorization handoff. Polymarket/UMA-profile runs produce an oracle proposal/dispute handoff packet.
+
+Policy changes can now follow **Draft → Submit → Independent Approval → Activate**. In production mode direct active-policy mutation is blocked. Existing resolution runs remain pinned to the policy version they used.
+
+Validation gate: `python3 scripts/settlement_gate.py`.

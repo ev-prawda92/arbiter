@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.24-1",
+  "version": "2026.09.04-2",
   "weights": {
     "source": 0.3,
     "timing": 0.3,
@@ -15,6 +15,21 @@
       "at": "2026-08-24T00:00:00Z",
       "by": "arbiter.default",
       "note": "Initial policy. Definition weighted highest \u2014 interpretive ambiguity is the most common driver of disputed resolutions."
+    },
+    {
+      "version": "2026.09.04-2",
+      "at": "2026-09-04T11:32:53.220778+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
     }
   ]
 }

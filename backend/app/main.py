@@ -20,14 +20,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.11.0",
+    version="0.12.0",
     description=(
         "Resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -128,7 +128,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.11.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.12.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
 
 
 
@@ -141,7 +141,7 @@ def readiness():
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.11.0",
+        "version": "0.12.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
@@ -207,9 +207,58 @@ class PolicyUpdate(BaseModel):
 
 @app.post("/api/policy")
 def post_policy(u: PolicyUpdate, auth=Depends(developer.require_scope("policy:write"))):
+    # Legacy local-development compatibility only. Production policy changes must
+    # use the governed draft → checker approval → activation workflow.
+    if enterprise.load_runtime_config().production:
+        raise HTTPException(409, "direct active-policy mutation is disabled in production; use /api/policy/drafts")
     pol = policy.update_policy(u.weights, u.thresholds, u.by, u.note)
     _CACHE["reports"] = None  # rescore next fetch under new policy
     return pol
+
+
+class PolicyDraftIn(BaseModel):
+    weights: dict | None = None
+    thresholds: dict | None = None
+    actor: str = "exchange.policy-admin"
+    note: str = ""
+
+class GovernedActionIn(BaseModel):
+    actor: str
+    note: str = ""
+
+@app.get("/api/policy/drafts", tags=["Policy Governance"])
+def policy_drafts(status: str | None = None):
+    return {"drafts": governed_policy.get_service(resolution_store).list(status=status)}
+
+@app.post("/api/policy/drafts", tags=["Policy Governance"])
+def create_policy_draft(inp: PolicyDraftIn, auth=Depends(developer.require_scope("policy:write"))):
+    try:
+        return {"draft": governed_policy.get_service(resolution_store).create_draft(weights=inp.weights, thresholds=inp.thresholds, actor=inp.actor, note=inp.note)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/policy/drafts/{draft_id}/submit", tags=["Policy Governance"])
+def submit_policy_draft(draft_id: str, inp: GovernedActionIn, auth=Depends(developer.require_scope("policy:write"))):
+    try:
+        return {"draft": governed_policy.get_service(resolution_store).submit(draft_id, inp.actor)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/policy/drafts/{draft_id}/approve", tags=["Policy Governance"])
+def approve_policy_draft(draft_id: str, inp: GovernedActionIn, auth=Depends(developer.require_scope("approvals:write"))):
+    try:
+        return {"draft": governed_policy.get_service(resolution_store).approve(draft_id, inp.actor)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/policy/drafts/{draft_id}/activate", tags=["Policy Governance"])
+def activate_policy_draft(draft_id: str, inp: GovernedActionIn, auth=Depends(developer.require_scope("policy:write"))):
+    try:
+        result = governed_policy.get_service(resolution_store).activate(draft_id, inp.actor)
+        _CACHE["reports"] = None
+        return result
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
 
 
 class AnalyzeIn(BaseModel):
@@ -543,9 +592,10 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.11.0", "domain": resolution_store.summary(),
+    return {"version": "0.12.0", "domain": resolution_store.summary(),
             "active_evidence": active_evidence.get_service(resolution_store).summary(),
-            "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Audit"}
+            "approval_control": approval_control.get_service(resolution_store).summary(),
+            "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Approve → Authorize → Audit"}
 
 @app.get("/api/contracts")
 def contracts_registry():
@@ -705,6 +755,54 @@ def evidence_exceptions(active_only: bool = True):
 def resolution_reevaluations(status: str | None = None):
     return {"requests": active_evidence.get_service(resolution_store).list_reevaluations(status=status)}
 
+
+# ---- v0.12 Approval & Settlement Control ----
+class ApprovalRequestIn(BaseModel):
+    object_type: str = "resolution_run"
+    object_id: str
+    action: str = "authorize_settlement_handoff"
+    exchange_profile: str = "generic"
+    requested_by: str = "operator:resolution-maker"
+    rationale: str = ""
+    required_approvals: int = 1
+    metadata: dict = {}
+
+class ApprovalDecisionIn(BaseModel):
+    actor: str
+    decision: str
+    note: str = ""
+
+class SettlementPacketIn(BaseModel):
+    actor: str = "operator:settlement-authorizer"
+
+@app.get("/api/approvals", tags=["Settlement Control"])
+def approvals(status: str | None = None, object_id: str | None = None, limit: int = 100):
+    return {"approvals": approval_control.get_service(resolution_store).list_approvals(status=status, object_id=object_id, limit=min(limit, 500))}
+
+@app.post("/api/approvals", tags=["Settlement Control"])
+def request_approval(inp: ApprovalRequestIn, auth=Depends(developer.require_scope("approvals:write"))):
+    try:
+        return {"approval": approval_control.get_service(resolution_store).request_approval(**inp.model_dump())}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/approvals/{approval_id}/decision", tags=["Settlement Control"])
+def decide_approval(approval_id: str, inp: ApprovalDecisionIn, auth=Depends(developer.require_scope("approvals:write"))):
+    try:
+        return {"approval": approval_control.get_service(resolution_store).decide(approval_id, actor=inp.actor, decision=inp.decision, note=inp.note)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.get("/api/settlement-packets", tags=["Settlement Control"])
+def settlement_packets(run_id: str | None = None, limit: int = 100):
+    return {"packets": approval_control.get_service(resolution_store).list_packets(run_id=run_id, limit=min(limit, 500))}
+
+@app.post("/api/approvals/{approval_id}/settlement-packet", tags=["Settlement Control"])
+def create_settlement_packet(approval_id: str, inp: SettlementPacketIn, auth=Depends(developer.require_scope("settlement:authorize"))):
+    try:
+        return {"packet": approval_control.get_service(resolution_store).create_settlement_packet(approval_id, actor=inp.actor)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
 
 # ---- static frontend ----
 if os.path.isdir(_FRONTEND):

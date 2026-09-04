@@ -132,9 +132,9 @@ function App() {
 
   const loadPolicy = async () => {
     try {
-      const r = await fetch('/api/policy')
-      const d = await r.json()
-      setPolicy(d)
+      const [r, dr] = await Promise.all([fetch('/api/policy'), fetch('/api/policy/drafts')])
+      const [d, drafts] = await Promise.all([r.json(), dr.json()])
+      setPolicy({ ...d, drafts: drafts.drafts || [] })
     } catch (e) {
       console.error(e)
     }
@@ -216,7 +216,7 @@ function App() {
       )}
 
       {view === 'policy' && (
-        <PolicyView data={policy} />
+        <PolicyView data={policy} onReload={loadPolicy} />
       )}
 
       {analyzeModal && (
@@ -852,10 +852,39 @@ function InfrastructureView({ data }) {
   )
 }
 
-function PolicyView({ data }) {
+function PolicyView({ data, onReload }) {
+  const [draftForm, setDraftForm] = useState(null)
   if (!data) return <div className="view"><p>Loading policy...</p></div>
 
-  const { weights, thresholds, changelog } = data
+  const { weights, thresholds, changelog, drafts = [] } = data
+  const mutate = async (url, body) => {
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const d = await r.json()
+      if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail || d))
+      await onReload?.()
+      return d
+    } catch (e) { window.alert(e.message); throw e }
+  }
+  const beginDraft = () => setDraftForm({
+    source: Math.round(weights.source * 100), timing: Math.round(weights.timing * 100), definition: Math.round(weights.definition * 100),
+    clean: thresholds.clean, monitored: thresholds.monitored, note: '', actor: 'operator:policy-admin'
+  })
+  const createDraft = async () => {
+    const total = Number(draftForm.source) + Number(draftForm.timing) + Number(draftForm.definition)
+    if (Math.abs(total - 100) > 0.001) return window.alert('Policy weights must total 100%.')
+    await mutate('/api/policy/drafts', {
+      weights: { source: Number(draftForm.source)/100, timing: Number(draftForm.timing)/100, definition: Number(draftForm.definition)/100 },
+      thresholds: { clean: Number(draftForm.clean), monitored: Number(draftForm.monitored) },
+      actor: draftForm.actor, note: draftForm.note
+    })
+    setDraftForm(null)
+  }
+  const act = async (draft, action) => {
+    let actor = action === 'approve' ? 'operator:compliance-checker' : action === 'activate' ? 'operator:policy-admin-2' : draft.created_by
+    actor = window.prompt(`${action} as actor`, actor) || actor
+    await mutate(`/api/policy/drafts/${draft.draft_id}/${action}`, { actor })
+  }
 
   return (
     <div className="view">
@@ -863,16 +892,14 @@ function PolicyView({ data }) {
         <p className="eyebrow">Adjudication Policy</p>
         <h1>Governed, versioned, auditable.</h1>
         <p className="dek">
-          The weights and thresholds that decide when a contract auto-resolves, gets
-          monitored, or is held for review are owned by the exchange or market operator, but versioned
-          and logged. No policy changes happen quietly. Every shift is recorded with a
-          timestamp, author, and note.
+          Active policy is immutable in use. Changes are staged as drafts, validated, independently approved,
+          then activated as a new version. Existing resolution runs remain pinned to the policy version they used.
         </p>
       </div>
 
       <div className="wrap policy-wrap">
         <div className="policy-section">
-          <h2 className="sect-h">Current policy</h2>
+          <div className="panel-title-row"><h2 className="sect-h">Active policy</h2><span className="audit-ok">ACTIVE</span></div>
           <p className="policy-version">{data.version}</p>
           <div className="policy-item">
             <h3>Lever weights</h3>
@@ -890,19 +917,45 @@ function PolicyView({ data }) {
               <div>Review: &gt; {thresholds.monitored}</div>
             </div>
           </div>
+          {!draftForm && <button className="run" onClick={beginDraft}>Create governed policy draft</button>}
+          {draftForm && <div className="policy-draft-form">
+            <h3>New policy draft</h3>
+            <div className="policy-edit-grid">
+              <label>Source %<input type="number" value={draftForm.source} onChange={e=>setDraftForm({...draftForm,source:e.target.value})}/></label>
+              <label>Timing %<input type="number" value={draftForm.timing} onChange={e=>setDraftForm({...draftForm,timing:e.target.value})}/></label>
+              <label>Definition %<input type="number" value={draftForm.definition} onChange={e=>setDraftForm({...draftForm,definition:e.target.value})}/></label>
+              <label>Clean ≤<input type="number" value={draftForm.clean} onChange={e=>setDraftForm({...draftForm,clean:e.target.value})}/></label>
+              <label>Monitored ≤<input type="number" value={draftForm.monitored} onChange={e=>setDraftForm({...draftForm,monitored:e.target.value})}/></label>
+            </div>
+            <label className="policy-wide-field">Change reason<input value={draftForm.note} onChange={e=>setDraftForm({...draftForm,note:e.target.value})} placeholder="Required governance rationale"/></label>
+            <div className="policy-actions"><button className="run" onClick={createDraft}>Save draft</button><button className="template-action" onClick={()=>setDraftForm(null)}>Cancel</button></div>
+          </div>}
         </div>
 
         <div className="policy-section">
-          <h2 className="sect-h">Changelog</h2>
+          <h2 className="sect-h">Governance workflow</h2>
+          <p className="muted">Draft → submit → independent checker approval → activate. The maker cannot approve their own change.</p>
+          <div className="changelog">
+            {drafts.length ? drafts.map(d => <div key={d.draft_id} className="changelog-entry">
+              <div className="entry-head"><span className="entry-version">{d.status.toUpperCase()}</span><span className="entry-ts mono">{d.draft_id}</span></div>
+              <div className="entry-note">{d.note || 'No rationale supplied'}</div>
+              <div className="entry-by">by {d.created_by} · base {d.base_version}</div>
+              <div className="policy-actions">
+                {d.status === 'draft' && <button className="template-action" onClick={()=>act(d,'submit')}>Submit</button>}
+                {d.status === 'pending_approval' && <button className="template-action" onClick={()=>act(d,'approve')}>Approve as checker</button>}
+                {d.status === 'approved' && <button className="run" onClick={()=>act(d,'activate')}>Activate version</button>}
+              </div>
+            </div>) : <div className="empty-card">No governed policy drafts yet.</div>}
+          </div>
+        </div>
+
+        <div className="policy-section policy-history">
+          <h2 className="sect-h">Active version history</h2>
           <div className="changelog">
             {changelog.map((c, i) => (
               <div key={i} className="changelog-entry">
-                <div className="entry-head">
-                  <span className="entry-version">{c.version}</span>
-                  <span className="entry-ts">{new Date(c.at).toISOString().slice(0, 10)}</span>
-                </div>
-                <div className="entry-note">{c.note}</div>
-                <div className="entry-by">by {c.by}</div>
+                <div className="entry-head"><span className="entry-version">{c.version}</span><span className="entry-ts">{new Date(c.at).toISOString().slice(0, 10)}</span></div>
+                <div className="entry-note">{c.note}</div><div className="entry-by">by {c.by}</div>
               </div>
             ))}
           </div>

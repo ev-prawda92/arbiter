@@ -21,3 +21,13 @@ This is an enterprise **foundation**, not a security certification.
 
 ## Recommended build order
 v0.10 Enterprise Boundary → v0.11 Active Evidence Workers → v0.12 Approval/Settlement Gate → v0.13 Production Data/Auth → v0.14 Observability/DR → v0.15 Security & Holdout Assurance.
+
+## v0.12 additions
+
+- Maker-checker authorization boundary between resolution and settlement handoff.
+- Governed policy draft/approval/activation workflow.
+- Signed, idempotent settlement authorization packets.
+- Venue-specific handoff semantics without pretending Arbiter is the external venue/oracle itself.
+- Production readiness now fails closed when the settlement signing secret is missing.
+
+Still required before live settlement: KMS/HSM-backed asymmetric signing, enterprise identity/SSO and fine-grained RBAC, production Postgres/migrations, durable queues and HA, tenant isolation, secrets management, webhook signing/replay protection, backup/restore and DR tests, observability/SLOs, load/concurrency testing, vulnerability remediation, threat modeling, independent penetration testing, and exchange-specific integration certification/diligence.

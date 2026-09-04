@@ -50,6 +50,8 @@ def configuration_findings() -> list[dict]:
         findings.append({"severity": "BLOCK", "code": "WILDCARD_CORS_IN_PRODUCTION", "detail": "Production CORS origins must be explicitly allow-listed."})
     if cfg.production and cfg.allow_legacy_keys:
         findings.append({"severity": "WARN", "code": "LEGACY_KEYS_ENABLED", "detail": "Raw legacy API keys should be disabled in production; prefer hashed key records."})
+    if cfg.production and not os.environ.get("ARBITER_SETTLEMENT_SIGNING_SECRET"):
+        findings.append({"severity": "BLOCK", "code": "SETTLEMENT_SIGNING_KEY_MISSING", "detail": "Production settlement authorization requires ARBITER_SETTLEMENT_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement)."})
     return findings
 
 
