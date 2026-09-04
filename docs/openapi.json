@@ -2,11 +2,11 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Arbiter API",
-    "description": "Resolution control infrastructure for event-contract exchanges. Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, triage operator work, and verify the audit chain. Advisory intelligence is non-binding.",
+    "description": "Semantic contract intelligence and resolution control infrastructure for event-contract exchanges. Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, triage operator work, and verify the audit chain. Advisory intelligence is non-binding.",
     "contact": {
       "name": "Arbiter Developer Platform"
     },
-    "version": "0.9.0"
+    "version": "0.13.0"
   },
   "paths": {
     "/api/developer": {
@@ -22,6 +22,64 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/semantic-analyze": {
+      "post": {
+        "tags": [
+          "Semantic Contract Intelligence"
+        ],
+        "summary": "Semantic Analyze",
+        "description": "Interpret the real-world meaning of a contract without fabricating missing terms.",
+        "operationId": "semantic_analyze_api_semantic_analyze_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -149,6 +207,63 @@
         ],
         "summary": "Health",
         "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/readiness": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Readiness",
+        "operationId": "readiness_api_readiness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security-posture": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Security Posture",
+        "operationId": "security_posture_api_security_posture_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exchange-profiles": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Exchange Profile Registry",
+        "operationId": "exchange_profile_registry_api_exchange_profiles_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -330,19 +445,558 @@
         }
       }
     },
+    "/api/policy/drafts": {
+      "get": {
+        "tags": [
+          "Policy Governance"
+        ],
+        "summary": "Policy Drafts",
+        "operationId": "policy_drafts_api_policy_drafts_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Policy Governance"
+        ],
+        "summary": "Create Policy Draft",
+        "operationId": "create_policy_draft_api_policy_drafts_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyDraftIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy/drafts/{draft_id}/submit": {
+      "post": {
+        "tags": [
+          "Policy Governance"
+        ],
+        "summary": "Submit Policy Draft",
+        "operationId": "submit_policy_draft_api_policy_drafts__draft_id__submit_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GovernedActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy/drafts/{draft_id}/approve": {
+      "post": {
+        "tags": [
+          "Policy Governance"
+        ],
+        "summary": "Approve Policy Draft",
+        "operationId": "approve_policy_draft_api_policy_drafts__draft_id__approve_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GovernedActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policy/drafts/{draft_id}/activate": {
+      "post": {
+        "tags": [
+          "Policy Governance"
+        ],
+        "summary": "Activate Policy Draft",
+        "operationId": "activate_policy_draft_api_policy_drafts__draft_id__activate_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GovernedActionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/analyze": {
       "post": {
         "summary": "Analyze",
         "operationId": "analyze_api_analyze_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AnalyzeIn"
               }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           },
-          "required": true
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cases": {
+      "get": {
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Analysis Cases",
+        "operationId": "analysis_cases_api_cases_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cases/{case_id}": {
+      "get": {
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Analysis Case",
+        "operationId": "analysis_case_api_cases__case_id__get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Contract Templates",
+        "operationId": "contract_templates_api_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Create Template",
+        "operationId": "create_template_api_templates_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cases/{case_id}/template": {
+      "post": {
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Template From Case",
+        "operationId": "template_from_case_api_cases__case_id__template_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateFromCaseIn"
+              }
+            }
+          }
         },
         "responses": {
           "200": {
@@ -1093,6 +1747,777 @@
           }
         }
       }
+    },
+    "/api/evidence-monitors": {
+      "get": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "List Evidence Monitors",
+        "operationId": "list_evidence_monitors_api_evidence_monitors_get",
+        "parameters": [
+          {
+            "name": "contract_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contract Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Create Evidence Monitor",
+        "operationId": "create_evidence_monitor_api_evidence_monitors_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceMonitorIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evidence-monitors/{monitor_id}": {
+      "post": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Update Evidence Monitor",
+        "operationId": "update_evidence_monitor_api_evidence_monitors__monitor_id__post",
+        "parameters": [
+          {
+            "name": "monitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Monitor Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceMonitorUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evidence-monitors/{monitor_id}/observe": {
+      "post": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Observe Evidence",
+        "operationId": "observe_evidence_api_evidence_monitors__monitor_id__observe_post",
+        "parameters": [
+          {
+            "name": "monitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Monitor Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceObservationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evidence-monitors/{monitor_id}/poll": {
+      "post": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Poll Evidence Monitor",
+        "operationId": "poll_evidence_monitor_api_evidence_monitors__monitor_id__poll_post",
+        "parameters": [
+          {
+            "name": "monitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Monitor Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evidence-poll-due": {
+      "post": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Poll Due Evidence",
+        "operationId": "poll_due_evidence_api_evidence_poll_due_post",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/source-health": {
+      "get": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Source Health",
+        "operationId": "source_health_api_source_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evidence-exceptions": {
+      "get": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Evidence Exceptions",
+        "operationId": "evidence_exceptions_api_evidence_exceptions_get",
+        "parameters": [
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Active Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/resolution-reevaluations": {
+      "get": {
+        "tags": [
+          "Active Evidence"
+        ],
+        "summary": "Resolution Reevaluations",
+        "operationId": "resolution_reevaluations_api_resolution_reevaluations_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/approvals": {
+      "get": {
+        "tags": [
+          "Settlement Control"
+        ],
+        "summary": "Approvals",
+        "operationId": "approvals_api_approvals_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "object_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Object Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settlement Control"
+        ],
+        "summary": "Request Approval",
+        "operationId": "request_approval_api_approvals_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/approvals/{approval_id}/decision": {
+      "post": {
+        "tags": [
+          "Settlement Control"
+        ],
+        "summary": "Decide Approval",
+        "operationId": "decide_approval_api_approvals__approval_id__decision_post",
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settlement-packets": {
+      "get": {
+        "tags": [
+          "Settlement Control"
+        ],
+        "summary": "Settlement Packets",
+        "operationId": "settlement_packets_api_settlement_packets_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/approvals/{approval_id}/settlement-packet": {
+      "post": {
+        "tags": [
+          "Settlement Control"
+        ],
+        "summary": "Create Settlement Packet",
+        "operationId": "create_settlement_packet_api_approvals__approval_id__settlement_packet_post",
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementPacketIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1111,6 +2536,38 @@
             "type": "boolean",
             "title": "Use Llm",
             "default": false
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "source_template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Template Id"
+          },
+          "exchange_profile": {
+            "type": "string",
+            "title": "Exchange Profile",
+            "default": "generic"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "operator:market-ops"
           }
         },
         "type": "object",
@@ -1119,6 +2576,78 @@
           "criteria"
         ],
         "title": "AnalyzeIn"
+      },
+      "ApprovalDecisionIn": {
+        "properties": {
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "actor",
+          "decision"
+        ],
+        "title": "ApprovalDecisionIn"
+      },
+      "ApprovalRequestIn": {
+        "properties": {
+          "object_type": {
+            "type": "string",
+            "title": "Object Type",
+            "default": "resolution_run"
+          },
+          "object_id": {
+            "type": "string",
+            "title": "Object Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "default": "authorize_settlement_handoff"
+          },
+          "exchange_profile": {
+            "type": "string",
+            "title": "Exchange Profile",
+            "default": "generic"
+          },
+          "requested_by": {
+            "type": "string",
+            "title": "Requested By",
+            "default": "operator:resolution-maker"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale",
+            "default": ""
+          },
+          "required_approvals": {
+            "type": "integer",
+            "title": "Required Approvals",
+            "default": 1
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "object_id"
+        ],
+        "title": "ApprovalRequestIn"
       },
       "AuthorityIn": {
         "properties": {
@@ -1233,6 +2762,11 @@
             "type": "object",
             "title": "Metadata",
             "default": {}
+          },
+          "exchange_profile": {
+            "type": "string",
+            "title": "Exchange Profile",
+            "default": "generic"
           },
           "actor": {
             "type": "string",
@@ -1441,6 +2975,160 @@
         ],
         "title": "EvidenceIn"
       },
+      "EvidenceMonitorIn": {
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "title": "Contract Id"
+          },
+          "authority_id": {
+            "type": "string",
+            "title": "Authority Id"
+          },
+          "authority_version": {
+            "type": "integer",
+            "title": "Authority Version",
+            "default": 1
+          },
+          "adapter_type": {
+            "type": "string",
+            "title": "Adapter Type",
+            "default": "static"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config",
+            "default": {}
+          },
+          "schedule_seconds": {
+            "type": "integer",
+            "title": "Schedule Seconds",
+            "default": 300
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:evidence-ops"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contract_id",
+          "authority_id"
+        ],
+        "title": "EvidenceMonitorIn"
+      },
+      "EvidenceMonitorUpdate": {
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "schedule_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Seconds"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:evidence-ops"
+          }
+        },
+        "type": "object",
+        "title": "EvidenceMonitorUpdate"
+      },
+      "EvidenceObservationIn": {
+        "properties": {
+          "normalized_value": {
+            "title": "Normalized Value"
+          },
+          "raw_payload": {
+            "title": "Raw Payload"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "source_locator": {
+            "type": "string",
+            "title": "Source Locator",
+            "default": ""
+          },
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version",
+            "default": "active-evidence.v1"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:evidence-worker"
+          }
+        },
+        "type": "object",
+        "required": [
+          "normalized_value",
+          "raw_payload"
+        ],
+        "title": "EvidenceObservationIn"
+      },
+      "GovernedActionIn": {
+        "properties": {
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "actor"
+        ],
+        "title": "GovernedActionIn"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1453,6 +3141,46 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "PolicyDraftIn": {
+        "properties": {
+          "weights": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weights"
+          },
+          "thresholds": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thresholds"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "exchange.policy-admin"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "PolicyDraftIn"
       },
       "PolicyUpdate": {
         "properties": {
@@ -1568,6 +3296,80 @@
           "outcome"
         ],
         "title": "ResolutionRunIn"
+      },
+      "SettlementPacketIn": {
+        "properties": {
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "operator:settlement-authorizer"
+          }
+        },
+        "type": "object",
+        "title": "SettlementPacketIn"
+      },
+      "TemplateFromCaseIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "operator:market-ops"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TemplateFromCaseIn"
+      },
+      "TemplateIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "criteria": {
+            "type": "string",
+            "title": "Criteria"
+          },
+          "source_case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Case Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "default": {}
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "operator:market-ops"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "criteria"
+        ],
+        "title": "TemplateIn"
       },
       "ValidationError": {
         "properties": {

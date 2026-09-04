@@ -1,6 +1,14 @@
-# Arbiter — Resolution Control Infrastructure (v0.12)
+# Arbiter
 
-Arbiter is an auditable resolution-intelligence platform for event contracts. It helps market operators **design**, **monitor**, **resolve**, **explain**, and **audit** event contracts without turning an opaque model into the authority that decides payouts.
+**Semantic Contract Intelligence + Resolution Control for Event Markets**
+
+Arbiter interprets what natural-language event contracts mean, converts that meaning into governed resolution specifications, monitors authoritative evidence, executes deterministic resolution logic, controls approvals and settlement handoffs, and preserves an auditable record.
+
+> AI interprets. Policy governs. Evidence proves. Deterministic logic resolves. Humans handle exceptions.
+
+## v0.13
+
+Semantic Contract Intelligence is now a first-class subsystem. See `SEMANTIC_CONTRACT_INTELLIGENCE.md`, `CHANGELOG_V0_13.md`, and `VALIDATION_V0_13.md`.
 
 ## Current product loop
 

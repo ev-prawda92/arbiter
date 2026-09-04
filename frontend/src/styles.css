@@ -1232,3 +1232,7 @@ body {
 .policy-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
 .policy-history { grid-column: 1 / -1; }
 @media (max-width: 900px) { .policy-edit-grid { grid-template-columns: 1fr 1fr; } }
+
+.semantic-card { margin-top: 16px; padding: 16px; border: 1px solid rgba(148,163,184,.22); border-radius: 12px; background: rgba(15,23,42,.42); }
+.semantic-concept { margin: 10px 0 12px; }
+.semantic-concept p { margin: 5px 0 0; color: var(--muted, #94a3b8); line-height: 1.45; }

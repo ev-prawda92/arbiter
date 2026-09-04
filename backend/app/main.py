@@ -20,16 +20,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.12.0",
+    version="0.13.0",
     description=(
-        "Resolution control infrastructure for event-contract exchanges. "
+        "Semantic contract intelligence and resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
         "triage operator work, and verify the audit chain. Advisory intelligence is non-binding."
     ),
@@ -90,6 +90,12 @@ class CompileIn(BaseModel):
     actor: str = "exchange.market-ops"
 
 
+@app.post("/api/semantic-analyze", tags=["Semantic Contract Intelligence"])
+def semantic_analyze(inp: CompileIn, auth=Depends(developer.require_scope("contracts:write"))):
+    """Interpret the real-world meaning of a contract without fabricating missing terms."""
+    return semantic_contract.analyze_contract(inp.title, inp.rules)
+
+
 @app.post("/api/compile", tags=["Compiler"])
 def compile_contract(inp: CompileIn, auth=Depends(developer.require_scope("contracts:write"))):
     authorities = resolution_store.list_authorities()
@@ -128,7 +134,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.12.0", "llm": llm.available(), "product": "Resolution Control Infrastructure", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.13.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary()}
 
 
 
@@ -141,7 +147,7 @@ def readiness():
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.12.0",
+        "version": "0.13.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
@@ -592,7 +598,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.12.0", "domain": resolution_store.summary(),
+    return {"version": "0.13.0", "domain": resolution_store.summary(),
             "active_evidence": active_evidence.get_service(resolution_store).summary(),
             "approval_control": approval_control.get_service(resolution_store).summary(),
             "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Approve → Authorize → Audit"}

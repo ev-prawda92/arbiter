@@ -103,7 +103,7 @@ def developer_manifest() -> dict:
     cfg = load_runtime_config()
     return {
         "api_version": "v1-preview",
-        "product_version": "0.12.0",
+        "product_version": "0.13.0",
         "auth": {
             "enabled": api_auth_enabled(),
             "required": cfg.require_auth,
@@ -114,8 +114,9 @@ def developer_manifest() -> dict:
             "note": "Local development can remain open. Production defaults to fail-closed authentication.",
         },
         "docs": {"swagger": "/docs", "redoc": "/redoc", "openapi": "/openapi.json"},
-        "core_resources": ["contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "approvals", "settlement-packets", "policy-drafts", "work-queue", "portfolio", "audit"],
-        "compiler": {"endpoint": "/api/compile", "version": "0.1.2"},
+        "core_resources": ["semantic-contract-intelligence", "contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "approvals", "settlement-packets", "policy-drafts", "work-queue", "portfolio", "audit"],
+        "compiler": {"endpoint": "/api/compile", "version": "0.1.3"},
+        "semantic_contract_intelligence": {"endpoint": "/api/semantic-analyze", "version": "0.13.0", "gate_mode": "advisory"},
         "webhook_event_catalog": WEBHOOK_EVENTS,
         "stability": "preview — endpoint contracts may evolve before v1.0",
     }

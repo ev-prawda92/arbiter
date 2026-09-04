@@ -32,7 +32,14 @@ def main():
     def post(p,b): return request(a.base_url,p,'POST',b,a.api_key)
 
     suffix=uuid.uuid4().hex[:8]; aid=f'AUTH-V012-{suffix}'; cid=f'V012-SETTLE-{suffix}'
-    st,h=get('/api/health'); check('API reachable and v0.12',st==200 and str(h.get('version','')).startswith('0.12'),f'{st} {h}')
+    st,h=get('/api/health'); 
+    def version_at_least(v, major, minor):
+        try:
+            parts=str(v).split('.')
+            return (int(parts[0]), int(parts[1])) >= (major, minor)
+        except Exception:
+            return False
+    check('API reachable and v0.12+',st==200 and version_at_least(h.get('version',''),0,12),f'{st} {h}')
 
     # Governed policy workflow.
     st,active=get('/api/policy'); base_version=active.get('version')

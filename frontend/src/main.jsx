@@ -1082,6 +1082,29 @@ function AnalyzeModal({ onClose, onSuccess, initial = null }) {
                 <div><span className="result-label">Compiler</span><strong>v{result.compilation.compiler_version}</strong></div>
               </div>
               {result.compilation.unresolved_fields.length > 0 && <div className="unresolved"><strong>Unresolved:</strong> {result.compilation.unresolved_fields.join(' · ')}</div>}
+              {result.compilation.semantic && (
+                <div className="semantic-card">
+                  <div className="panel-title-row">
+                    <h4>Semantic Contract Intelligence</h4>
+                    <span className={`compile-status ${(result.compilation.semantic.status || '').toLowerCase()}`}>{result.compilation.semantic.status}</span>
+                  </div>
+                  {result.compilation.semantic.concepts?.map((concept) => (
+                    <div key={concept.concept_id} className="semantic-concept">
+                      <strong>{concept.name}</strong>
+                      <p>{concept.plain_language}</p>
+                    </div>
+                  ))}
+                  {result.compilation.semantic.clarification_questions?.length > 0 && (
+                    <div className="compiler-fixes">
+                      <strong>Meaning that still needs to be pinned down</strong>
+                      {result.compilation.semantic.clarification_questions.map((q, i) => (
+                        <div key={`${q.field}-${i}`}>• {q.question}</div>
+                      ))}
+                    </div>
+                  )}
+                  <details><summary>View extracted semantics</summary><pre>{JSON.stringify(result.compilation.semantic.extracted_semantics, null, 2)}</pre></details>
+                </div>
+              )}
               {result.compilation.recommended_fixes?.length > 0 && (
                 <div className="compiler-fixes">
                   <strong>Recommended fixes</strong>

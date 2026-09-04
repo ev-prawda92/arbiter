@@ -11,8 +11,9 @@ from typing import Any
 
 from .resolution_infra import canonical_hash
 from .control_library import evaluate_spec
+from .semantic_contract import analyze_contract as analyze_semantic_contract
 
-COMPILER_VERSION = "0.1.2"
+COMPILER_VERSION = "0.1.3"
 
 AUTHORITY_PATTERNS = [
     ("AUTH-BLS-CPI", re.compile(r"\b(?:BLS|Bureau of Labor Statistics|consumer price index|\bCPI\b)\b", re.I)),
@@ -218,6 +219,7 @@ def _recommended_fixes(unresolved: list[str]) -> list[dict[str, str]]:
 
 
 def compile_rules(contract_id: str, title: str, rules: str, known_authorities: list[dict[str, Any]], contract_version: int = 1, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    semantic = analyze_semantic_contract(title, rules)
     consistency, unresolved_consistency = _title_rules_consistency(title, rules)
     # If title and rules conflict, rule text becomes the only trusted source for
     # compilation. This prevents a title-only CPI token, for example, from
@@ -253,6 +255,8 @@ def compile_rules(contract_id: str, title: str, rules: str, known_authorities: l
     result = {
         "compiler_version": COMPILER_VERSION,
         "status": status,
+        "semantic": semantic,
+        "semantic_gate_mode": "advisory",
         "proposed_spec": spec,
         "unresolved_fields": unresolved,
         "provenance": {"source": auth_prov, "timing": time_prov, "definition": def_prov, "consistency": consistency},
@@ -268,7 +272,7 @@ def compile_rules(contract_id: str, title: str, rules: str, known_authorities: l
             "Specification is coherent but requires governed repair or approval before automated resolution." if status == "REVIEW" else
             "Specification has a blocking inconsistency or missing binding field and cannot proceed."
         ),
-        "boundary": "Compiler output is a proposal. Unresolved fields are never fabricated; binding resolution remains governed and deterministic.",
+        "boundary": "Compiler output is a proposal. Unresolved fields are never fabricated; binding resolution remains governed and deterministic. Semantic findings are advisory in v0.13 while the ontology is benchmarked before promotion into binding policy.",
     }
     result["compilation_hash"] = canonical_hash(result)
     return result
