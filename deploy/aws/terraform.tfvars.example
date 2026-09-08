@@ -1,0 +1,14 @@
+name               = "arbiter"
+environment        = "staging"
+region             = "us-east-1"
+vpc_id             = "vpc-REPLACE"
+private_subnet_ids = ["subnet-REPLACE-A", "subnet-REPLACE-B"]
+public_subnet_ids  = ["subnet-REPLACE-C", "subnet-REPLACE-D"]
+container_image    = "123456789012.dkr.ecr.us-east-1.amazonaws.com/arbiter:v0.26.0"
+certificate_arn    = "arn:aws:acm:us-east-1:123456789012:certificate/REPLACE"
+api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:arbiter/staging/api-keys-REPLACE"
+settlement_signing_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:arbiter/staging/settlement-signing-REPLACE"
+webhook_signing_secret_arn    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:arbiter/staging/webhook-signing-REPLACE"
+oidc_issuer   = "https://idp.example.com/"
+oidc_audience = "arbiter"
+oidc_jwks_url = "https://idp.example.com/.well-known/jwks.json"

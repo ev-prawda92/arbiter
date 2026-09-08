@@ -216,3 +216,18 @@ Validation gate: `python3 scripts/settlement_gate.py`.
 ## v0.18 — Enterprise Secrets, Model Administration & Identity Federation
 
 Arbiter now supports tenant-governed model providers, write-only credential administration, local encrypted secret custody, an AWS Secrets Manager/KMS production adapter, and OIDC bearer-token federation. Frontier models remain advisory only and cannot determine or authorize settlement.
+
+## v0.22–v0.26 Enterprise Validation Program
+
+Arbiter now includes an explicit path from enterprise architecture to enterprise proof:
+
+- **v0.22 Cloud Deployment Foundation** — production Docker image and AWS reference Terraform for ECS Fargate, Multi-AZ RDS PostgreSQL, S3/KMS, Secrets Manager, HTTPS ALB, CloudWatch and autoscaling.
+- **v0.23 Resilience Validation Lab** — deterministic local stress scenarios plus a registry for deployed load, restore, failover, worker-recovery and dependency-outage evidence.
+- **v0.24 External Assurance Evidence** — hash-pinned metadata registry for independent security review, penetration testing and operational validation. Recording evidence does not self-certify Arbiter.
+- **v0.25 Shadow Pilot Harness** — run Arbiter against real venue contracts without changing official venue resolution or settlement.
+- **v0.26 Reference Exchange v2** — play-money YES/NO limit orders, complementary-contract matching, positions, settlement, order cancellation and audit.
+
+See `ENTERPRISE_VALIDATION_PROGRAM.md`, `deploy/aws/README.md`, `SHADOW_PILOT_RUNBOOK.md`, and `docs/security/`.
+
+### v0.26.1 Terraform validation patch
+The AWS reference deployment was normalized to valid multi-line HCL and the release gate now includes an offline Terraform syntax-shape check. `terraform validate` remains the authoritative local/cloud validation step before planning or applying infrastructure.

@@ -21,14 +21,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract, identity_tenant, reliability, model_gateway, production_data, enterprise_secrets, identity_federation, reference_exchange, operations_resilience, settlement_assurance
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract, identity_tenant, reliability, model_gateway, production_data, enterprise_secrets, identity_federation, reference_exchange, operations_resilience, settlement_assurance, deployment_readiness, resilience_lab, external_assurance, shadow_pilot
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.21.0",
+    version="0.26.0",
     description=(
         "Semantic contract intelligence and resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -193,6 +193,9 @@ def initialize_production_data_plane():
     reference_exchange.get_service(resolution_store)
     operations_resilience.get_service(resolution_store)
     settlement_assurance.get_service(resolution_store)
+    resilience_lab.get_service(resolution_store)
+    external_assurance.get_service(resolution_store)
+    shadow_pilot.get_service(resolution_store)
     production_data.get_service(resolution_store).initialize()
 
 
@@ -331,7 +334,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.21.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
+    return {"ok": True, "service": "arbiter", "version": "0.26.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
 
 
 
@@ -344,7 +347,7 @@ def readiness():
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.21.0",
+        "version": "0.26.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
@@ -797,7 +800,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.21.0", "domain": resolution_store.summary(),
+    return {"version": "0.26.0", "domain": resolution_store.summary(),
             "active_evidence": active_evidence.get_service(resolution_store).summary(),
             "approval_control": approval_control.get_service(resolution_store).summary(),
             "model_gateway": model_gateway.get_service(resolution_store).posture(),
@@ -807,6 +810,10 @@ def infrastructure_summary():
             "reference_exchange": reference_exchange.get_service(resolution_store).posture(),
             "operations_resilience": operations_resilience.get_service(resolution_store).posture(),
             "settlement_assurance": settlement_assurance.get_service(resolution_store).posture(),
+            "deployment_readiness": deployment_readiness.posture(),
+            "resilience_lab": resilience_lab.get_service(resolution_store).posture(production_data.current_context().get("tenant_id") or "local"),
+            "external_assurance": external_assurance.get_service(resolution_store).posture(production_data.current_context().get("tenant_id") or "local"),
+            "shadow_pilot": shadow_pilot.get_service(resolution_store).posture(production_data.current_context().get("tenant_id") or "local"),
             "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Approve → Authorize → Audit"}
 
 @app.get("/api/contracts")
@@ -1011,6 +1018,137 @@ def assurance_create_holdout(inp:HoldoutCreateIn,auth=Depends(developer.require_
 def assurance_evaluate_holdout(dataset_id:str,auth=Depends(developer.require_scope("benchmark:run"))):
     principal=_principal_from_auth(auth)
     try:return settlement_assurance.get_service(resolution_store).evaluate_holdout(principal.tenant_id,dataset_id,principal.principal_id)
+    except KeyError as e:raise HTTPException(404,str(e)) from e
+
+
+# ---- v0.22-v0.26 Enterprise Validation Program ----
+class ResilienceRunIn(BaseModel):
+    scenario: str
+    iterations: int = 25
+class ResilienceExternalIn(BaseModel):
+    scenario: str
+    environment: str
+    status: str
+    metrics: dict = {}
+class ExternalAssuranceIn(BaseModel):
+    artifact_type: str
+    provider: str
+    performed_at: str
+    result: str
+    scope: dict = {}
+    evidence_uri: str
+    evidence_sha256: str
+    independent: bool = True
+    metadata: dict = {}
+class ShadowPilotCreateIn(BaseModel):
+    venue: str
+    name: str
+    contract_target: int = 100
+    metadata: dict = {}
+class ShadowContractIn(BaseModel):
+    venue_contract_id: str
+    title: str
+    rules: str
+class ShadowResolutionIn(BaseModel):
+    venue_outcome: str
+    arbiter_outcome: str
+    evidence: dict = {}
+class ReferenceOrderIn(BaseModel):
+    market_id: str
+    account_id: str
+    side: str
+    quantity: float
+    limit_price: float
+
+@app.get("/api/deployment/posture", tags=["Deployment Validation"])
+def deployment_posture(auth=Depends(developer.require_scope("operations:write"))):
+    return deployment_readiness.posture()
+@app.post("/api/deployment/self-test", tags=["Deployment Validation"])
+def deployment_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    return deployment_readiness.self_test()
+
+@app.get("/api/resilience-lab/posture", tags=["Resilience Validation"])
+def resilience_lab_posture(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return resilience_lab.get_service(resolution_store).posture(principal.tenant_id)
+@app.get("/api/resilience-lab/runs", tags=["Resilience Validation"])
+def resilience_lab_runs(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return {"runs":resilience_lab.get_service(resolution_store).list_runs(principal.tenant_id)}
+@app.post("/api/resilience-lab/self-test", tags=["Resilience Validation"])
+def resilience_lab_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth);return resilience_lab.get_service(resolution_store).self_test(principal.tenant_id,principal.principal_id)
+@app.post("/api/resilience-lab/run", tags=["Resilience Validation"])
+def resilience_lab_run(inp:ResilienceRunIn,auth=Depends(developer.require_scope("benchmark:run"))):
+    principal=_principal_from_auth(auth)
+    try:return {"run":resilience_lab.get_service(resolution_store).run_local(principal.tenant_id,inp.scenario,principal.principal_id,inp.iterations)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/resilience-lab/external", tags=["Resilience Validation"])
+def resilience_lab_external(inp:ResilienceExternalIn,auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    try:return {"run":resilience_lab.get_service(resolution_store).record_external(principal.tenant_id,inp.scenario,inp.environment,inp.status,inp.metrics,principal.principal_id)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+
+@app.get("/api/external-assurance/posture", tags=["External Assurance"])
+def external_assurance_posture(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return external_assurance.get_service(resolution_store).posture(principal.tenant_id)
+@app.get("/api/external-assurance", tags=["External Assurance"])
+def external_assurance_list(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return {"artifacts":external_assurance.get_service(resolution_store).list(principal.tenant_id)}
+@app.post("/api/external-assurance", tags=["External Assurance"])
+def external_assurance_record(inp:ExternalAssuranceIn,auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    try:return {"artifact":external_assurance.get_service(resolution_store).record(principal.tenant_id,inp.artifact_type,inp.provider,inp.performed_at,inp.result,inp.scope,inp.evidence_uri,inp.evidence_sha256,inp.independent,principal.principal_id,inp.metadata)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/external-assurance/self-test", tags=["External Assurance"])
+def external_assurance_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth);return external_assurance.get_service(resolution_store).self_test(principal.tenant_id,principal.principal_id)
+
+@app.get("/api/shadow-pilots/posture", tags=["Shadow Pilot"])
+def shadow_pilot_posture(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return shadow_pilot.get_service(resolution_store).posture(principal.tenant_id)
+@app.post("/api/shadow-pilots", tags=["Shadow Pilot"])
+def shadow_pilot_create(inp:ShadowPilotCreateIn,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"pilot":shadow_pilot.get_service(resolution_store).create_pilot(principal.tenant_id,inp.venue,inp.name,inp.contract_target,principal.principal_id,inp.metadata)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.get("/api/shadow-pilots/{pilot_id}", tags=["Shadow Pilot"])
+def shadow_pilot_get(pilot_id:str,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"pilot":shadow_pilot.get_service(resolution_store).get_pilot(principal.tenant_id,pilot_id)}
+    except KeyError as e:raise HTTPException(404,str(e)) from e
+@app.post("/api/shadow-pilots/{pilot_id}/contracts", tags=["Shadow Pilot"])
+def shadow_pilot_add_contract(pilot_id:str,inp:ShadowContractIn,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"contract":shadow_pilot.get_service(resolution_store).add_contract(principal.tenant_id,pilot_id,inp.venue_contract_id,inp.title,inp.rules,principal.principal_id)}
+    except (ValueError,KeyError) as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/shadow-contracts/{shadow_contract_id}/resolution", tags=["Shadow Pilot"])
+def shadow_pilot_resolution(shadow_contract_id:str,inp:ShadowResolutionIn,auth=Depends(developer.require_scope("resolution:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"contract":shadow_pilot.get_service(resolution_store).record_resolution(principal.tenant_id,shadow_contract_id,inp.venue_outcome,inp.arbiter_outcome,inp.evidence,principal.principal_id)}
+    except KeyError as e:raise HTTPException(404,str(e)) from e
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/shadow-pilots/self-test/run", tags=["Shadow Pilot"])
+def shadow_pilot_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth);return shadow_pilot.get_service(resolution_store).self_test(principal.tenant_id,principal.principal_id)
+
+@app.post("/api/reference-exchange/orders", tags=["Reference Exchange"])
+def reference_exchange_order(inp:ReferenceOrderIn,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return reference_exchange.get_service(resolution_store).place_order(principal.tenant_id,inp.market_id,inp.account_id,inp.side,inp.quantity,inp.limit_price,principal.principal_id)
+    except KeyError as e:raise HTTPException(404,str(e)) from e
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/reference-exchange/orders/{order_id}/cancel", tags=["Reference Exchange"])
+def reference_exchange_cancel_order(order_id:str,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"order":reference_exchange.get_service(resolution_store).cancel_order(principal.tenant_id,order_id,principal.principal_id)}
+    except KeyError as e:raise HTTPException(404,str(e)) from e
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.get("/api/reference-exchange/markets/{market_id}/order-book", tags=["Reference Exchange"])
+def reference_exchange_order_book(market_id:str,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return reference_exchange.get_service(resolution_store).order_book(principal.tenant_id,market_id)
+@app.get("/api/reference-exchange/accounts/{account_id}", tags=["Reference Exchange"])
+def reference_exchange_account(account_id:str,auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"account":reference_exchange.get_service(resolution_store).account(account_id,principal.tenant_id)}
     except KeyError as e:raise HTTPException(404,str(e)) from e
 
 # ---- v0.11 Active Evidence Infrastructure ----

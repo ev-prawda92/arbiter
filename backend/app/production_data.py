@@ -230,6 +230,10 @@ TENANT_SCOPED_TABLES = (
     "evidence_monitors", "evidence_poll_runs", "evidence_exceptions", "resolution_reevaluation_requests",
     "operation_idempotency", "durable_jobs", "webhook_deliveries", "policy_drafts", "model_invocations",
     "secret_records", "model_provider_configs",
+    # v0.19+ tenant-scoped operational and assurance resources.
+    "reference_markets", "reference_accounts", "reference_positions", "reference_orders", "reference_trades",
+    "operations_incidents", "recovery_drills", "assurance_runs", "holdout_datasets",
+    "resilience_runs", "external_assurance_artifacts", "shadow_pilots", "shadow_contracts",
 )
 
 

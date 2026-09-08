@@ -116,3 +116,11 @@ Expected v0.21 local reference result:
 **RELEASE GATE: PASS — 334/334 checks across 13 suites**
 
 This result is internal release validation and does not represent external security certification or regulatory approval.
+
+## Enterprise validation extensions (v0.22–v0.26)
+
+13. **Cloud Deployment Foundation (v0.22)** — Docker + AWS IaC and deployment preflight.
+14. **Resilience Validation Lab (v0.23)** — local stress/failure scenarios and deployed evidence registry.
+15. **External Assurance Evidence (v0.24)** — independent review/test metadata with SHA-256 fingerprints.
+16. **Shadow Pilot Harness (v0.25)** — real-contract, zero-settlement-authority design-partner workflow.
+17. **Reference Exchange v2 (v0.26)** — play-money order book/matching and end-to-end settlement sandbox.

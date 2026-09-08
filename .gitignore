@@ -9,3 +9,10 @@ backend/data/objects/
 backend/data/backups/
 
 backend/data/.local_secret_master_key
+
+# deployment / validation outputs
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+arbiter_load_result.json

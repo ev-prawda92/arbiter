@@ -12,6 +12,7 @@ function App() {
   const [policy, setPolicy] = useState(null)
   const [benchmark, setBenchmark] = useState(null)
   const [infrastructure, setInfrastructure] = useState(null)
+  const [validation, setValidation] = useState(null)
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -131,6 +132,19 @@ function App() {
     }
   }
 
+  const loadValidation = async () => {
+    try {
+      const [deploymentR, resilienceR, assuranceR, shadowR, exchangeR] = await Promise.all([
+        fetch('/api/deployment/posture'), fetch('/api/resilience-lab/posture'), fetch('/api/external-assurance/posture'),
+        fetch('/api/shadow-pilots/posture'), fetch('/api/reference-exchange')
+      ])
+      const [deployment, resilience, assurance, shadow, exchange] = await Promise.all([
+        deploymentR.json(), resilienceR.json(), assuranceR.json(), shadowR.json(), exchangeR.json()
+      ])
+      setValidation({ deployment, resilience, assurance, shadow, exchange })
+    } catch (e) { console.error(e) }
+  }
+
   const loadPolicy = async () => {
     try {
       const [r, dr] = await Promise.all([fetch('/api/policy'), fetch('/api/policy/drafts')])
@@ -171,6 +185,9 @@ function App() {
     }
     if (v === 'infrastructure' && !infrastructure) {
       await loadInfrastructure()
+    }
+    if (v === 'validation' && !validation) {
+      await loadValidation()
     }
     if (v === 'policy' && !policy) {
       await loadPolicy()
@@ -214,6 +231,10 @@ function App() {
 
       {view === 'infrastructure' && (
         <InfrastructureView data={infrastructure} />
+      )}
+
+      {view === 'validation' && (
+        <ValidationLabView data={validation} onReload={loadValidation} />
       )}
 
       {view === 'policy' && (
@@ -289,6 +310,12 @@ function Rail({ markets, view, onViewChange, onRefresh }) {
             onClick={() => onViewChange('infrastructure')}
           >
             Controls
+          </button>
+          <button
+            className={`nav-btn ${view === 'validation' ? 'active' : ''}`}
+            onClick={() => onViewChange('validation')}
+          >
+            Validation
           </button>
           <button
             className={`nav-btn ${view === 'policy' ? 'active' : ''}`}
@@ -898,6 +925,40 @@ function InfrastructureView({ data }) {
         </div>)}
       </section>
       <p className="boundary-note">Technical governance controls support exchange compliance and auditability; they do not by themselves constitute a legal compliance determination.</p>
+    </div>
+  )
+}
+
+function ValidationLabView({ data, onReload }) {
+  const [runResult, setRunResult] = useState(null)
+  const [running, setRunning] = useState(false)
+  if (!data) return <div className="view"><p>Loading enterprise validation program...</p></div>
+  const d = data.deployment || {}, r = data.resilience || {}, a = data.assurance || {}, s = data.shadow || {}, x = data.exchange || {}
+  const runSandbox = async () => {
+    setRunning(true); setRunResult(null)
+    try {
+      const response = await fetch('/api/reference-exchange/self-test', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+      const result = await response.json(); if (!response.ok) throw new Error(result.detail || 'sandbox run failed')
+      setRunResult(result); await onReload?.()
+    } catch (e) { setRunResult({ ok:false, error:e.message }) }
+    finally { setRunning(false) }
+  }
+  const status = (good, yes='READY', no='OPEN') => <span className={good ? 'audit-ok' : 'validation-open'}>{good ? yes : no}</span>
+  return (
+    <div className="view validation-view">
+      <div className="section-head">
+        <p className="eyebrow">Enterprise Validation Program · v0.22–v0.26</p>
+        <h1>Prove Arbiter under real operating conditions.</h1>
+        <p>Deployment, resilience, independent assurance, exchange shadow pilots, and a play-money reference venue. Internal tests are evidence of engineering discipline—not external certification.</p>
+      </div>
+      <div className="validation-grid">
+        <section className="validation-card"><div className="panel-title-row"><h2>1 · Cloud deployment</h2>{status(d.deployment_iac_complete, 'BUILDABLE')}</div><p>AWS reference architecture for ECS, Multi-AZ PostgreSQL, S3/KMS, Secrets Manager, HTTPS and autoscaling.</p><div className="mono muted">Deployment proven: {String(d.deployment_proven)}</div></section>
+        <section className="validation-card"><div className="panel-title-row"><h2>2 · Resilience</h2>{status(r.production_resilience_proven, 'PROVEN', 'NEEDS DEPLOYED DRILLS')}</div><p>Local stress scenarios plus hash-pinned production load, restore, failover and outage evidence.</p><div className="mono muted">External passed: {(r.external_passed || []).join(', ') || 'none'}</div></section>
+        <section className="validation-card"><div className="panel-title-row"><h2>3 · External assurance</h2>{status(a.external_assurance_complete, 'COMPLETE', 'INCOMPLETE')}</div><p>Independent architecture review, penetration test, production load, restore, failover and incident exercises.</p><div className="mono muted">Missing: {(a.missing_independent_evidence || []).length}</div></section>
+        <section className="validation-card"><div className="panel-title-row"><h2>4 · Shadow pilot</h2><span className="agent-mode">ZERO AUTHORITY</span></div><p>Run Arbiter against real venue contracts while the venue keeps official resolution and settlement authority.</p><div className="mono muted">Pilots: {s.pilots || 0} · Contracts: {s.contracts || 0}</div></section>
+        <section className="validation-card sandbox-card"><div className="panel-title-row"><h2>5 · Reference exchange</h2><span className="audit-ok">PLAY MONEY</span></div><p>YES/NO order matching → positions → evidence → deterministic sandbox resolution → settlement → audit.</p><div className="compiler-grid"><div><span className="result-label">Markets</span><strong>{x.markets || 0}</strong></div><div><span className="result-label">Orders</span><strong>{x.orders || 0}</strong></div><div><span className="result-label">Trades</span><strong>{x.trades || 0}</strong></div></div><button onClick={runSandbox} disabled={running}>{running ? 'Running…' : 'Run end-to-end sandbox test'}</button>{runResult && <pre className="validation-result">{JSON.stringify(runResult, null, 2)}</pre>}</section>
+      </div>
+      <p className="boundary-note">Current production settlement certification: NOT_CERTIFIED. That label should change only after deployed and independent evidence exists.</p>
     </div>
   )
 }

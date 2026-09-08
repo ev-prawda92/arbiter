@@ -105,3 +105,21 @@ A missing model API key does not disable Arbiter's binding control plane.
 
 ## Production status
 v0.17 is **not production settlement certified**. The application-side production data plane is now implemented, but the managed cloud resources, identity/key custody, resilience, external observability, recovery drills, security assurance, and untouched holdout still need to be completed and evidenced. See `ENTERPRISE_READINESS.md`.
+
+## Enterprise validation (v0.26)
+
+Run all backend gates:
+
+```bash
+python3 scripts/release_gate.py
+```
+
+Expected: `RELEASE GATE: PASS — 419/419 checks across 17 suites`.
+
+Static deployment preflight:
+
+```bash
+python3 scripts/deployment_preflight.py
+```
+
+For an AWS staging deployment, start with `deploy/aws/README.md` and run `terraform init`, `terraform fmt -check`, `terraform validate`, then `terraform plan` before any apply.

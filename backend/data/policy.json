@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.08-16",
+  "version": "2026.09.08-18",
   "weights": {
     "source": 0.3,
     "timing": 0.3,
@@ -228,7 +228,37 @@
     },
     {
       "version": "2026.09.08-16",
-      "at": "2026-09-08T13:00:28.899738+00:00",
+      "at": "2026-09-08T15:04:31.679576+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.08-17",
+      "at": "2026-09-08T15:09:26.926811+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.08-18",
+      "at": "2026-09-08T15:53:24.276568+00:00",
       "by": "admin:policy",
       "note": "v0.12 settlement gate no-op policy version",
       "weights": {

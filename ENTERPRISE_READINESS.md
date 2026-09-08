@@ -20,3 +20,7 @@ This is **not production settlement certification**. v0.21 intentionally reports
 ## Certification boundary
 
 Arbiter's internal gates demonstrate deterministic behavior, fail-closed controls, auditability, and repeatable validation. Independent certification requires evidence produced by external reviewers and by the deployed infrastructure itself.
+
+## v0.26 validation status
+
+Arbiter is enterprise-architected and pilot-ready, but remains **NOT_CERTIFIED**. The repository now contains deployment and validation machinery for the remaining proof steps. Actual enterprise-grade claims still require a provisioned cloud environment, deployed load/DR/failover results, independent security review and penetration test, a real venue shadow pilot, and externally reviewable evidence.
