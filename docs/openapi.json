@@ -6,9 +6,323 @@
     "contact": {
       "name": "Arbiter Developer Platform"
     },
-    "version": "0.13.0"
+    "version": "0.17.0"
   },
   "paths": {
+    "/api/identity/whoami": {
+      "get": {
+        "tags": [
+          "Enterprise Identity"
+        ],
+        "summary": "Whoami",
+        "operationId": "whoami_api_identity_whoami_get",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/posture": {
+      "get": {
+        "tags": [
+          "Enterprise Identity"
+        ],
+        "summary": "Identity Posture",
+        "operationId": "identity_posture_api_identity_posture_get",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tenants": {
+      "get": {
+        "tags": [
+          "Enterprise Identity"
+        ],
+        "summary": "List Tenants",
+        "operationId": "list_tenants_api_tenants_get",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Enterprise Identity"
+        ],
+        "summary": "Create Tenant",
+        "operationId": "create_tenant_api_tenants_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/principals": {
+      "get": {
+        "tags": [
+          "Enterprise Identity"
+        ],
+        "summary": "List Principals",
+        "operationId": "list_principals_api_principals_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Enterprise Identity"
+        ],
+        "summary": "Create Principal",
+        "operationId": "create_principal_api_principals_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrincipalCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/developer": {
       "get": {
         "tags": [
@@ -22,6 +336,280 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model-gateway": {
+      "get": {
+        "tags": [
+          "Model Intelligence"
+        ],
+        "summary": "Model Gateway Posture",
+        "operationId": "model_gateway_posture_api_model_gateway_get",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model-invocations": {
+      "get": {
+        "tags": [
+          "Model Intelligence"
+        ],
+        "summary": "Model Invocations",
+        "operationId": "model_invocations_api_model_invocations_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model-gateway/self-test": {
+      "post": {
+        "tags": [
+          "Model Intelligence"
+        ],
+        "summary": "Model Gateway Self Test",
+        "operationId": "model_gateway_self_test_api_model_gateway_self_test_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/semantic-review": {
+      "post": {
+        "tags": [
+          "Model Intelligence"
+        ],
+        "summary": "Ai Semantic Review",
+        "operationId": "ai_semantic_review_api_ai_semantic_review_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AISemanticReviewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cases/{case_id}/copilot": {
+      "post": {
+        "tags": [
+          "Model Intelligence"
+        ],
+        "summary": "Case Copilot",
+        "operationId": "case_copilot_api_cases__case_id__copilot_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIUseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -2518,10 +3106,772 @@
           }
         }
       }
+    },
+    "/api/reliability": {
+      "get": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Reliability Posture",
+        "operationId": "reliability_posture_api_reliability_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "List Jobs",
+        "operationId": "list_jobs_api_jobs_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Enqueue Job",
+        "operationId": "enqueue_job_api_jobs_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/claim": {
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Claim Job",
+        "operationId": "claim_job_api_jobs_claim_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobClaimIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/complete": {
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Complete Job",
+        "operationId": "complete_job_api_jobs__job_id__complete_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCompleteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/fail": {
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Fail Job",
+        "operationId": "fail_job_api_jobs__job_id__fail_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobFailIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhook-deliveries": {
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Create Webhook Delivery",
+        "operationId": "create_webhook_delivery_api_webhook_deliveries_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhook-verify": {
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Verify Webhook",
+        "operationId": "verify_webhook_api_webhook_verify_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookVerifyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/idempotency": {
+      "post": {
+        "tags": [
+          "Reliability"
+        ],
+        "summary": "Put Idempotency",
+        "operationId": "put_idempotency_api_idempotency_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdempotencyPutIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-plane": {
+      "get": {
+        "tags": [
+          "Production Data Plane"
+        ],
+        "summary": "Data Plane Posture",
+        "operationId": "data_plane_posture_api_data_plane_get",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-plane/self-test": {
+      "post": {
+        "tags": [
+          "Production Data Plane"
+        ],
+        "summary": "Data Plane Self Test",
+        "operationId": "data_plane_self_test_api_data_plane_self_test_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-plane/backup": {
+      "post": {
+        "tags": [
+          "Production Data Plane"
+        ],
+        "summary": "Data Plane Backup",
+        "operationId": "data_plane_backup_api_data_plane_backup_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-plane/backup/verify": {
+      "post": {
+        "tags": [
+          "Production Data Plane"
+        ],
+        "summary": "Data Plane Backup Verify",
+        "operationId": "data_plane_backup_verify_api_data_plane_backup_verify_post",
+        "parameters": [
+          {
+            "name": "X-Arbiter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Arbiter-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupVerifyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AISemanticReviewIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rules": {
+            "type": "string",
+            "title": "Rules"
+          },
+          "model_tier": {
+            "type": "string",
+            "title": "Model Tier",
+            "default": "default"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "rules"
+        ],
+        "title": "AISemanticReviewIn"
+      },
+      "AIUseIn": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "model_tier": {
+            "type": "string",
+            "title": "Model Tier",
+            "default": "default"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "AIUseIn"
+      },
       "AnalyzeIn": {
         "properties": {
           "question": {
@@ -2737,6 +4087,19 @@
           "source_type"
         ],
         "title": "AuthorityIn"
+      },
+      "BackupVerifyIn": {
+        "properties": {
+          "manifest_file": {
+            "type": "string",
+            "title": "Manifest File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "manifest_file"
+        ],
+        "title": "BackupVerifyIn"
       },
       "CompileIn": {
         "properties": {
@@ -3142,6 +4505,158 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "IdempotencyPutIn": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "request": {
+            "title": "Request"
+          },
+          "response": {
+            "title": "Response"
+          },
+          "status_code": {
+            "type": "integer",
+            "title": "Status Code",
+            "default": 200
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "title": "Ttl Seconds",
+            "default": 86400
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "scope",
+          "request",
+          "response"
+        ],
+        "title": "IdempotencyPutIn"
+      },
+      "JobClaimIn": {
+        "properties": {
+          "worker_id": {
+            "type": "string",
+            "title": "Worker Id"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "lease_seconds": {
+            "type": "integer",
+            "title": "Lease Seconds",
+            "default": 60
+          }
+        },
+        "type": "object",
+        "required": [
+          "worker_id"
+        ],
+        "title": "JobClaimIn"
+      },
+      "JobCompleteIn": {
+        "properties": {
+          "worker_id": {
+            "type": "string",
+            "title": "Worker Id"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "worker_id"
+        ],
+        "title": "JobCompleteIn"
+      },
+      "JobCreateIn": {
+        "properties": {
+          "job_type": {
+            "type": "string",
+            "title": "Job Type"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "default": {}
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "default": "local"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts",
+            "default": 5
+          },
+          "available_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available At"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:queue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_type"
+        ],
+        "title": "JobCreateIn"
+      },
+      "JobFailIn": {
+        "properties": {
+          "worker_id": {
+            "type": "string",
+            "title": "Worker Id"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "retry_delay_seconds": {
+            "type": "integer",
+            "title": "Retry Delay Seconds",
+            "default": 30
+          }
+        },
+        "type": "object",
+        "required": [
+          "worker_id",
+          "error"
+        ],
+        "title": "JobFailIn"
+      },
       "PolicyDraftIn": {
         "properties": {
           "weights": {
@@ -3221,6 +4736,45 @@
         },
         "type": "object",
         "title": "PolicyUpdate"
+      },
+      "PrincipalCreateIn": {
+        "properties": {
+          "principal_id": {
+            "type": "string",
+            "title": "Principal Id"
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "principal_type": {
+            "type": "string",
+            "title": "Principal Type"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:admin"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "principal_id",
+          "tenant_id",
+          "principal_type",
+          "display_name"
+        ],
+        "title": "PrincipalCreateIn"
       },
       "ResolutionRunIn": {
         "properties": {
@@ -3371,6 +4925,41 @@
         ],
         "title": "TemplateIn"
       },
+      "TenantCreateIn": {
+        "properties": {
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:admin"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TenantCreateIn"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -3410,6 +4999,79 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebhookCreateIn": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "target_url": {
+            "type": "string",
+            "title": "Target Url"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "default": {}
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "default": "local"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts",
+            "default": 5
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "default": "system:webhook"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_type",
+          "target_url"
+        ],
+        "title": "WebhookCreateIn"
+      },
+      "WebhookVerifyIn": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "signature": {
+            "type": "string",
+            "title": "Signature"
+          },
+          "tolerance_seconds": {
+            "type": "integer",
+            "title": "Tolerance Seconds",
+            "default": 300
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "nonce",
+          "payload",
+          "signature"
+        ],
+        "title": "WebhookVerifyIn"
       },
       "WorkItemUpdate": {
         "properties": {

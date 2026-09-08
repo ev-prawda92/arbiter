@@ -1,6 +1,20 @@
 # Arbiter
 
+## v0.17 — Production Data Plane
+
 **Semantic Contract Intelligence + Resolution Control for Event Markets**
+
+Arbiter v0.17 moves the core platform from a SQLite-only reference store toward a production-shaped data plane. The release adds a PostgreSQL adapter, request-scoped tenant context, database-enforced row-level security, content-addressed raw evidence storage, concurrency serialization for settlement packet creation, and backup/restore verification hooks. Local development remains SQLite-based; production configuration fails closed unless PostgreSQL and managed object storage are configured.
+
+The binding principle remains:
+
+> **AI interprets. Policy governs. Evidence proves. Deterministic logic resolves. Humans handle exceptions.**
+
+Release validation: **240/240 checks across 9 suites** in the local reference environment. This is a release-coherence result, **not production settlement certification**.
+
+The remaining work is deployment and assurance: actual managed PostgreSQL/object storage, SSO and key custody, managed workers/queues, HA/failover, external observability, backup/PITR drills, load/chaos testing, independent security review, penetration testing, and untouched real-contract holdout validation.
+
+See `PRODUCTION_DATA_PLANE.md`, `CHANGELOG_V0_17.md`, `VALIDATION_V0_17.md`, and `ENTERPRISE_READINESS.md`.
 
 Arbiter interprets what natural-language event contracts mean, converts that meaning into governed resolution specifications, monitors authoritative evidence, executes deterministic resolution logic, controls approvals and settlement handoffs, and preserves an auditable record.
 
@@ -188,3 +202,7 @@ The settlement boundary is deliberately explicit: **v0.12 creates authorization 
 Policy changes can now follow **Draft → Submit → Independent Approval → Activate**. In production mode direct active-policy mutation is blocked. Existing resolution runs remain pinned to the policy version they used.
 
 Validation gate: `python3 scripts/settlement_gate.py`.
+
+## v0.18 — Enterprise Secrets, Model Administration & Identity Federation
+
+Arbiter now supports tenant-governed model providers, write-only credential administration, local encrypted secret custody, an AWS Secrets Manager/KMS production adapter, and OIDC bearer-token federation. Frontier models remain advisory only and cannot determine or authorize settlement.

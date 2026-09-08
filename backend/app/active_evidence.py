@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .resolution_infra import EvidenceRecord, ResolutionStore, canonical_hash, gen_id, utcnow
+from . import production_data
 
 
 def _parse_time(value: str | None = None) -> datetime:
@@ -281,6 +282,13 @@ class ActiveEvidenceService:
 
         revision = bool(previous)
         revision_number = int(previous.get("revision_number", 0)) + 1 if previous else 1
+        # Preserve the immutable raw observation separately from the normalized record.
+        # The record carries only a content-addressed reference; settlement logic never
+        # trusts object-storage metadata in place of the governed record hash.
+        raw_object = production_data.get_service(self.store).put_json_object(
+            raw_payload,
+            {"kind": "evidence_raw_payload", "monitor_id": monitor_id, "contract_id": mon["contract_id"], "authority_id": mon["authority_id"]},
+        )
         record = EvidenceRecord(
             evidence_id=gen_id("evid"), authority_id=mon["authority_id"], authority_version=mon["authority_version"],
             observed_at=observed_at or now, retrieved_at=now, normalized_value=normalized_value,
@@ -288,7 +296,7 @@ class ActiveEvidenceService:
             effective_at=observed_at or now, revision_number=revision_number,
             supersedes=previous.get("evidence_id") if previous else None,
             source_locator=source_locator or (self.store.get_authority(mon["authority_id"], mon["authority_version"]) or {}).get("endpoint", ""),
-            metadata={"monitor_id": monitor_id, "adapter_type": mon["adapter_type"], "normalized_hash": normalized_hash},
+            metadata={"monitor_id": monitor_id, "adapter_type": mon["adapter_type"], "normalized_hash": normalized_hash, "raw_object": raw_object},
         )
         saved = self.store.append_evidence(record, actor=actor)
         conflict = False; exception_id = None

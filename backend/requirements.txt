@@ -1,3 +1,6 @@
 fastapi
 uvicorn
 httpx
+
+cryptography>=46,<47
+PyJWT[crypto]>=2.9,<3

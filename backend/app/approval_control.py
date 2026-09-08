@@ -16,6 +16,7 @@ from typing import Any
 
 from .enterprise import load_runtime_config
 from .resolution_infra import canonical_hash, gen_id, utcnow
+from . import production_data
 
 
 TERMINAL_ACTIONS = {
@@ -203,59 +204,60 @@ class ApprovalControlService:
         return "hmac-sha256:" + sig, key_id, mode, production_eligible
 
     def create_settlement_packet(self, approval_id: str, *, actor: str) -> dict:
-        req = self.get_approval(approval_id)
-        if not req:
-            raise ValueError("approval request not found")
-        if req["status"] != "approved":
-            raise ValueError("settlement packet requires an approved authorization request")
-        if req["object_type"] != "resolution_run" or req["action"] != "authorize_settlement_handoff":
-            raise ValueError("approval is not a settlement authorization")
-        run = self.get_run(req["object_id"])
-        if not run:
-            raise ValueError("resolution run not found")
-        # Fail closed again at packetization time.
-        if run.get("state") != "completed" or str(run.get("outcome", "")).upper() in {"HELD", "PENDING", "REVIEW", "BLOCK"}:
-            raise ValueError("resolution run is not settlement eligible")
-        existing = self.packet_for_approval(approval_id)
-        if existing:
-            return existing
-        profile = req.get("exchange_profile") or "generic"
-        payload = {
-            "schema": "arbiter.settlement-authorization.v1",
-            "approval_id": approval_id,
-            "resolution_run_id": run["run_id"],
-            "run_hash": run.get("run_hash"),
-            "contract_id": run["contract_id"],
-            "contract_version": run["contract_version"],
-            "policy_version": run["policy_version"],
-            "engine_version": run["engine_version"],
-            "outcome": run["outcome"],
-            "evidence_ids": list(run.get("evidence_ids") or []),
-            "approval_decisions": [
-                {"actor": d["actor"], "decision": d["decision"], "decided_at": d["decided_at"]}
-                for d in req["decisions"]
-            ],
-            "exchange_profile": profile,
-            "terminal_action": TERMINAL_ACTIONS.get(profile, TERMINAL_ACTIONS["generic"]),
-            "created_at": utcnow(),
-        }
-        payload_hash = canonical_hash(payload)
-        signature, key_id, mode, production_eligible = self._sign(payload_hash)
-        if load_runtime_config().production and not os.environ.get("ARBITER_SETTLEMENT_SIGNING_SECRET"):
-            raise ValueError("production settlement packet signing secret is not configured")
-        pid = gen_id("pkt")
-        with self.store.connect() as db:
-            db.execute(
-                "INSERT INTO settlement_packets(packet_id,approval_id,run_id,contract_id,contract_version,policy_version,exchange_profile,terminal_action,created_at,created_by,payload_json,payload_hash,signature,signing_key_id,signature_mode,production_eligible) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (pid, approval_id, run["run_id"], run["contract_id"], run["contract_version"], run["policy_version"],
-                 profile, payload["terminal_action"], payload["created_at"], actor, json.dumps(payload, sort_keys=True),
-                 payload_hash, signature, key_id, mode, 1 if production_eligible else 0),
-            )
-        self.store._audit(actor, "settlement.packet.created", "resolution_run", run["run_id"],
-                          {"packet_id": pid, "approval_id": approval_id, "payload_hash": payload_hash,
-                           "exchange_profile": profile, "terminal_action": payload["terminal_action"],
-                           "production_eligible": production_eligible})
-        return self.packet_for_approval(approval_id)
+        with production_data.serialized(self.store, f"settlement-packet:{approval_id}"):
+            req = self.get_approval(approval_id)
+            if not req:
+                raise ValueError("approval request not found")
+            if req["status"] != "approved":
+                raise ValueError("settlement packet requires an approved authorization request")
+            if req["object_type"] != "resolution_run" or req["action"] != "authorize_settlement_handoff":
+                raise ValueError("approval is not a settlement authorization")
+            run = self.get_run(req["object_id"])
+            if not run:
+                raise ValueError("resolution run not found")
+            # Fail closed again at packetization time.
+            if run.get("state") != "completed" or str(run.get("outcome", "")).upper() in {"HELD", "PENDING", "REVIEW", "BLOCK"}:
+                raise ValueError("resolution run is not settlement eligible")
+            existing = self.packet_for_approval(approval_id)
+            if existing:
+                return existing
+            profile = req.get("exchange_profile") or "generic"
+            payload = {
+                "schema": "arbiter.settlement-authorization.v1",
+                "approval_id": approval_id,
+                "resolution_run_id": run["run_id"],
+                "run_hash": run.get("run_hash"),
+                "contract_id": run["contract_id"],
+                "contract_version": run["contract_version"],
+                "policy_version": run["policy_version"],
+                "engine_version": run["engine_version"],
+                "outcome": run["outcome"],
+                "evidence_ids": list(run.get("evidence_ids") or []),
+                "approval_decisions": [
+                    {"actor": d["actor"], "decision": d["decision"], "decided_at": d["decided_at"]}
+                    for d in req["decisions"]
+                ],
+                "exchange_profile": profile,
+                "terminal_action": TERMINAL_ACTIONS.get(profile, TERMINAL_ACTIONS["generic"]),
+                "created_at": utcnow(),
+            }
+            payload_hash = canonical_hash(payload)
+            signature, key_id, mode, production_eligible = self._sign(payload_hash)
+            if load_runtime_config().production and not os.environ.get("ARBITER_SETTLEMENT_SIGNING_SECRET"):
+                raise ValueError("production settlement packet signing secret is not configured")
+            pid = gen_id("pkt")
+            with self.store.connect() as db:
+                db.execute(
+                    "INSERT INTO settlement_packets(packet_id,approval_id,run_id,contract_id,contract_version,policy_version,exchange_profile,terminal_action,created_at,created_by,payload_json,payload_hash,signature,signing_key_id,signature_mode,production_eligible) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (pid, approval_id, run["run_id"], run["contract_id"], run["contract_version"], run["policy_version"],
+                     profile, payload["terminal_action"], payload["created_at"], actor, json.dumps(payload, sort_keys=True),
+                     payload_hash, signature, key_id, mode, 1 if production_eligible else 0),
+                )
+            self.store._audit(actor, "settlement.packet.created", "resolution_run", run["run_id"],
+                              {"packet_id": pid, "approval_id": approval_id, "payload_hash": payload_hash,
+                               "exchange_profile": profile, "terminal_action": payload["terminal_action"],
+                               "production_eligible": production_eligible})
+            return self.packet_for_approval(approval_id)
 
     def packet_for_approval(self, approval_id: str) -> dict | None:
         with self.store.connect() as db:

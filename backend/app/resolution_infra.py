@@ -16,11 +16,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import sqlite3
 import uuid
 from dataclasses import asdict, dataclass, field as dc_field
 from datetime import datetime, timezone
 from typing import Any, Iterable
+
+from . import production_data
 
 HERE = os.path.dirname(__file__)
 DB_PATH = os.environ.get(
@@ -158,15 +159,13 @@ class ResolutionStore:
 
     def __init__(self, path: str = DB_PATH):
         self.path = path
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self.backend = production_data.load_config().database_backend
+        if self.backend == "sqlite":
+            os.makedirs(os.path.dirname(path), exist_ok=True)
         self.init_db()
 
-    def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
-        return conn
+    def connect(self):
+        return production_data.open_database_connection(self.path)
 
     def init_db(self) -> None:
         with self.connect() as db:
@@ -578,7 +577,8 @@ class ResolutionStore:
             def count(table: str) -> int:
                 return int(db.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"])
             return {
-                "database": self.path,
+                "database": self.path if self.backend == "sqlite" else "postgresql://configured",
+                "database_backend": self.backend,
                 "contracts": count("contract_versions"),
                 "authorities": count("authority_versions"),
                 "evidence_records": count("evidence_records"),

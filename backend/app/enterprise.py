@@ -16,6 +16,7 @@ class RuntimeConfig:
     require_auth: bool
     cors_origins: tuple[str, ...]
     allow_legacy_keys: bool
+    database_backend: str
 
     @property
     def production(self) -> bool:
@@ -38,7 +39,8 @@ def load_runtime_config() -> RuntimeConfig:
     else:
         origins = () if production else ("*",)
     allow_legacy_keys = _truthy(os.environ.get("ARBITER_ALLOW_LEGACY_KEYS"), default=not production)
-    return RuntimeConfig(environment, require_auth, origins, allow_legacy_keys)
+    database_backend = os.environ.get("ARBITER_DATABASE_BACKEND", "sqlite").strip().lower()
+    return RuntimeConfig(environment, require_auth, origins, allow_legacy_keys, database_backend)
 
 
 def configuration_findings() -> list[dict]:
@@ -50,8 +52,12 @@ def configuration_findings() -> list[dict]:
         findings.append({"severity": "BLOCK", "code": "WILDCARD_CORS_IN_PRODUCTION", "detail": "Production CORS origins must be explicitly allow-listed."})
     if cfg.production and cfg.allow_legacy_keys:
         findings.append({"severity": "WARN", "code": "LEGACY_KEYS_ENABLED", "detail": "Raw legacy API keys should be disabled in production; prefer hashed key records."})
+    if cfg.production and cfg.database_backend != "postgresql":
+        findings.append({"severity": "BLOCK", "code": "PRODUCTION_DATABASE_NOT_POSTGRESQL", "detail": "Production deployments must set ARBITER_DATABASE_BACKEND=postgresql and use the production data adapter."})
     if cfg.production and not os.environ.get("ARBITER_SETTLEMENT_SIGNING_SECRET"):
         findings.append({"severity": "BLOCK", "code": "SETTLEMENT_SIGNING_KEY_MISSING", "detail": "Production settlement authorization requires ARBITER_SETTLEMENT_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement)."})
+    if cfg.production and not os.environ.get("ARBITER_WEBHOOK_SIGNING_SECRET"):
+        findings.append({"severity": "BLOCK", "code": "WEBHOOK_SIGNING_KEY_MISSING", "detail": "Production outbound webhook envelopes require ARBITER_WEBHOOK_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement)."})
     return findings
 
 
@@ -74,6 +80,7 @@ def posture() -> dict:
         "authentication_required": cfg.require_auth,
         "cors_origins": list(cfg.cors_origins),
         "legacy_api_keys_allowed": cfg.allow_legacy_keys,
+        "database_backend": cfg.database_backend,
         "configuration_findings": findings,
         "configuration_gate": "BLOCK" if any(f["severity"] == "BLOCK" for f in findings) else "PASS",
         "security_boundary": (

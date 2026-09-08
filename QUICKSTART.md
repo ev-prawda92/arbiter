@@ -1,110 +1,107 @@
-# Quick Start
+# Arbiter v0.17 Quick Start
 
-## One command to run everything
-
+## Run locally
 ```bash
-cd arbiter
+cd Arbiter
 ./start.sh
 ```
+Then open **http://localhost:8000**.
 
-Then open **http://localhost:8000** in your browser.
+Local development uses SQLite and a local content-addressed object store by default.
 
-That's it. The script installs dependencies, builds the frontend, and starts the server.
-
-## What you'll see
-
-- **Markets view** (default): A docket of 10 sample Kalshi-shaped markets, each scored on three levers and stamped with a verdict (AUTO-RESOLVE, MONITORED, or HOLD).
-- **Monitoring view**: Platform-level intelligence — where disputes cluster, which categories need stricter rules.
-- **Policy view**: The current adjudication policy (weights, thresholds) and a changelog of every policy change.
-- **Analyze button**: Paste any market question and resolution criteria, Arbiter scores it live on the same three levers.
-
-## Sample scores
-
-The engine scores these 10 markets as:
-- **4 auto-resolve clean** (weather observations, simple price thresholds)
-- **5 monitored** (macro data with some definition ambiguity)
-- **1 held for review** (ceasefire market — interpretive terms, no authoritative source, no snapshot rule)
-
-The ceasefire market is the **centerpiece**: it shows why Arbiter exists. A contract that can't resolve cleanly under the rules gets *held before payout*, not disputed after.
-
-## Next steps for a Kalshi pitch
-
-1. **Replace sample markets** with real Kalshi markets (via API or scraping)
-2. **Include the Jan 2026 shutdown market** (settled ~13 hours apart on the same source — the key example)
-3. **Build the economic argument**: disputes prevented × notional held × reputational de-risking
-4. **Wire live Kalshi contract URLs** into the analyzer
-
-## If something doesn't work
-
-**Port 8000 already in use?**
+## Run the release gate
+With the API running:
 ```bash
-cd arbiter/backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 9000
+python3 scripts/release_gate.py
 ```
-Then go to http://localhost:9000.
+Expected v0.17 reference result:
 
-**Dependencies not installing?**
+**RELEASE GATE: PASS — 240/240 checks across 9 suites**
+
+## Optional: enable frontier-model intelligence
+Arbiter does not require an LLM to resolve contracts. The model layer is advisory and can be disabled entirely.
+
+Preferred OpenAI configuration:
 ```bash
-pip3 install --break-system-packages fastapi uvicorn httpx
-cd arbiter/frontend
-npm install
-npm run build
-cd ../backend
-python -m uvicorn app.main:app
+export OPENAI_API_KEY='YOUR_KEY'
+export ARBITER_MODEL_PROVIDER='openai'
+export ARBITER_MODEL_DEFAULT='gpt-6-astra'
+export ARBITER_MODEL_FAST='gpt-5.6-terra'
 ```
+Then restart Arbiter.
 
-**Frontend not updating?**
+Check model posture:
 ```bash
-cd arbiter/frontend
-npm run build
-cd ..
-./start.sh
+curl http://localhost:8000/api/model-gateway | python3 -m json.tool
 ```
 
-## Architecture in 60 seconds
+## Production-shaped data plane
+Do **not** point a live settlement deployment at the local SQLite database. A production-shaped environment should configure:
 
-- **Frontend** (React): Docket view, detail panel, monitoring dashboard, policy history
-- **Backend** (FastAPI): Scoring engine (deterministic heuristics), policy store, data feeds, API
-- **Scoring engine**: 100% rule-based. Source, timing, definition levers scored independently, then weighted and composited into a verdict
-- **Data**: Sample markets in `backend/data/`, can swap for live Kalshi API
-- **Policy**: Versioned and logged. Weights and thresholds live in `backend/data/policy.json`
+```bash
+export ARBITER_ENV=production
+export ARBITER_DATABASE_BACKEND=postgresql
+export ARBITER_DATABASE_URL='postgresql://...'
+export ARBITER_DATABASE_SSLMODE=require
 
-## Files you'll want to edit
-
-- `backend/app/engine.py` — scoring rules (AUTHORITATIVE_SOURCES, TIME_PATTERNS, INTERPRETIVE_TERMS)
-- `backend/app/policy.py` — lever weights and verdict thresholds
-- `backend/data/sample_markets.json` — docket content
-- `frontend/src/main.jsx` — React components (docket, detail, monitoring, analyze modal)
-- `frontend/src/styles.css` — design system
-
-## To connect to real Kalshi markets
-
-Edit `backend/app/feeds.py`:
-```python
-def get_markets(limit=40, live=True):
-    if live:
-        try:
-            return _kalshi_live(limit)  # ← tries this first
-        except:
-            return _sample(...)  # ← falls back to sample if unreachable
+export ARBITER_OBJECT_STORE_BACKEND=s3
+export ARBITER_S3_BUCKET='...'
+export ARBITER_S3_PREFIX='arbiter'
 ```
 
-Set `KALSHI_API_KEY` env var and the live feed will work.
-
-## API endpoints (for reference)
-
-```
-GET  /api/health              health check
-GET  /api/markets             all scored markets
-GET  /api/markets/{ticker}    single market + resolution trail
-GET  /api/monitoring          platform intelligence
-GET  /api/policy              current policy + changelog
-POST /api/policy              update policy (logged)
-POST /api/analyze             score arbitrary pasted contract
+Install backend dependencies with:
+```bash
+python3 -m pip install -r backend/requirements-production.txt
 ```
 
-Hit `/api/health` to make sure the backend is running.
+If migrating pre-v0.17 PostgreSQL rows, assign tenant ownership explicitly before enabling RLS. For a verified single-tenant migration only:
+```bash
+export ARBITER_MIGRATION_DEFAULT_TENANT='tenant_...'
+```
 
-## Good luck
+Check data-plane posture:
+```bash
+curl http://localhost:8000/api/data-plane | python3 -m json.tool
+```
 
-The app is a full working prototype. The scoring is real, the verdicts are defensible, and the design is institutional-grade. Everything is transparent. Take it to Kalshi's compliance team.
+## Useful endpoints
+```text
+GET  /api/health
+GET  /api/readiness
+GET  /api/security-posture
+GET  /api/developer
+GET  /api/data-plane
+POST /api/data-plane/self-test
+POST /api/data-plane/backup
+POST /api/data-plane/backup/verify
+
+POST /api/semantic-analyze
+POST /api/compile
+POST /api/compile-and-create
+POST /api/analyze
+GET  /api/cases
+GET  /api/cases/{case_id}
+
+GET  /api/evidence-monitors
+GET  /api/source-health
+GET  /api/evidence-exceptions
+GET  /api/resolution-reevaluations
+
+GET  /api/approvals
+GET  /api/settlement-packets
+GET  /api/audit
+
+GET  /api/model-gateway
+GET  /api/model-invocations
+POST /api/model-gateway/self-test
+POST /api/ai/semantic-review
+POST /api/cases/{case_id}/copilot
+```
+
+## Core boundary
+> **AI interprets. Policy governs. Evidence proves. Deterministic logic resolves. Humans handle exceptions.**
+
+A missing model API key does not disable Arbiter's binding control plane.
+
+## Production status
+v0.17 is **not production settlement certified**. The application-side production data plane is now implemented, but the managed cloud resources, identity/key custody, resilience, external observability, recovery drills, security assurance, and untouched holdout still need to be completed and evidenced. See `ENTERPRISE_READINESS.md`.

@@ -31,7 +31,7 @@ def main():
     def post(p,b): return request(a.base_url,p,'POST',b,a.api_key)
     def get(p): return request(a.base_url,p,'GET',None,a.api_key)
 
-    st,h=get('/api/health'); check('API reachable and v0.13',st==200 and str(h.get('version','')).startswith('0.13'),f'{st} {h}')
+    st,h=get('/api/health'); check('API reachable and v0.13',st==200 and tuple(int(x) for x in str(h.get('version','0.0')).split('.')[:2]) >= (0,13),f'{st} {h}')
     check('product identifies semantic contract intelligence', 'Semantic Contract Intelligence' in str(h.get('product','')), str(h))
 
     base={'contract_id':'SEM-'+uuid.uuid4().hex[:8], 'contract_version':1, 'exchange_profile':'generic'}

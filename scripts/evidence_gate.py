@@ -39,7 +39,7 @@ def main():
     suffix=uuid.uuid4().hex[:8]
     auth1=f'AUTH-V011-A-{suffix}'; auth2=f'AUTH-V011-B-{suffix}'; contract=f'V011-EVID-{suffix}'
 
-    st,h=get('/api/health'); check('API reachable and v0.11+', st==200 and str(h.get('version','')).startswith(('0.11','0.12','0.13')), f'{st} {h}')
+    st,h=get('/api/health'); check('API reachable and v0.11+', st==200 and tuple(int(x) for x in str(h.get('version','0.0')).split('.')[:2]) >= (0,11), f'{st} {h}')
 
     for aid,name in [(auth1,'Evidence Gate Primary'),(auth2,'Evidence Gate Secondary')]:
         st,out=post('/api/authorities',{

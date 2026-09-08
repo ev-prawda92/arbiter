@@ -14,20 +14,21 @@ Serves the frontend at /.
 """
 
 import os
+import json
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract, identity_tenant, reliability, model_gateway, production_data, enterprise_secrets, identity_federation
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.13.0",
+    version="0.18.0",
     description=(
         "Semantic contract intelligence and resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -37,32 +38,159 @@ app = FastAPI(
     contact={"name": "Arbiter Developer Platform"},
 )
 runtime_config = enterprise.load_runtime_config()
-app.add_middleware(CORSMiddleware, allow_origins=list(runtime_config.cors_origins), allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "X-Arbiter-Key", "Idempotency-Key", "X-Request-ID"])
+app.add_middleware(CORSMiddleware, allow_origins=list(runtime_config.cors_origins), allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization", "X-Arbiter-Key", "X-Arbiter-Tenant", "Idempotency-Key", "X-Request-ID"])
 
 @app.middleware("http")
 async def enterprise_boundary(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or __import__("secrets").token_hex(12)
+    tokens = None
     # Fail closed on unsafe production configuration before serving control-plane APIs.
-    findings = enterprise.configuration_findings()
+    findings = enterprise.configuration_findings() + production_data.configuration_findings() + enterprise_secrets.configuration_findings() + identity_federation.posture().get("findings", [])
     if request.url.path.startswith("/api/") and request.url.path not in {"/api/health", "/api/readiness", "/api/security-posture"}:
         if any(f["severity"] == "BLOCK" for f in findings):
             from fastapi.responses import JSONResponse
             return JSONResponse(status_code=503, content={"detail": "unsafe production configuration", "findings": findings}, headers=enterprise.security_headers(request_id))
         if enterprise.load_runtime_config().require_auth:
             try:
-                developer.authenticate(request.headers.get("X-Arbiter-Key"))
+                auth = developer.authenticate(request.headers.get("X-Arbiter-Key"), request.headers.get("Authorization"))
+                principal = identity_tenant.principal_from_auth(auth, production=enterprise.load_runtime_config().production)
+                requested_tenant = request.headers.get("X-Arbiter-Tenant")
+                tenant_id = identity_tenant.validate_tenant_override(principal, requested_tenant)
+                request.state.principal = principal.to_dict()
+                tokens = production_data.bind_context(tenant_id, principal.principal_id, request_id)
             except HTTPException as e:
                 from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=e.status_code, content={"detail": e.detail}, headers=enterprise.security_headers(request_id))
-    response = await call_next(request)
+            except (ValueError, PermissionError) as e:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=403, content={"detail": str(e)}, headers=enterprise.security_headers(request_id))
+        else:
+            auth = developer.authenticate(request.headers.get("X-Arbiter-Key"), request.headers.get("Authorization"))
+            principal = identity_tenant.principal_from_auth(auth, production=False)
+            request.state.principal = principal.to_dict()
+            tokens = production_data.bind_context(principal.tenant_id, principal.principal_id, request_id)
+    try:
+        response = await call_next(request)
+    finally:
+        production_data.reset_context(tokens)
     for k, v in enterprise.security_headers(request_id).items():
         response.headers[k] = v
     return response
+
+
+
+class TenantCreateIn(BaseModel):
+    tenant_id: str | None = None
+    name: str
+    actor: str = "system:admin"
+    metadata: dict = {}
+
+class PrincipalCreateIn(BaseModel):
+    principal_id: str
+    tenant_id: str
+    principal_type: str
+    display_name: str
+    actor: str = "system:admin"
+    metadata: dict = {}
+
+@app.get("/api/identity/whoami", tags=["Enterprise Identity"])
+def whoami(request: Request, auth=Depends(developer.require_api_key)):
+    principal = identity_tenant.principal_from_auth(auth, production=enterprise.load_runtime_config().production)
+    return {"principal": principal.to_dict()}
+
+@app.get("/api/identity/posture", tags=["Enterprise Identity"])
+def identity_posture(auth=Depends(developer.require_scope("admin:*"))):
+    return identity_tenant.posture(resolution_store, enterprise.load_runtime_config(), developer.configured_key_records())
+
+@app.get("/api/tenants", tags=["Enterprise Identity"])
+def list_tenants(auth=Depends(developer.require_scope("admin:*"))):
+    reg=identity_tenant.TenantRegistry(resolution_store); reg.ensure_local(); return {"tenants": reg.list_tenants()}
+
+@app.post("/api/tenants", tags=["Enterprise Identity"])
+def create_tenant(inp: TenantCreateIn, auth=Depends(developer.require_scope("admin:*"))):
+    reg=identity_tenant.TenantRegistry(resolution_store); reg.ensure_local()
+    try: return {"tenant": reg.create_tenant(inp.name, inp.actor, inp.tenant_id, inp.metadata)}
+    except ValueError as e: raise HTTPException(409, str(e)) from e
+
+@app.get("/api/principals", tags=["Enterprise Identity"])
+def list_principals(tenant_id: str | None = None, auth=Depends(developer.require_scope("admin:*"))):
+    reg=identity_tenant.TenantRegistry(resolution_store); reg.ensure_local(); return {"principals": reg.list_principals(tenant_id)}
+
+@app.post("/api/principals", tags=["Enterprise Identity"])
+def create_principal(inp: PrincipalCreateIn, auth=Depends(developer.require_scope("admin:*"))):
+    reg=identity_tenant.TenantRegistry(resolution_store); reg.ensure_local()
+    try: return {"principal": reg.register_principal(inp.principal_id, inp.tenant_id, inp.principal_type, inp.display_name, inp.actor, inp.metadata)}
+    except ValueError as e: raise HTTPException(422, str(e)) from e
+
+
+class ModelProviderConfigureIn(BaseModel):
+    provider: str
+    api_key: str
+    default_model: str
+    fast_model: str
+    allowed_purposes: list[str] | None = None
+    daily_max_calls: int = 500
+    metadata: dict = {}
+
+class ModelProviderDisableIn(BaseModel):
+    provider: str
+
+@app.get("/api/identity/federation", tags=["Enterprise Identity"])
+def identity_federation_posture(auth=Depends(developer.require_scope("admin:*"))):
+    return identity_federation.posture()
+
+@app.post("/api/identity/federation/self-test", tags=["Enterprise Identity"])
+def identity_federation_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    return identity_federation.self_test()
+
+@app.get("/api/model-providers", tags=["Enterprise Secrets"])
+def model_providers(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    return {"providers": enterprise_secrets.get_service(resolution_store).list_providers(principal.tenant_id)}
+
+@app.post("/api/model-providers", tags=["Enterprise Secrets"])
+def configure_model_provider(inp: ModelProviderConfigureIn, auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    try:
+        return {"provider": enterprise_secrets.get_service(resolution_store).configure_provider(tenant_id=principal.tenant_id, provider=inp.provider, api_key=inp.api_key, default_model=inp.default_model, fast_model=inp.fast_model, actor=principal.principal_id, allowed_purposes=inp.allowed_purposes, daily_max_calls=inp.daily_max_calls, metadata=inp.metadata)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/model-providers/{provider}/disable", tags=["Enterprise Secrets"])
+def disable_model_provider(provider: str, auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    try:
+        return {"provider": enterprise_secrets.get_service(resolution_store).disable_provider(principal.tenant_id, provider, principal.principal_id)}
+    except KeyError as e:
+        raise HTTPException(404, str(e)) from e
+
+@app.get("/api/enterprise-secrets", tags=["Enterprise Secrets"])
+def enterprise_secret_posture(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    return enterprise_secrets.get_service(resolution_store).posture(principal.tenant_id)
+
+@app.post("/api/enterprise-secrets/self-test", tags=["Enterprise Secrets"])
+def enterprise_secret_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    return enterprise_secrets.get_service(resolution_store).self_test(principal.tenant_id, principal.principal_id)
 
 _FRONTEND = os.path.join(os.path.dirname(__file__), "..", "dist")
 
 # ---- simple in-process cache so repeated calls in a session are consistent ----
 _CACHE = {"reports": None}
+
+@app.on_event("startup")
+def initialize_production_data_plane():
+    # Create all subsystem tables before applying PostgreSQL RLS. In local mode this
+    # is idempotent and simply prepares the object/backup directories.
+    identity_tenant.TenantRegistry(resolution_store)
+    active_evidence.get_service(resolution_store)
+    approval_control.get_service(resolution_store)
+    governed_policy.get_service(resolution_store)
+    reliability.get_service(resolution_store)
+    model_gateway.get_service(resolution_store)
+    enterprise_secrets.get_service(resolution_store)
+    production_data.get_service(resolution_store).initialize()
 
 
 def _reports(live=False):
@@ -78,6 +206,72 @@ def _reports(live=False):
 @app.get("/api/developer", tags=["Developer"])
 def developer_manifest():
     return developer.developer_manifest()
+
+
+class AIUseIn(BaseModel):
+    question: str
+    model_tier: str = "default"
+
+
+class AISemanticReviewIn(BaseModel):
+    title: str
+    rules: str
+    model_tier: str = "default"
+
+
+def _principal_from_auth(auth: dict):
+    return identity_tenant.principal_from_auth(auth, production=enterprise.load_runtime_config().production)
+
+
+@app.get("/api/model-gateway", tags=["Model Intelligence"])
+def model_gateway_posture(auth=Depends(developer.require_scope("ai:read"))):
+    return model_gateway.get_service(resolution_store).posture()
+
+
+@app.get("/api/model-invocations", tags=["Model Intelligence"])
+def model_invocations(limit: int = 100, auth=Depends(developer.require_scope("ai:read"))):
+    principal = _principal_from_auth(auth)
+    tenant_filter = None if "admin:*" in principal.scopes else principal.tenant_id
+    return {"invocations": model_gateway.get_service(resolution_store).list_invocations(tenant_filter, limit)}
+
+
+@app.post("/api/model-gateway/self-test", tags=["Model Intelligence"])
+def model_gateway_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal = _principal_from_auth(auth)
+    return model_gateway.get_service(resolution_store).self_test(
+        tenant_id=principal.tenant_id, principal_id=principal.principal_id, actor=principal.principal_id
+    )
+
+
+@app.post("/api/ai/semantic-review", tags=["Model Intelligence"])
+def ai_semantic_review(inp: AISemanticReviewIn, auth=Depends(developer.require_scope("ai:use"))):
+    principal = _principal_from_auth(auth)
+    deterministic = semantic_contract.analyze_contract(inp.title, inp.rules)
+    try:
+        return model_gateway.get_service(resolution_store).invoke(
+            "semantic_review",
+            {"title": inp.title, "rules": inp.rules, "deterministic_semantics": deterministic},
+            tenant_id=principal.tenant_id, principal_id=principal.principal_id, actor=principal.principal_id,
+            model_tier=inp.model_tier,
+        )
+    except (RuntimeError, ValueError) as e:
+        raise HTTPException(503 if isinstance(e, RuntimeError) else 422, str(e)) from e
+
+
+@app.post("/api/cases/{case_id}/copilot", tags=["Model Intelligence"])
+def case_copilot(case_id: str, inp: AIUseIn, auth=Depends(developer.require_scope("ai:use"))):
+    principal = _principal_from_auth(auth)
+    case = resolution_store.get_analysis_case(case_id)
+    if not case:
+        raise HTTPException(404, "case not found")
+    try:
+        return model_gateway.get_service(resolution_store).invoke(
+            "case_copilot", {"case_json": case, "question": inp.question},
+            tenant_id=principal.tenant_id, principal_id=principal.principal_id, actor=principal.principal_id,
+            model_tier=inp.model_tier,
+        )
+    except (RuntimeError, ValueError) as e:
+        raise HTTPException(503 if isinstance(e, RuntimeError) else 422, str(e)) from e
 
 
 class CompileIn(BaseModel):
@@ -134,7 +328,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.13.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary()}
+    return {"ok": True, "service": "arbiter", "version": "0.18.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
 
 
 
@@ -142,15 +336,16 @@ def health():
 @app.get("/api/readiness", tags=["Developer"])
 def readiness():
     chain = resolution_store.verify_audit_chain()
-    findings = enterprise.configuration_findings()
+    findings = enterprise.configuration_findings() + production_data.configuration_findings() + enterprise_secrets.configuration_findings() + identity_federation.posture().get("findings", [])
     ready = chain.get("ok") is True and not any(f["severity"] == "BLOCK" for f in findings)
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.13.0",
+        "version": "0.18.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
+        "data_plane": production_data.get_service(resolution_store).posture(),
     }
     if not ready:
         raise HTTPException(status_code=503, detail=payload)
@@ -533,7 +728,8 @@ def benchmark_run(auth=Depends(developer.require_scope("benchmark:run"))):
 
 
 # ---- v0.6 resolution infrastructure ----------------------------------------
-seed_reference_data()
+if not enterprise.load_runtime_config().production:
+    seed_reference_data()
 
 class ContractSpecIn(BaseModel):
     contract_id: str
@@ -598,9 +794,13 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.13.0", "domain": resolution_store.summary(),
+    return {"version": "0.18.0", "domain": resolution_store.summary(),
             "active_evidence": active_evidence.get_service(resolution_store).summary(),
             "approval_control": approval_control.get_service(resolution_store).summary(),
+            "model_gateway": model_gateway.get_service(resolution_store).posture(),
+            "data_plane": production_data.get_service(resolution_store).posture(),
+            "enterprise_secrets": enterprise_secrets.get_service(resolution_store).posture(production_data.current_context().get("tenant_id") or "local"),
+            "identity_federation": identity_federation.posture(),
             "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Approve → Authorize → Audit"}
 
 @app.get("/api/contracts")
@@ -808,6 +1008,140 @@ def create_settlement_packet(approval_id: str, inp: SettlementPacketIn, auth=Dep
     try:
         return {"packet": approval_control.get_service(resolution_store).create_settlement_packet(approval_id, actor=inp.actor)}
     except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
+
+# ---- v0.15 Production Reliability ----
+class JobCreateIn(BaseModel):
+    job_type: str
+    payload: dict = {}
+    tenant_id: str = "local"
+    max_attempts: int = 5
+    available_at: str | None = None
+    actor: str = "system:queue"
+
+class JobClaimIn(BaseModel):
+    worker_id: str
+    tenant_id: str | None = None
+    lease_seconds: int = 60
+
+class JobCompleteIn(BaseModel):
+    worker_id: str
+    result: dict = {}
+
+class JobFailIn(BaseModel):
+    worker_id: str
+    error: str
+    retry_delay_seconds: int = 30
+
+class WebhookCreateIn(BaseModel):
+    event_type: str
+    target_url: str
+    payload: dict = {}
+    tenant_id: str = "local"
+    max_attempts: int = 5
+    actor: str = "system:webhook"
+
+class WebhookVerifyIn(BaseModel):
+    timestamp: str
+    nonce: str
+    payload: dict
+    signature: str
+    tolerance_seconds: int = 300
+
+class IdempotencyPutIn(BaseModel):
+    key: str
+    scope: str
+    request: object
+    response: object
+    status_code: int = 200
+    ttl_seconds: int = 86400
+
+@app.get("/api/reliability", tags=["Reliability"])
+def reliability_posture():
+    return reliability.get_service(resolution_store).posture()
+
+@app.get("/api/jobs", tags=["Reliability"])
+def list_jobs(status: str | None = None, tenant_id: str | None = None, limit: int = 100, auth=Depends(developer.require_scope("operations:write"))):
+    return {"jobs": reliability.get_service(resolution_store).list_jobs(status=status, tenant_id=tenant_id, limit=min(limit,500))}
+
+@app.post("/api/jobs", tags=["Reliability"])
+def enqueue_job(inp: JobCreateIn, auth=Depends(developer.require_scope("operations:write"))):
+    try:
+        return {"job": reliability.get_service(resolution_store).enqueue_job(**inp.model_dump())}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/jobs/claim", tags=["Reliability"])
+def claim_job(inp: JobClaimIn, auth=Depends(developer.require_scope("operations:write"))):
+    try:
+        return {"job": reliability.get_service(resolution_store).claim_job(**inp.model_dump())}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/jobs/{job_id}/complete", tags=["Reliability"])
+def complete_job(job_id: str, inp: JobCompleteIn, auth=Depends(developer.require_scope("operations:write"))):
+    try:
+        return {"job": reliability.get_service(resolution_store).complete_job(job_id, **inp.model_dump())}
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/jobs/{job_id}/fail", tags=["Reliability"])
+def fail_job(job_id: str, inp: JobFailIn, auth=Depends(developer.require_scope("operations:write"))):
+    try:
+        return {"job": reliability.get_service(resolution_store).fail_job(job_id, **inp.model_dump())}
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/webhook-deliveries", tags=["Reliability"])
+def create_webhook_delivery(inp: WebhookCreateIn, auth=Depends(developer.require_scope("operations:write"))):
+    try:
+        return {"delivery": reliability.get_service(resolution_store).create_webhook(**inp.model_dump())}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+@app.post("/api/webhook-verify", tags=["Reliability"])
+def verify_webhook(inp: WebhookVerifyIn, auth=Depends(developer.require_scope("operations:write"))):
+    return reliability.get_service(resolution_store).verify_webhook(**inp.model_dump())
+
+@app.post("/api/idempotency", tags=["Reliability"])
+def put_idempotency(inp: IdempotencyPutIn, auth=Depends(developer.require_scope("operations:write"))):
+    try:
+        return reliability.get_service(resolution_store).idempotency_put(**inp.model_dump())
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
+
+# ---- v0.17 Production Data Plane ----
+class BackupVerifyIn(BaseModel):
+    manifest_file: str
+
+@app.get("/api/data-plane", tags=["Production Data Plane"])
+def data_plane_posture(auth=Depends(developer.require_scope("admin:*"))):
+    return production_data.get_service(resolution_store).posture()
+
+@app.post("/api/data-plane/self-test", tags=["Production Data Plane"])
+def data_plane_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    return production_data.get_service(resolution_store).self_test()
+
+@app.post("/api/data-plane/backup", tags=["Production Data Plane"])
+def data_plane_backup(auth=Depends(developer.require_scope("admin:*"))):
+    service=production_data.get_service(resolution_store)
+    if production_data.load_config().database_backend == "postgresql":
+        return {"executed": False, "plan": service.postgres_backup_plan(), "note": "Managed PostgreSQL backups/PITR must run in deployment infrastructure; Arbiter exposes the required recovery posture but does not dump a live production database through the API."}
+    return {"executed": True, "backup": service.create_sqlite_backup(actor="api:admin")}
+
+@app.post("/api/data-plane/backup/verify", tags=["Production Data Plane"])
+def data_plane_backup_verify(inp: BackupVerifyIn, auth=Depends(developer.require_scope("admin:*"))):
+    if production_data.load_config().database_backend != "sqlite":
+        raise HTTPException(409, "API backup verification is only available for the local SQLite reference backend")
+    try:
+        return production_data.get_service(resolution_store).verify_sqlite_backup(inp.manifest_file)
+    except (OSError, ValueError, KeyError, json.JSONDecodeError) as e:
         raise HTTPException(422, str(e)) from e
 
 # ---- static frontend ----

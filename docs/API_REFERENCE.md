@@ -70,3 +70,14 @@ Promotes an existing case to a reusable template.
 
 ### `POST /api/analyze`
 In addition to `question`, `criteria`, and `use_llm`, accepts optional `case_id`, `source_template_id`, and `actor`. Every call saves a case run and returns its `case` identity.
+
+## Production Data Plane (v0.17)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/data-plane` | Database, tenant-RLS, object-storage, backup/recovery posture |
+| POST | `/api/data-plane/self-test` | Deterministic SQL/RLS/context/object-store self-test |
+| POST | `/api/data-plane/backup` | Local SQLite backup; production returns managed-backup requirements |
+| POST | `/api/data-plane/backup/verify` | Verify local backup SHA-256 + SQLite integrity |
+
+Production requests bind the authenticated principal's tenant into the PostgreSQL session. Tenant-scoped tables use FORCE RLS with both read (`USING`) and write (`WITH CHECK`) policies. v0.17 does not expose a live production database dump through the API.

@@ -18,6 +18,7 @@ function App() {
   const [analyzeModal, setAnalyzeModal] = useState(false)
   const [analysisSeed, setAnalysisSeed] = useState(null)
   const [casesData, setCasesData] = useState({ cases: [], templates: [] })
+  const [copilotCase, setCopilotCase] = useState(null)
   const [analyzingLive, setAnalyzingLive] = useState(false)
 
   useEffect(() => {
@@ -189,7 +190,7 @@ function App() {
       )}
       
       {view === 'cases' && (
-        <CasesView data={casesData} onNew={() => openNewAnalysis()} onOpen={(seed) => openNewAnalysis(seed)} onTemplate={saveCaseAsTemplate} />
+        <CasesView data={casesData} onNew={() => openNewAnalysis()} onOpen={(seed) => openNewAnalysis(seed)} onTemplate={saveCaseAsTemplate} onCopilot={setCopilotCase} />
       )}
 
       {view === 'markets' && (
@@ -217,6 +218,10 @@ function App() {
 
       {view === 'policy' && (
         <PolicyView data={policy} onReload={loadPolicy} />
+      )}
+
+      {copilotCase && (
+        <CopilotModal caseItem={copilotCase} onClose={() => setCopilotCase(null)} />
       )}
 
       {analyzeModal && (
@@ -794,6 +799,8 @@ function BenchmarkView({ data }) {
 }
 
 function InfrastructureView({ data }) {
+  const [providerForm, setProviderForm] = useState({ provider: 'openai', api_key: '', default_model: 'gpt-6-astra', fast_model: 'gpt-5.6-terra', daily_max_calls: 500 })
+  const [providerMessage, setProviderMessage] = useState('')
   if (!data) return <div className="view"><p>Loading resolution controls...</p></div>
   const d = data.domain || {}
   const controls = data.controls || []
@@ -839,6 +846,49 @@ function InfrastructureView({ data }) {
           <a href="/openapi.json" target="_blank" rel="noreferrer">OpenAPI schema ↗</a>
         </div>
         <div className="mono muted">Auth: {data.developer?.auth?.enabled ? 'X-Arbiter-Key required' : 'local-open · configure ARBITER_API_KEYS for protected writes'}</div>
+      </section>
+      <section className="control-panel model-gateway-panel">
+        <div className="panel-title-row"><h2>Model Intelligence Gateway</h2><span className="agent-mode">ADVISORY ONLY</span></div>
+        <p>Frontier models can interpret contracts and assist operators, but cannot determine or authorize settlement.</p>
+        <div className="compiler-grid">
+          <div><span className="result-label">Provider</span><strong>{data.model_gateway?.provider || 'disabled'}</strong></div>
+          <div><span className="result-label">Default model</span><strong>{data.model_gateway?.default_model || '—'}</strong></div>
+          <div><span className="result-label">Invocations</span><strong>{data.model_gateway?.invocations?.total || 0}</strong></div>
+        </div>
+        <p className="boundary-note">{data.model_gateway?.authority_boundary}</p>
+      </section>
+      <section className="control-panel model-admin-panel">
+        <div className="panel-title-row"><h2>Models & Credentials</h2><span className="audit-ok">TENANT GOVERNED</span></div>
+        <p>Authorized administrators can connect a model provider without exposing the raw credential after submission. Provider models remain advisory only.</p>
+        <div className="compiler-grid">
+          {(data.enterprise_secrets?.providers || []).map(p => <div key={p.provider}><span className="result-label">{p.provider}</span><strong>{p.enabled ? 'Connected' : 'Disabled'}</strong><div className="mono muted">{p.credential?.masked_value || '—'}</div></div>)}
+        </div>
+        <div className="provider-form">
+          <select value={providerForm.provider} onChange={e => setProviderForm({...providerForm, provider:e.target.value})}><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select>
+          <input type="password" placeholder="Provider API key" value={providerForm.api_key} onChange={e => setProviderForm({...providerForm, api_key:e.target.value})} />
+          <input placeholder="Default model" value={providerForm.default_model} onChange={e => setProviderForm({...providerForm, default_model:e.target.value})} />
+          <input placeholder="Fast model" value={providerForm.fast_model} onChange={e => setProviderForm({...providerForm, fast_model:e.target.value})} />
+          <button onClick={async () => {
+            setProviderMessage('Saving…')
+            try {
+              const r = await fetch('/api/model-providers', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...providerForm, allowed_purposes:['contract_triage','semantic_review','case_copilot']}) })
+              const d = await r.json(); if (!r.ok) throw new Error(d.detail || 'provider configuration failed')
+              setProviderForm({...providerForm, api_key:''}); setProviderMessage('Connected. Reload Infrastructure to refresh status.')
+            } catch (e) { setProviderMessage(e.message) }
+          }}>Connect / Rotate</button>
+        </div>
+        {providerMessage && <p className="mono muted">{providerMessage}</p>}
+        <p className="boundary-note">Raw secrets are write-only. Arbiter stores only masked metadata in application records and uses encrypted/local or external managed secret custody.</p>
+      </section>
+      <section className="control-panel data-plane-panel">
+        <div className="panel-title-row"><h2>Production Data Plane</h2><span className={data.data_plane?.configuration_gate === 'PASS' ? 'audit-ok' : 'audit-bad'}>{data.data_plane?.configuration_gate || 'CHECK'}</span></div>
+        <p>Durable storage, tenant isolation, immutable evidence payloads, concurrency controls, and recovery posture.</p>
+        <div className="compiler-grid">
+          <div><span className="result-label">Database</span><strong>{data.data_plane?.database?.backend || '—'}</strong></div>
+          <div><span className="result-label">Tenant isolation</span><strong>{data.data_plane?.tenant_isolation?.postgres_rls ? 'PostgreSQL RLS' : '—'}</strong></div>
+          <div><span className="result-label">Object store</span><strong>{data.data_plane?.object_storage?.backend || '—'}</strong></div>
+        </div>
+        <p className="boundary-note">{data.data_plane?.boundary}</p>
       </section>
       <section className="control-panel audit-panel">
         <div className="panel-title-row"><h2>Audit chain</h2><span className={audit.chain?.ok ? 'audit-ok' : 'audit-bad'}>{audit.chain?.ok ? 'VERIFIED' : 'UNVERIFIED'}</span></div>
@@ -965,7 +1015,7 @@ function PolicyView({ data, onReload }) {
   )
 }
 
-function CasesView({ data, onNew, onOpen, onTemplate }) {
+function CasesView({ data, onNew, onOpen, onTemplate, onCopilot }) {
   const cases = data?.cases || []
   const templates = data?.templates || []
   return (
@@ -987,7 +1037,10 @@ function CasesView({ data, onNew, onOpen, onTemplate }) {
                 <div><span className="mono tiny">{c.case_id}</span><strong>{c.title}</strong><span className="muted">Updated {new Date(c.updated_at).toLocaleString()}</span></div>
                 <div className="case-meta"><span className={`compile-status ${(c.compiler_status || '').toLowerCase()}`}>{c.compiler_status}</span><span>{c.resolution_outcome}</span></div>
               </button>
-              <button className="template-action" onClick={() => onTemplate(c)}>Save as template</button>
+              <div className="case-actions">
+                <button className="template-action copilot-action" onClick={() => onCopilot(c)}>Ask Copilot</button>
+                <button className="template-action" onClick={() => onTemplate(c)}>Save as template</button>
+              </div>
             </div>
           )) : <div className="empty-card">No saved cases yet. Compile a contract and it will appear here automatically.</div>}
         </div>
@@ -1003,6 +1056,57 @@ function CasesView({ data, onNew, onOpen, onTemplate }) {
         </div>
       </section>
     </main>
+  )
+}
+
+function CopilotModal({ caseItem, onClose }) {
+  const [question, setQuestion] = useState('Why is this case in its current state, and what should I do next?')
+  const [answer, setAnswer] = useState(null)
+  const [err, setErr] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const ask = async () => {
+    if (!question.trim()) return
+    setLoading(true); setErr('')
+    try {
+      const r = await fetch(`/api/cases/${caseItem.case_id}/copilot`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, model_tier: 'default' })
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail || d))
+      setAnswer(d)
+    } catch (e) { setErr(e.message) } finally { setLoading(false) }
+  }
+
+  const o = answer?.output || {}
+  return (
+    <div className="scrim open" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal copilot-modal">
+        <div className="modal-head">
+          <div><p className="eyebrow">ARBITER COPILOT · ADVISORY</p><h3>{caseItem.title}</h3><p>Ask about governed case state, compiler findings, evidence, and next actions. Copilot cannot authorize settlement.</p></div>
+          <button className="x" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="copilot-boundary">AI interprets and explains. Policy, evidence, deterministic logic, and human approvals remain authoritative.</div>
+          <div className="field"><label>Operator question</label><textarea value={question} onChange={e=>setQuestion(e.target.value)} /></div>
+          <button className="run" disabled={loading} onClick={ask}>{loading ? 'Analyzing…' : 'Ask Arbiter Copilot'}</button>
+          {err && <div className="err show">{err}</div>}
+          {answer && <div className="copilot-response">
+            <div className="panel-title-row"><h4>Advisory answer</h4><span className="agent-mode">NON-BINDING</span></div>
+            <p className="copilot-answer">{o.answer}</p>
+            <div className="compiler-grid">
+              <div><span className="result-label">Case state</span><strong>{o.case_state || '—'}</strong></div>
+              <div><span className="result-label">Confidence</span><strong>{o.confidence || '—'}</strong></div>
+              <div><span className="result-label">Human judgment</span><strong>{o.requires_human_judgment ? 'REQUIRED' : 'NOT FLAGGED'}</strong></div>
+            </div>
+            {!!o.next_actions?.length && <div className="compiler-fixes"><strong>Next actions</strong>{o.next_actions.map((x,i)=><div key={i}>• {x}</div>)}</div>}
+            {!!o.grounding?.length && <div className="compiler-fixes"><strong>Grounded in case record</strong>{o.grounding.map((x,i)=><div key={i}>• {x}</div>)}</div>}
+            <details><summary>Model provenance</summary><pre>{JSON.stringify(answer.provenance, null, 2)}</pre></details>
+          </div>}
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -1236,3 +1236,14 @@ body {
 .semantic-card { margin-top: 16px; padding: 16px; border: 1px solid rgba(148,163,184,.22); border-radius: 12px; background: rgba(15,23,42,.42); }
 .semantic-concept { margin: 10px 0 12px; }
 .semantic-concept p { margin: 5px 0 0; color: var(--muted, #94a3b8); line-height: 1.45; }
+
+/* v0.16 Model Intelligence Gateway + Operator Copilot */
+.case-actions { display:flex; gap:8px; align-items:center; padding-right:10px; }
+.copilot-action { white-space:nowrap; }
+.copilot-modal { width:min(820px, calc(100vw - 36px)); }
+.copilot-boundary { border:1px solid rgba(145,157,170,.28); border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:13px; line-height:1.5; background:rgba(145,157,170,.08); }
+.copilot-response { margin-top:18px; padding:18px; border:1px solid rgba(145,157,170,.25); border-radius:12px; background:rgba(8,12,18,.35); }
+.copilot-answer { font-size:15px; line-height:1.65; white-space:pre-wrap; }
+.model-gateway-panel { margin-top:18px; }
+
+.provider-form{display:grid;grid-template-columns:140px minmax(220px,1fr) minmax(180px,1fr) minmax(180px,1fr) auto;gap:10px;align-items:center;margin-top:14px}.provider-form input,.provider-form select{background:var(--panel,#111827);border:1px solid rgba(148,163,184,.28);color:inherit;border-radius:6px;padding:10px 12px}.provider-form button{white-space:nowrap}@media(max-width:1000px){.provider-form{grid-template-columns:1fr}}

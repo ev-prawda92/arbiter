@@ -67,3 +67,21 @@ The audit endpoint verifies the hash chain and returns recent control-plane even
 ## Safety boundary
 
 The compiler and advisory agent can parse, detect ambiguity, triage, explain, and recommend. They do not silently modify binding outcomes. Settlement remains governed by deterministic resolution controls.
+
+## 6. Inspect the v0.17 production data plane
+
+```bash
+curl -s http://127.0.0.1:8000/api/data-plane | python3 -m json.tool
+```
+
+Local mode reports SQLite + local content-addressed object storage. Production mode fails closed unless PostgreSQL/TLS and managed object storage are configured.
+
+For production dependencies:
+
+```bash
+python3 -m pip install -r backend/requirements-production.txt
+```
+
+Production tenant context is derived from the authenticated principal and is bound to PostgreSQL RLS. Browser/API clients that intentionally use an admin tenant override send `X-Arbiter-Tenant`; ordinary principals cannot cross tenants.
+
+Raw payloads captured by Active Evidence are stored as immutable SHA-256-addressed objects while the normalized `EvidenceRecord` remains the governed settlement-facing record.
