@@ -113,7 +113,7 @@ def developer_manifest() -> dict:
     cfg = load_runtime_config()
     return {
         "api_version": "v1-preview",
-        "product_version": "0.18.0",
+        "product_version": "0.21.0",
         "auth": {
             "enabled": api_auth_enabled(),
             "required": cfg.require_auth,
@@ -124,7 +124,7 @@ def developer_manifest() -> dict:
             "note": "Local development can remain open. Production defaults to fail-closed authentication.",
         },
         "docs": {"swagger": "/docs", "redoc": "/redoc", "openapi": "/openapi.json"},
-        "core_resources": ["semantic-contract-intelligence", "contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "approvals", "settlement-packets", "policy-drafts", "work-queue", "portfolio", "audit", "model-gateway", "model-invocations", "case-copilot", "data-plane", "enterprise-secrets", "model-providers", "oidc-federation"],
+        "core_resources": ["semantic-contract-intelligence", "contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "approvals", "settlement-packets", "policy-drafts", "work-queue", "portfolio", "audit", "model-gateway", "model-invocations", "case-copilot", "data-plane", "enterprise-secrets", "model-providers", "oidc-federation", "reference-exchange", "operations-resilience", "incidents", "recovery-drills", "settlement-assurance", "holdout-datasets"],
         "compiler": {"endpoint": "/api/compile", "version": "0.1.3"},
         "semantic_contract_intelligence": {"endpoint": "/api/semantic-analyze", "version": "0.13.0", "gate_mode": "advisory"},
         "enterprise_identity": {"version": "0.14.0", "tenant_context": "principal-bound", "principal_types": ["human", "service"]},
@@ -133,6 +133,9 @@ def developer_manifest() -> dict:
         "production_data_plane": {"version": "0.17.0", "postgresql_adapter": True, "tenant_rls": True, "content_addressed_evidence_objects": True, "backup_restore_hooks": True, "settlement_authority": False},
         "enterprise_secrets": {"version": "0.18.0", "tenant_provider_credentials": True, "write_only_secret_api": True, "production_backend": "aws-secrets-manager+kms", "settlement_authority": False},
         "identity_federation": {"version": "0.18.0", "oidc_bearer": True, "api_key_fallback": True},
+        "reference_exchange": {"version": "0.19.0", "play_money_only": True, "end_to_end_settlement_harness": True, "real_money_custody": False},
+        "operations_resilience": {"version": "0.20.0", "dependency_health": True, "backpressure": True, "incident_lifecycle": True, "recovery_drills": True, "external_observability_required": True},
+        "settlement_assurance": {"version": "0.21.0", "internal_adversarial_suite": True, "frozen_holdout_registry": True, "production_settlement_certified": False, "independent_review_required": True},
         "webhook_event_catalog": WEBHOOK_EVENTS,
         "stability": "preview — endpoint contracts may evolve before v1.0",
     }

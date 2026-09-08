@@ -1,4 +1,4 @@
-# Arbiter v0.17 — Product / Technical Manifest
+# Arbiter v0.21 — Product / Technical Manifest
 
 ## Product thesis
 Arbiter is semantic contract intelligence and resolution infrastructure for event markets. It converts natural-language market rules into governed resolution specifications, monitors authoritative evidence, executes deterministic resolution logic, controls approvals and settlement authorization, and preserves an auditable record.
@@ -103,3 +103,16 @@ Before Arbiter can credibly be labeled production-certified settlement infrastru
 - `backend/app/identity_federation.py` — OIDC enterprise identity foundation
 - `scripts/enterprise_secrets_gate.py` — v0.18 validation suite
 - `ENTERPRISE_SECRETS_AND_FEDERATION.md` — security/identity design notes
+
+
+## v0.19–v0.21 additions
+
+11. **Reference Exchange (v0.19)** — play-money contract-to-settlement integration harness; no real-money custody or production matching engine.
+12. **Production Operations & Resilience (v0.20)** — dependency health, admission/backpressure, incident lifecycle, and recovery drill evidence.
+13. **Settlement Assurance (v0.21)** — adversarial suite, frozen holdout datasets, hash-pinned reports, and explicit certification blockers.
+
+Expected v0.21 local reference result:
+
+**RELEASE GATE: PASS — 334/334 checks across 13 suites**
+
+This result is internal release validation and does not represent external security certification or regulatory approval.

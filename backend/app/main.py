@@ -21,14 +21,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract, identity_tenant, reliability, model_gateway, production_data, enterprise_secrets, identity_federation
+from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract, identity_tenant, reliability, model_gateway, production_data, enterprise_secrets, identity_federation, reference_exchange, operations_resilience, settlement_assurance
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.18.0",
+    version="0.21.0",
     description=(
         "Semantic contract intelligence and resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -190,6 +190,9 @@ def initialize_production_data_plane():
     reliability.get_service(resolution_store)
     model_gateway.get_service(resolution_store)
     enterprise_secrets.get_service(resolution_store)
+    reference_exchange.get_service(resolution_store)
+    operations_resilience.get_service(resolution_store)
+    settlement_assurance.get_service(resolution_store)
     production_data.get_service(resolution_store).initialize()
 
 
@@ -328,7 +331,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.18.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
+    return {"ok": True, "service": "arbiter", "version": "0.21.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
 
 
 
@@ -341,7 +344,7 @@ def readiness():
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.18.0",
+        "version": "0.21.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
@@ -794,13 +797,16 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.18.0", "domain": resolution_store.summary(),
+    return {"version": "0.21.0", "domain": resolution_store.summary(),
             "active_evidence": active_evidence.get_service(resolution_store).summary(),
             "approval_control": approval_control.get_service(resolution_store).summary(),
             "model_gateway": model_gateway.get_service(resolution_store).posture(),
             "data_plane": production_data.get_service(resolution_store).posture(),
             "enterprise_secrets": enterprise_secrets.get_service(resolution_store).posture(production_data.current_context().get("tenant_id") or "local"),
             "identity_federation": identity_federation.posture(),
+            "reference_exchange": reference_exchange.get_service(resolution_store).posture(),
+            "operations_resilience": operations_resilience.get_service(resolution_store).posture(),
+            "settlement_assurance": settlement_assurance.get_service(resolution_store).posture(),
             "controls": CONTROLS, "principle": "Define → Evidence → Resolve → Approve → Authorize → Audit"}
 
 @app.get("/api/contracts")
@@ -884,6 +890,128 @@ def audit_log(limit: int = 100, object_type: str | None = None, object_id: str |
     return {"chain": resolution_store.verify_audit_chain(),
             "events": resolution_store.audit_log(limit=min(limit, 500), object_type=object_type, object_id=object_id)}
 
+
+
+# ---- v0.19 Reference Exchange / End-to-End Settlement Harness ----
+class ReferenceMarketIn(BaseModel):
+    title: str
+    rules: str
+
+class ReferenceAccountIn(BaseModel):
+    display_name: str
+
+class ReferencePositionIn(BaseModel):
+    market_id: str
+    account_id: str
+    side: str
+    quantity: float
+    price: float
+
+class ReferenceResolveIn(BaseModel):
+    outcome: str
+    evidence_summary: dict = {}
+
+@app.get("/api/reference-exchange", tags=["Reference Exchange"])
+def reference_exchange_posture(auth=Depends(developer.require_scope("operations:write"))):
+    return reference_exchange.get_service(resolution_store).posture()
+
+@app.post("/api/reference-exchange/self-test", tags=["Reference Exchange"])
+def reference_exchange_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth)
+    return reference_exchange.get_service(resolution_store).self_test(principal.tenant_id, principal.principal_id)
+
+@app.post("/api/reference-exchange/markets", tags=["Reference Exchange"])
+def reference_exchange_create_market(inp: ReferenceMarketIn, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    return {"market": reference_exchange.get_service(resolution_store).create_market(principal.tenant_id, inp.title, inp.rules, principal.principal_id)}
+
+@app.get("/api/reference-exchange/markets/{market_id}", tags=["Reference Exchange"])
+def reference_exchange_get_market(market_id: str, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try: return {"market": reference_exchange.get_service(resolution_store).get_market(market_id, principal.tenant_id)}
+    except KeyError as e: raise HTTPException(404, str(e)) from e
+
+@app.post("/api/reference-exchange/accounts", tags=["Reference Exchange"])
+def reference_exchange_create_account(inp: ReferenceAccountIn, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    return {"account": reference_exchange.get_service(resolution_store).create_account(principal.tenant_id, inp.display_name, principal.principal_id)}
+
+@app.post("/api/reference-exchange/positions", tags=["Reference Exchange"])
+def reference_exchange_open_position(inp: ReferencePositionIn, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try: return {"position": reference_exchange.get_service(resolution_store).place_position(principal.tenant_id, inp.market_id, inp.account_id, inp.side, inp.quantity, inp.price, principal.principal_id)}
+    except KeyError as e: raise HTTPException(404, str(e)) from e
+    except ValueError as e: raise HTTPException(422, str(e)) from e
+
+@app.post("/api/reference-exchange/markets/{market_id}/resolve", tags=["Reference Exchange"])
+def reference_exchange_resolve(market_id: str, inp: ReferenceResolveIn, auth=Depends(developer.require_scope("settlement:authorize"))):
+    principal=_principal_from_auth(auth)
+    try: return {"settlement": reference_exchange.get_service(resolution_store).resolve_market(principal.tenant_id, market_id, inp.outcome, inp.evidence_summary, principal.principal_id)}
+    except KeyError as e: raise HTTPException(404, str(e)) from e
+    except ValueError as e: raise HTTPException(422, str(e)) from e
+
+
+# ---- v0.20 Production Operations & Resilience ----
+class IncidentIn(BaseModel):
+    severity: str
+    title: str
+    details: dict = {}
+class RecoveryDrillIn(BaseModel):
+    drill_type: str
+
+@app.get("/api/operations/posture", tags=["Production Operations"])
+def operations_posture(auth=Depends(developer.require_scope("operations:write"))):
+    return operations_resilience.get_service(resolution_store).posture()
+@app.post("/api/operations/self-test", tags=["Production Operations"])
+def operations_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth); return operations_resilience.get_service(resolution_store).self_test(principal.tenant_id,principal.principal_id)
+@app.get("/api/operations/incidents", tags=["Production Operations"])
+def operations_incidents(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth); return {"incidents":operations_resilience.get_service(resolution_store).list_incidents(principal.tenant_id)}
+@app.post("/api/operations/incidents", tags=["Production Operations"])
+def operations_open_incident(inp: IncidentIn, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"incident":operations_resilience.get_service(resolution_store).open_incident(principal.tenant_id,inp.severity,inp.title,inp.details,principal.principal_id)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/operations/incidents/{incident_id}/close", tags=["Production Operations"])
+def operations_close_incident(incident_id:str, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"incident":operations_resilience.get_service(resolution_store).close_incident(principal.tenant_id,incident_id,principal.principal_id)}
+    except KeyError as e:raise HTTPException(404,str(e)) from e
+@app.post("/api/operations/recovery-drills", tags=["Production Operations"])
+def operations_recovery_drill(inp: RecoveryDrillIn, auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth)
+    try:return {"drill":operations_resilience.get_service(resolution_store).run_recovery_drill(principal.tenant_id,inp.drill_type,principal.principal_id)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+
+
+# ---- v0.21 Settlement Assurance Harness ----
+class HoldoutCreateIn(BaseModel):
+    name: str
+    cases: list[dict]
+
+@app.get("/api/assurance/posture", tags=["Settlement Assurance"])
+def assurance_posture(auth=Depends(developer.require_scope("operations:write"))):
+    return settlement_assurance.get_service(resolution_store).posture()
+@app.post("/api/assurance/self-test", tags=["Settlement Assurance"])
+def assurance_self_test(auth=Depends(developer.require_scope("admin:*"))):
+    principal=_principal_from_auth(auth);return settlement_assurance.get_service(resolution_store).self_test(principal.tenant_id,principal.principal_id)
+@app.post("/api/assurance/adversarial", tags=["Settlement Assurance"])
+def assurance_adversarial(auth=Depends(developer.require_scope("benchmark:run"))):
+    principal=_principal_from_auth(auth);return settlement_assurance.get_service(resolution_store).run_adversarial_suite(principal.tenant_id,principal.principal_id)
+@app.get("/api/assurance/holdouts", tags=["Settlement Assurance"])
+def assurance_holdouts(auth=Depends(developer.require_scope("operations:write"))):
+    principal=_principal_from_auth(auth);return {"datasets":settlement_assurance.get_service(resolution_store).list_holdouts(principal.tenant_id)}
+@app.post("/api/assurance/holdouts", tags=["Settlement Assurance"])
+def assurance_create_holdout(inp:HoldoutCreateIn,auth=Depends(developer.require_scope("benchmark:run"))):
+    principal=_principal_from_auth(auth)
+    try:return {"dataset":settlement_assurance.get_service(resolution_store).create_holdout(principal.tenant_id,inp.name,inp.cases,principal.principal_id)}
+    except ValueError as e:raise HTTPException(422,str(e)) from e
+@app.post("/api/assurance/holdouts/{dataset_id}/evaluate", tags=["Settlement Assurance"])
+def assurance_evaluate_holdout(dataset_id:str,auth=Depends(developer.require_scope("benchmark:run"))):
+    principal=_principal_from_auth(auth)
+    try:return settlement_assurance.get_service(resolution_store).evaluate_holdout(principal.tenant_id,dataset_id,principal.principal_id)
+    except KeyError as e:raise HTTPException(404,str(e)) from e
 
 # ---- v0.11 Active Evidence Infrastructure ----
 class EvidenceMonitorIn(BaseModel):

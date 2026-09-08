@@ -1,5 +1,15 @@
 # Arbiter
 
+## v0.21 — Reference Exchange, Production Operations & Settlement Assurance
+
+Arbiter has advanced through three additional integration-hardening milestones:
+
+- **v0.19 Reference Exchange** — a play-money end-to-end harness proving contract semantics, market opening gates, positions, sandbox resolution, payout ledger, settlement hash, and audit trail.
+- **v0.20 Production Operations & Resilience** — dependency health, backpressure, incident lifecycle, bounded-load admission, and deterministic recovery drills.
+- **v0.21 Settlement Assurance** — adversarial contract validation, frozen holdout registries, hash-pinned assurance reports, and an explicit certification blocker checklist.
+
+Current local release validation: **334/334 checks across 13 suites**. This remains internal release evidence, **not independent production settlement certification**. v0.21 explicitly reports `production_settlement_certified: false` until external security review, penetration testing, a real untouched holdout, and deployment-backed resilience evidence are complete.
+
 ## v0.17 — Production Data Plane
 
 **Semantic Contract Intelligence + Resolution Control for Event Markets**
