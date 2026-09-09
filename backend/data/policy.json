@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.08-18",
+  "version": "2026.09.09-24",
   "weights": {
     "source": 0.3,
     "timing": 0.3,
@@ -259,6 +259,96 @@
     {
       "version": "2026.09.08-18",
       "at": "2026-09-08T15:53:24.276568+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.09-19",
+      "at": "2026-09-09T15:51:47.490657+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.09-20",
+      "at": "2026-09-09T15:57:50.917403+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.09-21",
+      "at": "2026-09-09T16:21:15.719955+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.09-22",
+      "at": "2026-09-09T16:21:59.759406+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.09-23",
+      "at": "2026-09-09T16:24:31.824889+00:00",
+      "by": "admin:policy",
+      "note": "v0.12 settlement gate no-op policy version",
+      "weights": {
+        "source": 0.3,
+        "timing": 0.3,
+        "definition": 0.4
+      },
+      "thresholds": {
+        "clean": 20,
+        "monitored": 50
+      }
+    },
+    {
+      "version": "2026.09.09-24",
+      "at": "2026-09-09T16:35:19.461675+00:00",
       "by": "admin:policy",
       "note": "v0.12 settlement gate no-op policy version",
       "weights": {

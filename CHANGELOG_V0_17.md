@@ -38,7 +38,7 @@ Existing pre-v0.17 production rows are **not silently assigned** to a tenant. A 
 Raw evidence observations are now stored separately from normalized evidence records using content-addressed SHA-256 object keys. The governed evidence record continues to carry the canonical payload hash and now also retains the immutable object reference in metadata.
 
 ## Model default correction
-The OpenAI default model identifier is `gpt-6-astra`, with `gpt-5.6-terra` as the fast/cost-balanced tier. Environment overrides remain supported.
+The OpenAI default model identifier is `gpt-5.6-sol`, with `gpt-5.6-terra` as the fast/cost-balanced tier. Environment overrides remain supported.
 
 ## Not included / not claimed
 v0.17 is **not production settlement certified**. It implements the application-side production data-plane boundary, but live certification still requires actual managed PostgreSQL/S3 deployment, connection/runtime tuning, externally observed backups and PITR, deployment-level HA/failover, SSO/key custody, observability, load/chaos testing, security review, penetration testing, and untouched real-contract validation.

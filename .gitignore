@@ -16,3 +16,5 @@ backend/data/.local_secret_master_key
 *.tfstate.*
 terraform.tfvars
 arbiter_load_result.json
+backend/data/real_benchmark_runs/
+benchmarks/candidates*.jsonl

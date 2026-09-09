@@ -112,9 +112,9 @@ function App() {
 
   const loadBenchmark = async () => {
     try {
-      const r = await fetch('/api/benchmark')
-      const d = await r.json()
-      setBenchmark(d)
+      const [devR, realR] = await Promise.all([fetch('/api/benchmark'), fetch('/api/real-benchmark')])
+      const [development, real] = await Promise.all([devR.json(), realR.json()])
+      setBenchmark({ development, real })
     } catch (e) {
       console.error(e)
     }
@@ -765,31 +765,53 @@ function MonitoringView({ data, onViewMarkets }) {
 
 function BenchmarkView({ data }) {
   if (!data) return <div className="view"><p>Loading benchmark...</p></div>
-  const m = data.metrics || {}
+  const dev = data.development || data
+  const real = data.real || {}
+  const m = dev.metrics || {}
   const modes = m.by_expected_failure_mode || {}
   const pct = (x) => x == null ? '—' : `${(x * 100).toFixed(1)}%`
+  const realState = real.dataset_frozen ? 'FROZEN' : 'COLLECTING'
 
   return (
     <div className="view benchmark-view">
       <div className="strip benchmark-strip">
         <p className="eyebrow">Arbiter Resolution Benchmark</p>
-        <h1>Test the resolution engine against known-clean contracts and controlled defects.</h1>
+        <h1>Development calibration + untouched real-contract proof.</h1>
         <p className="dek">
-          This is a development/calibration benchmark, not an external accuracy claim. Clean parents test false alarms; controlled mutations test whether Arbiter detects planted source, timing, and definition failures and attributes them to the correct lever.
+          The development suite tests known-clean parents and controlled defects. v0.27 adds ARB-GOLD-HOLDOUT-v0.1: a label-separated, hash-pinned real-contract benchmark that must never be used for tuning.
         </p>
         <div className="metrics benchmark-metrics">
-          <div className="metric"><div className="n">{m.total_cases || 0}</div><div className="l">total eval cases</div></div>
-          <div className="metric"><div className="n">{m.clean_cases || 0}</div><div className="l">real clean parents</div></div>
-          <div className="metric"><div className="n">{m.mutation_cases || 0}</div><div className="l">controlled mutations</div></div>
-          <div className="metric"><div className="n">{pct(m.defect_detection_rate)}</div><div className="l">defect detection</div></div>
-          <div className="metric"><div className="n">{pct(m.correct_lever_rate_on_detected)}</div><div className="l">lever attribution</div></div>
-          <div className="metric"><div className="n">{pct(m.clean_auto_resolve_rate)}</div><div className="l">clean recognition</div></div>
+          <div className="metric"><div className="n">{m.total_cases || 0}</div><div className="l">development cases</div></div>
+          <div className="metric"><div className="n">{pct(m.defect_detection_rate)}</div><div className="l">dev defect detection</div></div>
+          <div className="metric"><div className="n">{real.case_count || 0}/{real.target_cases || 75}</div><div className="l">real holdout cases</div></div>
+          <div className="metric"><div className="n">{realState}</div><div className="l">real holdout state</div></div>
+          <div className="metric"><div className="n">{real.labels_separated_from_inputs ? 'YES' : 'NO'}</div><div className="l">label separation</div></div>
+          <div className="metric"><div className="n">{real.production_settlement_certified ? 'YES' : 'NO'}</div><div className="l">production certified</div></div>
         </div>
       </div>
 
       <div className="benchmark-wrap">
+        <section className="benchmark-card benchmark-method">
+          <p className="sect-h">v0.27 · Real-world holdout</p>
+          <h3>ARB-GOLD-HOLDOUT-v0.1</h3>
+          <p>{real.next_action || 'Collect and freeze untouched resolved contracts.'}</p>
+          <div className="benchmark-rule">
+            <strong>Labels are physically separated from inputs.</strong>
+            <span>The blind runner reads contract inputs only. Outcome and human-gold labels are opened only after predictions are hash-pinned.</span>
+          </div>
+          <div className="benchmark-rule">
+            <strong>No tuning on the holdout.</strong>
+            <span>If the real holdout exposes a weakness, the result is recorded. A fix must be evaluated on a future holdout version.</span>
+          </div>
+          <div className="benchmark-rule">
+            <strong>Missing evidence is not guessed.</strong>
+            <span>Outcome agreement is reported only when an independently frozen evidence pack supports a blind YES/NO prediction.</span>
+          </div>
+          {real.dataset_sha256 && <div className="mono muted">Dataset: {real.dataset_sha256}</div>}
+        </section>
+
         <section className="benchmark-card">
-          <p className="sect-h">Controlled failure modes</p>
+          <p className="sect-h">Development failure modes</p>
           <div className="benchmark-table">
             {Object.entries(modes).map(([name, row]) => (
               <div className="benchmark-row" key={name}>
@@ -806,18 +828,18 @@ function BenchmarkView({ data }) {
         <section className="benchmark-card benchmark-method">
           <p className="sect-h">Methodology boundary</p>
           <h3>Development benchmark</h3>
-          <p>{data.methodology?.note}</p>
+          <p>{dev.methodology?.note}</p>
           <div className="benchmark-rule">
-            <strong>Do not market these numbers as independent accuracy.</strong>
-            <span>The clean set was used during development. A separate untouched holdout is required before external performance claims.</span>
+            <strong>Do not market development numbers as independent accuracy.</strong>
+            <span>The clean development set was used during engineering. External claims require the frozen real holdout.</span>
           </div>
           <div className="benchmark-rule">
             <strong>Mutation lineage is explicit.</strong>
-            <span>Each synthetic case descends from a real clean parent and carries a known planted defect plus a deterministic validator.</span>
+            <span>Each synthetic case descends from a clean parent and carries a known planted defect plus a deterministic validator.</span>
           </div>
           <div className="benchmark-rule">
             <strong>Binding resolution remains deterministic.</strong>
-            <span>The benchmark evaluates the governed Arbiter engine; an LLM is not used to declare benchmark truth.</span>
+            <span>An LLM may interpret contract meaning, but it does not declare benchmark truth or authorize settlement.</span>
           </div>
         </section>
       </div>
@@ -826,7 +848,7 @@ function BenchmarkView({ data }) {
 }
 
 function InfrastructureView({ data }) {
-  const [providerForm, setProviderForm] = useState({ provider: 'openai', api_key: '', default_model: 'gpt-6-astra', fast_model: 'gpt-5.6-terra', daily_max_calls: 500 })
+  const [providerForm, setProviderForm] = useState({ provider: 'openai', api_key: '', default_model: 'gpt-5.6-sol', fast_model: 'gpt-5.6-terra', daily_max_calls: 500 })
   const [providerMessage, setProviderMessage] = useState('')
   if (!data) return <div className="view"><p>Loading resolution controls...</p></div>
   const d = data.domain || {}

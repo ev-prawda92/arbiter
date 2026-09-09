@@ -290,7 +290,7 @@ class EnterpriseSecretsService:
         sample="sk-arbiter-self-test-1234567890"
         # Use an isolated synthetic tenant so the test can never overwrite a customer's active provider configuration.
         test_tenant=f"__secret_selftest__:{tenant_id}"
-        result=self.configure_provider(tenant_id=test_tenant,provider="openai",api_key=sample,default_model="gpt-6-astra",fast_model="gpt-5.6-terra",actor=actor,allowed_purposes=["semantic_review","case_copilot"],daily_max_calls=25,metadata={"self_test":True})
+        result=self.configure_provider(tenant_id=test_tenant,provider="openai",api_key=sample,default_model="gpt-5.6-sol",fast_model="gpt-5.6-terra",actor=actor,allowed_purposes=["semantic_review","case_copilot"],daily_max_calls=25,metadata={"self_test":True})
         resolved=self.resolve_provider(test_tenant,"openai")
         raw_leaked = sample in json.dumps(result, sort_keys=True)
         ok = bool(resolved and resolved.get("api_key")==sample and not raw_leaked)

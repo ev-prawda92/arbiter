@@ -154,7 +154,7 @@ def load_config() -> GatewayConfig:
         provider=requested,
         openai_api_key=openai_key,
         anthropic_api_key=anthropic_key,
-        default_model=os.environ.get("ARBITER_MODEL_DEFAULT", "gpt-6-astra").strip(),
+        default_model=os.environ.get("ARBITER_MODEL_DEFAULT", "gpt-5.6-sol").strip(),
         fast_model=os.environ.get("ARBITER_MODEL_FAST", "gpt-5.6-terra").strip(),
         reasoning_effort=os.environ.get("ARBITER_MODEL_REASONING_EFFORT", "medium").strip(),
         timeout_seconds=float(os.environ.get("ARBITER_MODEL_TIMEOUT_SECONDS", "45")),

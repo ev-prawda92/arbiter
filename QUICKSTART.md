@@ -25,7 +25,7 @@ Preferred OpenAI configuration:
 ```bash
 export OPENAI_API_KEY='YOUR_KEY'
 export ARBITER_MODEL_PROVIDER='openai'
-export ARBITER_MODEL_DEFAULT='gpt-6-astra'
+export ARBITER_MODEL_DEFAULT='gpt-5.6-sol'
 export ARBITER_MODEL_FAST='gpt-5.6-terra'
 ```
 Then restart Arbiter.
@@ -123,3 +123,16 @@ python3 scripts/deployment_preflight.py
 ```
 
 For an AWS staging deployment, start with `deploy/aws/README.md` and run `terraform init`, `terraform fmt -check`, `terraform validate`, then `terraform plan` before any apply.
+
+## v0.27 real-contract benchmark
+
+The real holdout is intentionally not populated by the release package. When ready to collect it:
+
+```bash
+python3 scripts/collect_holdout_candidates.py --venue kalshi --venue polymarket --limit-per-venue 100 --out benchmarks/candidates_v0_1.jsonl
+python3 scripts/freeze_holdout.py benchmarks/candidates_v0_1.jsonl --target 75 --out benchmarks/arb_gold_holdout_v0_1
+python3 scripts/verify_holdout.py benchmarks/arb_gold_holdout_v0_1
+python3 scripts/run_holdout.py benchmarks/arb_gold_holdout_v0_1
+```
+
+After the blind run is pinned, generate a report with `scripts/generate_benchmark_report.py`. See `REAL_WORLD_BENCHMARK.md` for the no-tuning and label-separation rules.

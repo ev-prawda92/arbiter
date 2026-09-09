@@ -1,0 +1,42 @@
+{
+  "acceptable_range": [
+    50,
+    100
+  ],
+  "binary_only_v0_1": true,
+  "controls": {
+    "evidence_separate_from_labels": true,
+    "evidence_sha256_pinned": true,
+    "freeze_before_blind_run": true,
+    "hash_pin_raw_provenance": true,
+    "labels_separate_from_contract_inputs": true,
+    "no_tuning_on_holdout": true,
+    "predictions_hash_pinned_before_scoring": true
+  },
+  "evidence": {
+    "curation": "independent evidence observations are prepared before freeze and never contain venue outcome/gold label fields",
+    "governed_abstention": "HOLD when compiler is not READY, evidence is missing, or definition is unsupported",
+    "required_for_outcome_scoring": true,
+    "supported_v0_27": [
+      "numeric_threshold",
+      "official_fact",
+      "rate_change_event"
+    ]
+  },
+  "program": "ARB-GOLD-HOLDOUT-v0.1",
+  "selection": "deterministic stratified round-robin by venue and category",
+  "target_cases": 75,
+  "venues": [
+    {
+      "documentation": "https://docs.kalshi.com/api-reference/market/get-markets",
+      "historical_endpoint": "https://external-api.kalshi.com/trade-api/v2/historical/markets",
+      "live_endpoint": "https://external-api.kalshi.com/trade-api/v2/markets?status=settled",
+      "venue": "kalshi"
+    },
+    {
+      "documentation": "https://docs.polymarket.com/api-reference/markets/list-markets",
+      "endpoint": "https://gamma-api.polymarket.com/markets?closed=true",
+      "venue": "polymarket"
+    }
+  ]
+}

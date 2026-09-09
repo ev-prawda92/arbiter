@@ -1,0 +1,562 @@
+Arbiter v0.27.0 Release Validation
+Date: 2026-09-09
+
+\n>>> coherence_test.py
+Arbiter coherence harness → http://127.0.0.1:8000
+NOTE: this creates test cases/templates in the local Arbiter database.
+
+[PASS] API reachable
+[PASS] ready_cpi: compiler=READY
+[PASS] ready_cpi: resolution=PENDING
+[PASS] ready_cpi: case persisted
+[PASS] ready_cpi: authority AUTH-BLS-CPI
+[PASS] ready_cpi: definition numeric_threshold
+[PASS] ready_cpi: no unresolved fields
+[PASS] review_fed: compiler=REVIEW
+[PASS] review_fed: resolution=HELD
+[PASS] review_fed: case persisted
+[PASS] review_fed: authority AUTH-FED-FOMC
+[PASS] review_fed: definition rate_change_event
+[PASS] review_fed: unresolved contains timing.time_of_day
+[PASS] review_fed: unresolved contains timing.timezone
+[PASS] review_fed: gate COMPILER_REVIEW
+[PASS] block_mismatch: compiler=BLOCK
+[PASS] block_mismatch: resolution=HELD
+[PASS] block_mismatch: case persisted
+[PASS] block_mismatch: conflicted authority not trusted
+[PASS] block_mismatch: unresolved contains contract.title_rules_mismatch
+[PASS] block_mismatch: gate COMPILER_BLOCK
+[PASS] case rerun preserves case_id
+[PASS] case rerun improves Fed contract to READY
+[PASS] case rerun appends run history
+[PASS] case retains latest edited criteria
+[PASS] template created from saved case
+[PASS] template visible in registry
+[PASS] cross-surface: health loads
+[PASS] cross-surface: cases registry loads
+[PASS] cross-surface: templates registry loads
+[PASS] cross-surface: authority registry loads
+[PASS] cross-surface: infrastructure summary loads
+[PASS] cross-surface: executive overview loads
+[PASS] cross-surface: work queue loads
+[PASS] cross-surface: portfolio intelligence loads
+[PASS] cross-surface: policy loads
+[PASS] cross-surface: developer manifest loads
+[PASS] developer docs: Swagger loads
+[PASS] developer docs: ReDoc loads
+[PASS] developer docs: OpenAPI loads
+[PASS] audit chain verifies
+[PASS] coherence activity is audited
+[PASS] benchmark: total_cases=90
+[PASS] benchmark: valid_cases=90
+[PASS] benchmark: mutation_cases=70
+[PASS] benchmark: clean_cases=20
+[PASS] benchmark: defect detection baseline
+[PASS] benchmark: clean false-positive baseline
+
+================================================================
+RESULT: 48/48 checks passed; 0 failed
+COHERENCE: PASS
+\n>>> enterprise_gate.py
+[PASS] readiness endpoint passes
+[PASS] security posture endpoint loads
+[PASS] local configuration gate is explicit
+[PASS] security header X-Content-Type-Options
+[PASS] security header X-Frame-Options
+[PASS] request correlation header
+[PASS] Kalshi/DCM profile registered
+[PASS] Polymarket/UMA profile registered
+[PASS] kalshi_dcm: boundary attached
+[PASS] kalshi_dcm: awaiting evidence stays monitoring
+[PASS] kalshi_dcm: settlement authority declared
+[PASS] polymarket_uma: boundary attached
+[PASS] polymarket_uma: awaiting evidence stays monitoring
+[PASS] polymarket_uma: settlement authority declared
+
+================================================================
+RESULT: 14/14 checks passed; 0 failed
+ENTERPRISE GATE: PASS
+\n>>> evidence_gate.py
+[PASS] API reachable and v0.11+
+[PASS] authority created: AUTH-V011-A-ee19e561
+[PASS] authority created: AUTH-V011-B-ee19e561
+[PASS] multi-authority governed contract created
+[PASS] monitor created for AUTH-V011-A-ee19e561
+[PASS] monitor created for AUTH-V011-B-ee19e561
+[PASS] first poll appends evidence
+[PASS] first evidence change requests reevaluation
+[PASS] duplicate poll is idempotently ignored
+[PASS] duplicate does not request reevaluation
+[PASS] monitor configuration can be governed-updated
+[PASS] changed observation becomes append-only revision
+[PASS] revision requests fresh reevaluation
+[PASS] cross-authority conflict detected
+[PASS] conflict creates operational exception
+[PASS] exception registry exposes conflict
+[PASS] conflict automatically appears in Work Queue
+[PASS] source outage detected without crashing API
+[PASS] outage schedules retry/backoff
+[PASS] outage creates operational exception
+[PASS] source health reports unhealthy state
+[PASS] changed governed evidence creates durable reevaluation requests
+[PASS] evidence ledger is append-only and queryable
+[PASS] captured evidence retains provenance hashes
+[PASS] infrastructure summary includes active evidence layer
+[PASS] active evidence activity is audited
+[PASS] audit chain remains valid after evidence operations
+
+================================================================
+RESULT: 27/27 checks passed; 0 failed
+ACTIVE EVIDENCE GATE: PASS
+\n>>> settlement_gate.py
+[PASS] API reachable and v0.12+
+[PASS] active policy readable
+[PASS] policy change created as draft
+[PASS] policy draft submitted for approval
+[PASS] policy maker cannot self-approve
+[PASS] independent checker approves policy
+[PASS] approved policy activates as new immutable version
+[PASS] test authority created
+[PASS] governed contract created
+[PASS] evidence appended
+[PASS] completed resolution run created
+[PASS] held test run created
+[PASS] HELD resolution cannot request settlement authorization
+[PASS] settlement authorization request created
+[PASS] packet cannot be created before approval
+[PASS] settlement maker cannot self-approve
+[PASS] independent checker authorizes handoff
+[PASS] same checker cannot vote twice
+[PASS] approved run produces signed authorization packet
+[PASS] packet pins contract/policy/run
+[PASS] Kalshi profile selects exchange authorization terminal action
+[PASS] local packet explicitly not production eligible
+[PASS] packetization is idempotent per approval
+[PASS] UMA handoff approval can be requested
+[PASS] Polymarket profile selects oracle proposal/dispute packet
+[PASS] approval registry exposes approved authorizations
+[PASS] settlement packet registry is queryable
+[PASS] infrastructure reports approval control layer
+[PASS] approval and settlement actions are audited
+[PASS] audit chain valid after authorization flow
+
+================================================================
+RESULT: 30/30 checks passed; 0 failed
+SETTLEMENT CONTROL GATE: PASS
+\n>>> semantic_gate.py
+[PASS] API reachable and v0.13
+[PASS] product identifies semantic contract intelligence
+[PASS] semantic endpoint responds
+[PASS] CPI concept recognized
+[PASS] CPI explained in plain language
+[PASS] vague CPI is semantic REVIEW
+[PASS] vague CPI flags metric series
+[PASS] vague CPI flags measurement basis
+[PASS] vague CPI flags reference period
+[PASS] publisher extracted
+[PASS] revision semantics extracted
+[PASS] semantic analysis has stable hash
+[PASS] semantic layer states non-settlement boundary
+[PASS] precise CPI semantic analysis responds
+[PASS] precise CPI is semantic READY
+[PASS] CPI-U series extracted
+[PASS] YoY basis extracted
+[PASS] reference period extracted
+[PASS] seasonal basis extracted
+[PASS] Fed concept recognized
+[PASS] Fed target range extracted
+[PASS] Fed governing publication extracted
+[PASS] precise Fed is semantic READY
+[PASS] compiler embeds semantic analysis
+[PASS] semantic gate is advisory in v0.13
+[PASS] legacy compiler gate remains backwards-compatible
+[PASS] embedded semantic gate still catches CPI ambiguity
+[PASS] compiler version advanced
+[PASS] developer manifest exposes semantic endpoint
+
+================================================================
+RESULT: 29/29 checks passed; 0 failed
+SEMANTIC CONTRACT GATE: PASS
+\n>>> identity_gate.py
+[PASS] API reachable and v0.14+
+[PASS] whoami endpoint loads
+[PASS] local principal has tenant context
+[PASS] local principal has principal id
+[PASS] local principal type is declared
+[PASS] identity posture endpoint loads
+[PASS] tenant boundary declared
+[PASS] tenant registry loads
+[PASS] local tenant seeded
+[PASS] tenant can be governed-created
+[PASS] duplicate tenant rejected
+[PASS] service principal can be registered
+[PASS] principals can be tenant-filtered
+[PASS] principal cannot bind unknown tenant
+[PASS] principal type is constrained
+[PASS] identity changes are audited
+[PASS] readiness remains healthy after identity operations
+
+================================================================
+RESULT: 17/17 checks passed; 0 failed
+IDENTITY & TENANT GATE: PASS
+\n>>> reliability_gate.py
+[PASS] API reachable and v0.15+
+[PASS] reliability posture loads
+[PASS] reliability schema migration recorded
+[PASS] local reliability configuration passes
+[PASS] idempotency record can be created
+[PASS] same idempotency request replays deterministically
+[PASS] idempotency key cannot be reused with different request
+[PASS] durable job can be enqueued
+[PASS] worker can claim due job
+[PASS] claim increments attempt count
+[PASS] wrong worker cannot complete leased job
+[PASS] lease owner can complete job
+[PASS] terminal-test job enqueued
+[PASS] terminal-test job claimed
+[PASS] max-attempt failure moves job to dead letter
+[PASS] dead-letter retains failure reason
+[PASS] job registry is queryable
+[PASS] completed and dead-letter states persist
+[PASS] signed webhook envelope can be created
+[PASS] valid webhook signature verifies
+[PASS] webhook replay is rejected
+[PASS] invalid webhook signature is rejected
+[PASS] reliability posture exposes dead letters
+[PASS] reliability posture counts completed work
+[PASS] reliability operations are audited
+[PASS] audit chain remains valid after reliability operations
+[PASS] readiness remains healthy after reliability operations
+
+================================================================
+RESULT: 27/27 checks passed; 0 failed
+PRODUCTION RELIABILITY GATE: PASS
+\n>>> model_gateway_gate.py
+[PASS] API reachable and v0.16+
+[PASS] model gateway posture loads
+[PASS] gateway reports v0.16
+[PASS] gateway exposes provider readiness
+[PASS] gateway exposes configured default model
+[PASS] gateway exposes configured fast model
+[PASS] model tools are disabled in v0.16
+[PASS] gateway authority boundary is advisory
+[PASS] governed model self-test completes
+[PASS] self-test has zero settlement authority
+[PASS] self-test records prompt identity/version
+[PASS] self-test records input and output hashes
+[PASS] self-test structured validation passes
+[PASS] self-test output labels itself advisory
+[PASS] model invocation registry is queryable
+[PASS] registry persists non-binding metadata
+[PASS] infrastructure posture includes model gateway
+[PASS] developer manifest exposes model intelligence
+[PASS] model invocation is written to audit chain
+[PASS] audit chain remains valid after model self-test
+
+================================================================
+RESULT: 20/20 checks passed; 0 failed
+MODEL INTELLIGENCE GATE: PASS
+\n>>> data_plane_gate.py
+[PASS] API reachable and v0.17+
+[PASS] data-plane posture loads
+[PASS] data-plane reports v0.17
+[PASS] local data-plane configuration passes
+[PASS] local reference backend is SQLite
+[PASS] production backend is explicitly PostgreSQL
+[PASS] transaction posture includes advisory-lock serialization
+[PASS] PostgreSQL tenant RLS is declared
+[PASS] PostgreSQL FORCE RLS is declared
+[PASS] tenant-scoped table registry is substantial
+[PASS] object storage is content-addressed
+[PASS] object storage uses SHA-256
+[PASS] backup/restore posture is declared
+[PASS] data-plane self-test completes
+[PASS] content-addressed object round-trip verifies
+[PASS] object verification preserves exact digest
+[PASS] qmark SQL parameters translate for psycopg
+[PASS] SQL translator preserves literal question marks
+[PASS] RLS self-test includes FORCE ROW LEVEL SECURITY
+[PASS] RLS self-test includes WITH CHECK write isolation
+[PASS] request/worker context can switch tenant
+[PASS] temporary data-plane context restores cleanly
+[PASS] data-plane self-test has zero settlement authority
+[PASS] local online backup can be created
+[PASS] backup manifest pins SHA-256 and size
+[PASS] backup verification passes checksum and SQLite integrity
+[PASS] infrastructure summary includes v0.17 data plane
+[PASS] developer manifest exposes production data plane
+
+================================================================
+RESULT: 28/28 checks passed; 0 failed
+PRODUCTION DATA PLANE GATE: PASS
+\n>>> enterprise_secrets_gate.py
+[PASS] API reachable and v0.18+
+[PASS] enterprise secret posture loads
+[PASS] secret service reports v0.18
+[PASS] local secret backend is explicit
+[PASS] raw secret read API is prohibited
+[PASS] secret subsystem has zero settlement authority
+[PASS] provider registry is tenant-scoped response
+[PASS] secret custody self-test completes
+[PASS] self-test uses isolated tenant
+[PASS] secret round-trip never exposes raw value
+[PASS] secret response is masked
+[PASS] self-test preserves zero settlement authority
+[PASS] purpose policy retained
+[PASS] model provider admin registry loads
+[PASS] provider registry does not expose secret_ref
+[PASS] provider registry does not expose api_key
+[PASS] OIDC federation posture loads
+[PASS] OIDC federation reports v0.18
+[PASS] OIDC tenant claim mapping declared
+[PASS] OIDC principal claim mapping declared
+[PASS] OIDC signing algorithms restricted
+[PASS] OIDC claim mapping self-test passes
+[PASS] OIDC maps tenant identity
+[PASS] OIDC maps principal identity
+[PASS] OIDC maps scopes
+[PASS] OIDC self-test performs no external signature call
+[PASS] infrastructure includes enterprise secrets
+[PASS] infrastructure includes identity federation
+[PASS] developer manifest exposes enterprise secrets
+[PASS] developer manifest exposes OIDC federation
+[PASS] secret administration writes audit events
+[PASS] audit chain remains valid after secret operations
+
+================================================================
+RESULT: 32/32 checks passed; 0 failed
+ENTERPRISE SECRETS & FEDERATION GATE: PASS
+\n>>> reference_exchange_gate.py
+[PASS] reference exchange posture loads
+[PASS] reference exchange is sandbox mode
+[PASS] play money only is explicit
+[PASS] real-money custody is disabled
+[PASS] sandbox matching engine is declared
+[PASS] end-to-end self-test completes
+[PASS] self-test has zero real-money path
+[PASS] self-test returns market identity
+[PASS] self-test either exercises matching or safely holds
+[PASS] precise reference contract opens for sandbox trading
+[PASS] YES account receives play-money balance
+[PASS] NO account receives play-money balance
+[PASS] first limit order rests without counterparty
+[PASS] complementary orders match
+[PASS] matched trade quantity is correct
+[PASS] YES/NO execution prices sum to one
+[PASS] fully filled orders leave empty book
+[PASS] matched trade creates two positions
+[PASS] trade ledger is attached to market
+[PASS] sandbox settlement is hash pinned
+[PASS] market enters SETTLED state
+[PASS] play-money cash is conserved across matched settlement
+[PASS] duplicate settlement attempt is rejected
+[PASS] ambiguous contract is safely held
+[PASS] developer manifest exposes reference exchange v2
+[PASS] audit chain remains valid
+
+================================================================
+RESULT: 26/26 checks passed; 0 failed
+REFERENCE EXCHANGE GATE: PASS
+\n>>> operations_resilience_gate.py
+[PASS] operations posture loads
+[PASS] required dependencies represented
+[PASS] database dependency healthy
+[PASS] audit chain dependency healthy
+[PASS] backpressure state declared
+[PASS] rate limiting declared
+[PASS] external observability requirement explicit
+[PASS] resilience self-test passes
+[PASS] self-test settlement authority false
+[PASS] self-test admission succeeds
+[PASS] recovery drills pass
+[PASS] incident lifecycle closes
+[PASS] incident can be opened
+[PASS] incident registry is queryable
+[PASS] incident can be closed
+[PASS] queue recovery drill executes
+[PASS] drill has deterministic result hash
+[PASS] drill settlement authority false
+[PASS] developer manifest exposes resilience
+[PASS] infrastructure exposes operations
+[PASS] health reports v0.20+
+[PASS] audit chain remains valid
+
+================================================================
+RESULT: 22/22 checks passed; 0 failed
+OPERATIONS & RESILIENCE GATE: PASS
+\n>>> settlement_assurance_gate.py
+[PASS] assurance posture loads
+[PASS] internal assurance harness declared
+[PASS] production certification remains false
+[PASS] certification state is NOT_CERTIFIED
+[PASS] external security review remains explicit requirement
+[PASS] penetration test remains explicit requirement
+[PASS] real holdout remains explicit requirement
+[PASS] open certification blockers are exposed
+[PASS] assurance self-test passes
+[PASS] self-test does not certify production
+[PASS] adversarial suite passes
+[PASS] adversarial suite is hash pinned
+[PASS] adversarial suite has five cases
+[PASS] all adversarial expectations match
+[PASS] assurance explicitly not independent
+[PASS] holdout fixture freezes labels
+[PASS] holdout dataset hash pinned
+[PASS] holdout evaluation hash pinned
+[PASS] holdout registry queryable
+[PASS] developer manifest exposes assurance
+[PASS] infrastructure exposes assurance
+[PASS] health reports v0.21+
+[PASS] audit chain remains valid
+
+================================================================
+RESULT: 23/23 checks passed; 0 failed
+SETTLEMENT ASSURANCE GATE: PASS
+\n>>> deployment_validation_gate.py
+[PASS] deployment posture loads
+[PASS] deployment IaC inventory is complete
+[PASS] deployment is not falsely claimed proven
+[PASS] required artifact inventory is substantial
+[PASS] all required deployment artifacts are present
+[PASS] managed PostgreSQL is required
+[PASS] managed object storage is required
+[PASS] multi-instance service is required
+[PASS] TLS ingress is required
+[PASS] deployment self-test passes
+[PASS] deployment self-test has zero settlement authority
+[PASS] developer manifest exposes deployment readiness
+[PASS] infrastructure summary exposes deployment readiness
+[PASS] container runs as non-root Arbiter user
+[PASS] Terraform declares Multi-AZ RDS
+[PASS] Terraform enforces at least two service tasks
+[PASS] Terraform enables KMS key rotation
+[PASS] Terraform files present and non-empty
+[PASS] Terraform delimiters are balanced
+[PASS] Terraform top-level blocks are not compressed into invalid single-line HCL
+NOTE: run `terraform fmt -check && terraform validate` with Terraform installed for authoritative validation.
+[PASS] offline Terraform syntax-shape check passes
+[PASS] health reports v0.26+
+
+================================================================
+RESULT: 19/19 checks passed; 0 failed
+DEPLOYMENT VALIDATION GATE: PASS
+\n>>> resilience_lab_gate.py
+[PASS] resilience lab posture loads
+[PASS] three local scenarios are registered
+[PASS] five external scenarios are registered
+[PASS] production resilience is not inferred from local tests
+[PASS] resilience lab self-test passes
+[PASS] self-test executes three scenarios
+[PASS] all self-test scenarios pass
+[PASS] self-test has zero settlement authority
+[PASS] compiler stress run passes
+[PASS] requested iteration count is preserved
+[PASS] stress run reports positive throughput
+[PASS] stress evidence is hash pinned
+[PASS] resilience run registry is queryable
+[PASS] local environment cannot masquerade as external evidence
+[PASS] deployed-environment evidence can be recorded
+[PASS] external flag is explicit
+[PASS] external passed scenarios update posture
+[PASS] developer manifest exposes resilience lab
+[PASS] infrastructure exposes resilience lab
+[PASS] audit chain remains valid
+
+================================================================
+RESULT: 20/20 checks passed; 0 failed
+RESILIENCE LAB GATE: PASS
+\n>>> external_assurance_gate.py
+[PASS] external assurance posture loads
+[PASS] external assurance does not self-certify
+[PASS] external assurance is incomplete without independent evidence
+[PASS] security review remains a missing evidence class
+[PASS] external assurance self-test passes
+[PASS] self-test artifact is explicitly non-independent
+[PASS] self-test evidence digest is SHA-256 shaped
+[PASS] independent PASS artifact can be registered
+[PASS] artifact type is preserved
+[PASS] reviewer/provider identity is preserved
+[PASS] independent flag is preserved
+[PASS] external assurance registry is queryable
+[PASS] passed evidence updates posture
+[PASS] one artifact does not complete assurance
+[PASS] production certification remains false after evidence registration
+[PASS] developer manifest exposes external assurance
+[PASS] infrastructure exposes external assurance
+[PASS] audit chain remains valid
+
+================================================================
+RESULT: 18/18 checks passed; 0 failed
+EXTERNAL ASSURANCE GATE: PASS
+\n>>> shadow_pilot_gate.py
+[PASS] shadow pilot posture loads
+[PASS] shadow-only mode is explicit
+[PASS] shadow pilot has zero settlement authority
+[PASS] shadow pilot cannot mutate venue settlement
+[PASS] shadow pilot self-test passes
+[PASS] self-test contains one analyzed contract
+[PASS] self-test reconciliation agrees
+[PASS] shadow pilot can be created
+[PASS] created pilot remains shadow mode
+[PASS] venue contract is analyzed
+[PASS] semantic analysis is hash pinned
+[PASS] compiler analysis is hash pinned
+[PASS] shadow resolution can record a disagreement
+[PASS] pilot metrics count imported contracts
+[PASS] pilot metrics count disagreements
+[PASS] pilot agreement rate reflects disagreement
+[PASS] official settlement authority remains false
+[PASS] developer manifest exposes shadow pilot
+[PASS] infrastructure exposes shadow pilot
+[PASS] audit chain remains valid
+
+================================================================
+RESULT: 20/20 checks passed; 0 failed
+SHADOW PILOT GATE: PASS
+\n>>> real_benchmark_gate.py
+[PASS] v0.27 benchmark posture endpoint loads
+[PASS] real holdout target is explicit
+[PASS] production certification remains false
+[PASS] holdout tuning is prohibited
+[PASS] Kalshi settled binary normalizes
+[PASS] Kalshi raw source is hash pinned
+[PASS] Polymarket resolved binary normalizes
+[PASS] Polymarket nonterminal price is rejected
+[PASS] holdout freezes requested case count
+[PASS] holdout aggregate hash is pinned
+[PASS] labels are declared separated
+[PASS] frozen evidence is separately hash pinned
+[PASS] fresh frozen holdout verifies
+[PASS] blind inputs contain no known_outcome
+[PASS] evidence contains no venue outcome labels
+[PASS] labels retain frozen outcomes
+[PASS] contract and label case IDs align
+[PASS] stratified selection is deterministic
+[PASS] frozen dataset overwrite is blocked
+[PASS] blind run covers every frozen case
+[PASS] blind run attests labels not loaded
+[PASS] blind predictions are hash pinned
+[PASS] blind run pins the frozen evidence hash
+[PASS] blind prediction rows contain no venue labels
+[PASS] READY numeric contract resolves from frozen evidence
+[PASS] non-READY contracts abstain with HOLD
+[PASS] prediction run verifies against dataset hash
+[PASS] post-run report is hash pinned
+[PASS] report scores only evidence-backed deterministic outcomes
+[PASS] report exposes governed hold rate
+[PASS] report exposes gold coverage separately
+[PASS] label tampering invalidates dataset
+
+================================================================
+RESULT: 32/32 checks passed; 0 failed
+REAL-WORLD BENCHMARK GATE: PASS
+
+================================================================
+RELEASE GATE: PASS — 452/452 checks across 18 suites
+NOTE: suites were executed in three groups because the container command window is shorter than the aggregate gate runtime.
+NOTE: Terraform authoritative validation was previously confirmed on v0.26.1 and v0.27 does not modify deploy/aws Terraform.
+
+Post-fix targeted reruns after model-default correction:
+- model_gateway_gate.py: 20/20 PASS
+- enterprise_secrets_gate.py: 32/32 PASS
+- real_benchmark_gate.py: 32/32 PASS

@@ -1,5 +1,26 @@
 # Arbiter
 
+## v0.27 — Real-World Resolution Benchmark
+
+Arbiter v0.27 freezes the product surface at a pilot-ready baseline and moves validation toward untouched real-world contracts. The release adds `ARB-GOLD-HOLDOUT-v0.1`: a label-separated, hash-pinned benchmark protocol for 50–100 already-resolved event contracts.
+
+The benchmark pipeline is:
+
+**Collect candidates → Curate → Freeze → Verify → Run blind → Pin predictions → Score → Report**
+
+Key controls:
+- contract inputs and independent evidence are physically separated from outcome/gold labels;
+- the blind runner reads only contracts + frozen evidence and never opens the label file;
+- contracts, evidence, labels, provenance, predictions, and reports are SHA-256 pinned;
+- READY contracts can resolve deterministically from supported evidence; non-READY/missing-evidence cases HOLD rather than guess;
+- frozen datasets cannot be overwritten;
+- missing evidence/gold coverage remains explicitly unscored;
+- the holdout must never be used to tune Arbiter.
+
+Current release validation target: **452/452 checks across 18 suites**. This is internal engineering validation, not independent accuracy, regulatory approval, or production settlement certification.
+
+See `REAL_WORLD_BENCHMARK.md`, `CHANGELOG_V0_27.md`, and `VALIDATION_V0_27.md`.
+
 ## v0.21 — Reference Exchange, Production Operations & Settlement Assurance
 
 Arbiter has advanced through three additional integration-hardening milestones:

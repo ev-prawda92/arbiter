@@ -1,4 +1,4 @@
-# Arbiter v0.21 — Product / Technical Manifest
+# Arbiter v0.27 — Product / Technical Manifest
 
 ## Product thesis
 Arbiter is semantic contract intelligence and resolution infrastructure for event markets. It converts natural-language market rules into governed resolution specifications, monitors authoritative evidence, executes deterministic resolution logic, controls approvals and settlement authorization, and preserves an auditable record.
@@ -16,6 +16,7 @@ Arbiter is semantic contract intelligence and resolution infrastructure for even
 8. **Production Reliability Foundation** — durable jobs, leases, retries, dead-letter handling, idempotency, signed webhooks, replay protection, and migration tracking.
 9. **Governed Model Intelligence Gateway** — provider abstraction, structured outputs, prompt versioning, usage limits, provenance, audit logging, and operator Copilot.
 10. **Production Data Plane (v0.17)** — PostgreSQL adapter, request-scoped tenant context, database RLS, content-addressed evidence objects, settlement serialization, and backup/restore verification hooks.
+11. **Real-World Resolution Benchmark (v0.27)** — untouched contract collection/freeze protocol, physical label separation, blind execution, hash-pinned predictions, post-run scoring, and no-tuning-on-holdout controls.
 
 ## v0.17 data-plane APIs
 - `GET /api/data-plane` — production data-plane posture.
@@ -42,7 +43,7 @@ Models are **advisory only**. They may interpret, summarize, explain, classify, 
 Current OpenAI defaults are configurable:
 ```bash
 export ARBITER_MODEL_PROVIDER='openai'
-export ARBITER_MODEL_DEFAULT='gpt-6-astra'
+export ARBITER_MODEL_DEFAULT='gpt-5.6-sol'
 export ARBITER_MODEL_FAST='gpt-5.6-terra'
 ```
 
@@ -124,3 +125,16 @@ This result is internal release validation and does not represent external secur
 15. **External Assurance Evidence (v0.24)** — independent review/test metadata with SHA-256 fingerprints.
 16. **Shadow Pilot Harness (v0.25)** — real-contract, zero-settlement-authority design-partner workflow.
 17. **Reference Exchange v2 (v0.26)** — play-money order book/matching and end-to-end settlement sandbox.
+
+
+## v0.27 real-world benchmark
+
+18. **ARB-GOLD-HOLDOUT-v0.1** — default target 75 already-resolved real contracts, with 50–100 accepted as the initial proof range.
+19. **Blind benchmark execution** — `contracts.jsonl` is processed without opening `labels.jsonl`; prediction artifacts are hash-pinned before scoring.
+20. **Coverage-aware scoring** — contract-quality accuracy requires separately frozen human/independent labels; outcome agreement requires evidence-backed predictions. Missing coverage is reported as unscored.
+
+Expected v0.27 local reference result:
+
+**RELEASE GATE: PASS — 452/452 checks across 18 suites**
+
+The v0.27 release package includes the benchmark machinery but intentionally does not claim ARB-GOLD-HOLDOUT-v0.1 is already populated. Real contract collection and freeze is the next validation action.

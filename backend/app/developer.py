@@ -113,7 +113,7 @@ def developer_manifest() -> dict:
     cfg = load_runtime_config()
     return {
         "api_version": "v1-preview",
-        "product_version": "0.26.0",
+        "product_version": "0.27.0",
         "auth": {
             "enabled": api_auth_enabled(),
             "required": cfg.require_auth,
@@ -124,7 +124,7 @@ def developer_manifest() -> dict:
             "note": "Local development can remain open. Production defaults to fail-closed authentication.",
         },
         "docs": {"swagger": "/docs", "redoc": "/redoc", "openapi": "/openapi.json"},
-        "core_resources": ["semantic-contract-intelligence", "contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "approvals", "settlement-packets", "policy-drafts", "work-queue", "portfolio", "audit", "model-gateway", "model-invocations", "case-copilot", "data-plane", "enterprise-secrets", "model-providers", "oidc-federation", "reference-exchange", "reference-orders", "operations-resilience", "incidents", "recovery-drills", "settlement-assurance", "holdout-datasets", "deployment-readiness", "resilience-lab", "external-assurance", "shadow-pilots"],
+        "core_resources": ["semantic-contract-intelligence", "contracts", "authorities", "evidence", "evidence-monitors", "source-health", "evidence-exceptions", "resolution-reevaluations", "resolution-runs", "approvals", "settlement-packets", "policy-drafts", "work-queue", "portfolio", "audit", "model-gateway", "model-invocations", "case-copilot", "data-plane", "enterprise-secrets", "model-providers", "oidc-federation", "reference-exchange", "reference-orders", "operations-resilience", "incidents", "recovery-drills", "settlement-assurance", "holdout-datasets", "deployment-readiness", "resilience-lab", "external-assurance", "shadow-pilots", "real-world-benchmark"],
         "compiler": {"endpoint": "/api/compile", "version": "0.1.3"},
         "semantic_contract_intelligence": {"endpoint": "/api/semantic-analyze", "version": "0.13.0", "gate_mode": "advisory"},
         "enterprise_identity": {"version": "0.14.0", "tenant_context": "principal-bound", "principal_types": ["human", "service"]},
@@ -140,6 +140,7 @@ def developer_manifest() -> dict:
         "resilience_lab": {"version": "0.23.0", "local_failure_scenarios": True, "external_evidence_registry": True},
         "external_assurance": {"version": "0.24.0", "independent_evidence_registry": True, "production_settlement_certified": False},
         "shadow_pilot": {"version": "0.25.0", "mode": "shadow-only", "settlement_authority": False},
+        "real_world_benchmark": {"version": "0.27.0", "program": "ARB-GOLD-HOLDOUT-v0.1", "label_separation": True, "blind_run": True, "tune_on_holdout": False, "production_settlement_certified": False},
         "webhook_event_catalog": WEBHOOK_EVENTS,
         "stability": "preview — endpoint contracts may evolve before v1.0",
     }

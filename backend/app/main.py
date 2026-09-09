@@ -22,13 +22,16 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from . import engine, feeds, monitoring, policy, llm, intelligence, evidence, executive, workflow, compiler, developer, enterprise, exchange_profiles, active_evidence, approval_control, governed_policy, semantic_contract, identity_tenant, reliability, model_gateway, production_data, enterprise_secrets, identity_federation, reference_exchange, operations_resilience, settlement_assurance, deployment_readiness, resilience_lab, external_assurance, shadow_pilot
+from .real_benchmark import service as real_benchmark_service
+from .real_benchmark.runner import run_blind as run_real_benchmark_blind
+from .real_benchmark.dataset import verify_dataset as verify_real_benchmark_dataset
 from .resolution_infra import (store as resolution_store, seed_reference_data, ResolutionSpecification, Authority, EvidenceRecord, ResolutionRun, gen_id, utcnow, canonical_hash)
 from .control_library import CONTROLS, evaluate_spec, evaluate_evidence, evaluate_run
 from .benchmark.runner import run as run_benchmark
 
 app = FastAPI(
     title="Arbiter API",
-    version="0.26.0",
+    version="0.27.0",
     description=(
         "Semantic contract intelligence and resolution control infrastructure for event-contract exchanges. "
         "Design contracts, govern authorities, preserve evidence, execute version-pinned resolution runs, "
@@ -334,7 +337,7 @@ def compile_and_create(inp: CompileIn, auth=Depends(developer.require_scope("con
 
 @app.get("/api/health", tags=["Developer"])
 def health():
-    return {"ok": True, "service": "arbiter", "version": "0.26.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
+    return {"ok": True, "service": "arbiter", "version": "0.27.0", "llm": llm.available(), "product": "Semantic Contract Intelligence + Resolution Control", "infrastructure": resolution_store.summary(), "data_plane": production_data.get_service(resolution_store).posture()}
 
 
 
@@ -347,7 +350,7 @@ def readiness():
     payload = {
         "ready": ready,
         "service": "arbiter",
-        "version": "0.26.0",
+        "version": "0.27.0",
         "audit_chain": chain,
         "configuration_findings": findings,
         "database": resolution_store.summary(),
@@ -800,7 +803,7 @@ class ResolutionRunIn(BaseModel):
 
 @app.get("/api/infrastructure")
 def infrastructure_summary():
-    return {"version": "0.26.0", "domain": resolution_store.summary(),
+    return {"version": "0.27.0", "domain": resolution_store.summary(),
             "active_evidence": active_evidence.get_service(resolution_store).summary(),
             "approval_control": approval_control.get_service(resolution_store).summary(),
             "model_gateway": model_gateway.get_service(resolution_store).posture(),
@@ -991,6 +994,35 @@ def operations_recovery_drill(inp: RecoveryDrillIn, auth=Depends(developer.requi
     try:return {"drill":operations_resilience.get_service(resolution_store).run_recovery_drill(principal.tenant_id,inp.drill_type,principal.principal_id)}
     except ValueError as e:raise HTTPException(422,str(e)) from e
 
+
+
+# ---- v0.27 Real-World Holdout Benchmark -------------------------------------
+class RealBenchmarkRunIn(BaseModel):
+    run_name: str = "ARB-GOLD-HOLDOUT-v0.1-blind"
+
+@app.get("/api/real-benchmark", tags=["Real-World Benchmark"])
+def real_benchmark_posture():
+    return real_benchmark_service.posture()
+
+@app.post("/api/real-benchmark/verify", tags=["Real-World Benchmark"])
+def real_benchmark_verify(auth=Depends(developer.require_scope("benchmark:run"))):
+    return verify_real_benchmark_dataset(real_benchmark_service.default_dataset_dir())
+
+@app.post("/api/real-benchmark/run", tags=["Real-World Benchmark"])
+def real_benchmark_run(inp: RealBenchmarkRunIn, auth=Depends(developer.require_scope("benchmark:run"))):
+    import datetime as _dt
+    verification = verify_real_benchmark_dataset(real_benchmark_service.default_dataset_dir())
+    if not verification.get("ok"):
+        raise HTTPException(409, {"message": "real holdout is not frozen/valid", "verification": verification})
+    seed_reference_data()
+    stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = real_benchmark_service.default_runs_dir() / stamp
+    result = run_real_benchmark_blind(
+        real_benchmark_service.default_dataset_dir(), out,
+        engine_module=engine, compiler_module=compiler, semantic_module=semantic_contract,
+        policy=policy.load_policy(), authorities=resolution_store.list_authorities(), run_name=inp.run_name,
+    )
+    return {"manifest": result["manifest"], "output_dir": result["output_dir"]}
 
 # ---- v0.21 Settlement Assurance Harness ----
 class HoldoutCreateIn(BaseModel):

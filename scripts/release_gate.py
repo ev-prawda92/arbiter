@@ -22,6 +22,7 @@ GATES = [
     'resilience_lab_gate.py',
     'external_assurance_gate.py',
     'shadow_pilot_gate.py',
+    'real_benchmark_gate.py',
 ]
 
 
@@ -40,6 +41,6 @@ def main():
             print(f'RELEASE GATE: FAIL ({gate})')
             raise SystemExit(result.returncode)
     print('\n'+'='*64)
-    print('RELEASE GATE: PASS — 420/420 checks across 17 suites')
+    print('RELEASE GATE: PASS — 452/452 checks across 18 suites')
 
 if __name__=='__main__': main()
