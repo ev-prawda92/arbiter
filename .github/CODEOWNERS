@@ -1,0 +1,9 @@
+# Default code owner
+* @ev-prawda92
+
+# High-impact control-plane surfaces
+/backend/app/public_api.py @ev-prawda92
+/backend/app/real_benchmark/ @ev-prawda92
+/scripts/release_gate.py @ev-prawda92
+/scripts/public_api_gate.py @ev-prawda92
+/.github/workflows/ @ev-prawda92
