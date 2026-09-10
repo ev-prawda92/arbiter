@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from . import enterprise
 from .public_api import router as v1_router
 from .public_limits import limiter
+from .resolution_infra import seed_reference_data
 
 app = FastAPI(
     title="Arbiter Resolution API",
@@ -20,6 +21,9 @@ app = FastAPI(
 )
 
 runtime_config = enterprise.load_runtime_config()
+if not runtime_config.production:
+    seed_reference_data()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(runtime_config.cors_origins),
