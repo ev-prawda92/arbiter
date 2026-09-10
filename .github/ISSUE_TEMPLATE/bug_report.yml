@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a reproducible problem in Arbiter
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not include secrets, credentials, private customer data, or vulnerability details here. Use the private security reporting path in SECURITY.md for security issues.
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Arbiter version, branch, tag, or commit SHA.
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reproducible sequence you can.
+      placeholder: |
+        1. Start ...
+        2. Call ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Contract compilation / semantics
+        - Evidence
+        - Resolution engine
+        - Public API / SDK
+        - Benchmark / curation
+        - Auth / tenant isolation
+        - Audit / integrity
+        - UI / work queue
+        - Deployment / operations
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      description: Redact tokens, secrets, customer data, and sensitive identifiers.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I have removed secrets and private data from this report.
+          required: true
+        - label: This is not a security vulnerability report.
+          required: true
