@@ -115,6 +115,20 @@ def _compile(inp: CompileRequest) -> dict[str, Any]:
     )
 
 
+def _response_core_for_hash(response: dict[str, Any]) -> dict[str, Any]:
+    """Return the exact response payload covered by response_sha256.
+
+    Resolution responses pin the semantic result before embedding request/response
+    hash metadata. Verification must reconstruct that same payload rather than
+    trusting either the stored JSON or the stored digest.
+    """
+    return {
+        key: value
+        for key, value in response.items()
+        if key not in {"request_sha256", "response_sha256"}
+    }
+
+
 @router.post("/contracts/compile")
 def compile_contract_v1(inp: CompileRequest, auth=Depends(developer.require_scope("contracts:write"))):
     compiled = _compile(inp)
@@ -213,13 +227,45 @@ def verify_resolution_v1(inp: VerifyRequest, auth=Depends(developer.require_api_
     row = _public_store.get(principal.tenant_id, inp.resolution_id)
     if not row:
         raise HTTPException(404, "resolution not found")
-    actual = row["response_sha256"]
-    matches = inp.expected_response_sha256 in (None, actual)
+
+    stored_request_sha = str(row["request_sha256"])
+    stored_response_sha = str(row["response_sha256"])
+    calculated_request_sha = canonical_hash(row["request"])
+    calculated_response_sha = canonical_hash(_response_core_for_hash(row["response"]))
+
+    request_matches = calculated_request_sha == stored_request_sha
+    response_matches = calculated_response_sha == stored_response_sha
+    embedded_request_matches = row["response"].get("request_sha256") == stored_request_sha
+    embedded_response_matches = row["response"].get("response_sha256") == stored_response_sha
+    expected_matches = inp.expected_response_sha256 in (None, stored_response_sha)
+
+    verified = all(
+        (
+            request_matches,
+            response_matches,
+            embedded_request_matches,
+            embedded_response_matches,
+            expected_matches,
+        )
+    )
+
     return {
         "api_version": "v1",
         "resolution_id": inp.resolution_id,
-        "verified": matches,
-        "response_sha256": actual,
+        "verified": verified,
+        "request_integrity": {
+            "matches": request_matches,
+            "stored_sha256": stored_request_sha,
+            "calculated_sha256": calculated_request_sha,
+        },
+        "response_integrity": {
+            "matches": response_matches,
+            "stored_sha256": stored_response_sha,
+            "calculated_sha256": calculated_response_sha,
+        },
+        "embedded_hashes_match": embedded_request_matches and embedded_response_matches,
+        "expected_response_matches": expected_matches,
+        "response_sha256": stored_response_sha,
         "expected_response_sha256": inp.expected_response_sha256,
     }
 
