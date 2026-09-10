@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Curation gate
+        run: python scripts/curation_gate.py
+
+      - name: Public API gate
+        env:
+          ARBITER_DATABASE_PATH: /tmp/arbiter-public.db
+        run: |
+          set -euo pipefail
+          cd backend
+          python -m uvicorn app.public:app --host 127.0.0.1 --port 8001 > /tmp/arbiter-public.log 2>&1 &
+          API_PID=$!
+          trap 'kill $API_PID || true' EXIT
+          cd ..
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8001/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8001/health >/dev/null || { cat /tmp/arbiter-public.log; exit 1; }
+          python scripts/public_api_gate.py
+
+      - name: Full release gate
+        env:
+          ARBITER_DATABASE_PATH: /tmp/arbiter-main.db
+        run: |
+          set -euo pipefail
+          cd backend
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/arbiter-main.log 2>&1 &
+          APP_PID=$!
+          trap 'kill $APP_PID || true' EXIT
+          cd ..
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/api/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/api/health >/dev/null || { cat /tmp/arbiter-main.log; exit 1; }
+          python scripts/release_gate.py
