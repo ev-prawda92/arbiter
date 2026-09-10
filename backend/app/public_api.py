@@ -6,10 +6,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import compiler, developer, enterprise, identity_tenant, policy
+from . import compiler, developer, enterprise, identity_tenant, policy, reliability
 from .real_benchmark.resolver import resolve_from_compiled_spec
 from .resolution_infra import canonical_hash, gen_id, store as resolution_store, utcnow
-from . import reliability
 
 router = APIRouter(prefix="/v1", tags=["Arbiter v1"])
 
@@ -66,17 +65,22 @@ class PublicResolutionStore:
 
     def save(self, tenant_id: str, request: dict[str, Any], response: dict[str, Any], actor: str) -> dict[str, Any]:
         resolution_id = str(response["resolution_id"])
-        request_sha = canonical_hash(request)
-        response_sha = canonical_hash(response)
-        now = utcnow()
+        request_sha = str(response["request_sha256"])
+        response_sha = str(response["response_sha256"])
+        now = str(response["created_at"])
         with resolution_store.connect() as db:
             db.execute(
                 "INSERT INTO public_api_resolutions(resolution_id,tenant_id,contract_id,request_sha256,response_sha256,request_json,response_json,created_at) VALUES(?,?,?,?,?,?,?,?)",
                 (resolution_id, tenant_id, request["contract_id"], request_sha, response_sha,
                  json.dumps(request, sort_keys=True, default=str), json.dumps(response, sort_keys=True, default=str), now),
             )
-        resolution_store._audit(actor, "public_api.resolution.created", "public_api_resolution", resolution_id,
-                                {"tenant_id": tenant_id, "contract_id": request["contract_id"], "response_sha256": response_sha})
+        resolution_store._audit(
+            actor,
+            "public_api.resolution.created",
+            "public_api_resolution",
+            resolution_id,
+            {"tenant_id": tenant_id, "contract_id": request["contract_id"], "response_sha256": response_sha},
+        )
         return {"request_sha256": request_sha, "response_sha256": response_sha, "created_at": now}
 
     def get(self, tenant_id: str, resolution_id: str) -> dict[str, Any] | None:
@@ -144,7 +148,8 @@ def resolve_contract_v1(
     evidence = inp.evidence.model_dump() if inp.evidence else None
     resolved = resolve_from_compiled_spec(compiled, evidence)
     resolution_id = gen_id("vres")
-    response = {
+    created_at = utcnow()
+    response_core = {
         "api_version": "v1",
         "resolution_id": resolution_id,
         "contract_id": inp.contract_id,
@@ -157,11 +162,14 @@ def resolve_contract_v1(
         "compiled_spec_sha256": canonical_hash(compiled.get("proposed_spec") or {}),
         "evidence_sha256": canonical_hash(evidence) if evidence else None,
         "policy_version": policy.load_policy().get("version"),
-        "created_at": utcnow(),
+        "created_at": created_at,
     }
-    integrity = _public_store.save(principal.tenant_id, request_payload, response, principal.principal_id)
-    response["response_sha256"] = canonical_hash(response)
-    response["request_sha256"] = integrity["request_sha256"]
+    response = {
+        **response_core,
+        "request_sha256": canonical_hash(request_payload),
+        "response_sha256": canonical_hash(response_core),
+    }
+    _public_store.save(principal.tenant_id, request_payload, response, principal.principal_id)
 
     if idempotency_key:
         idem.idempotency_put(idempotency_key, "v1.contracts.resolve", request_payload, response)
@@ -181,6 +189,21 @@ def get_resolution_v1(resolution_id: str, auth=Depends(developer.require_api_key
         "request_sha256": row["request_sha256"],
         "response_sha256": row["response_sha256"],
         "created_at": row["created_at"],
+    }
+
+
+@router.get("/evidence/{resolution_id}")
+def get_resolution_evidence_v1(resolution_id: str, auth=Depends(developer.require_api_key)):
+    principal = _principal(auth)
+    row = _public_store.get(principal.tenant_id, resolution_id)
+    if not row:
+        raise HTTPException(404, "resolution not found")
+    evidence = row["request"].get("evidence")
+    return {
+        "api_version": "v1",
+        "resolution_id": resolution_id,
+        "evidence": evidence,
+        "evidence_sha256": canonical_hash(evidence) if evidence else None,
     }
 
 
