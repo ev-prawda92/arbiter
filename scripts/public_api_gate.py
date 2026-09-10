@@ -5,7 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from urllib import error, request
+
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND = ROOT / "backend"
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+
+from app.resolution_infra import store as resolution_store  # noqa: E402
 
 
 def call(base_url: str, method: str, path: str, body=None, headers=None):
@@ -36,6 +44,35 @@ def require(name: str, condition: bool, detail=""):
     raise SystemExit(1)
 
 
+def tamper_json_column(resolution_id: str, column: str, mutate) -> str:
+    """Mutate one persisted JSON blob for a controlled tamper-detection test."""
+    if column not in {"request_json", "response_json"}:
+        raise ValueError("unsupported tamper column")
+    with resolution_store.connect() as db:
+        row = db.execute(
+            f"SELECT {column} FROM public_api_resolutions WHERE resolution_id=?",
+            (resolution_id,),
+        ).fetchone()
+        if not row:
+            raise RuntimeError(f"resolution not found for tamper test: {resolution_id}")
+        original = str(row[column])
+        payload = json.loads(original)
+        mutate(payload)
+        db.execute(
+            f"UPDATE public_api_resolutions SET {column}=? WHERE resolution_id=?",
+            (json.dumps(payload, sort_keys=True, default=str), resolution_id),
+        )
+    return original
+
+
+def restore_json_column(resolution_id: str, column: str, original: str) -> None:
+    with resolution_store.connect() as db:
+        db.execute(
+            f"UPDATE public_api_resolutions SET {column}=? WHERE resolution_id=?",
+            (original, resolution_id),
+        )
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://127.0.0.1:8001")
@@ -57,7 +94,6 @@ def main():
     status, compiled = call(args.base_url, "POST", "/v1/contracts/compile", contract, auth_headers)
     require("compile request succeeds", status == 200, str(compiled))
     require("compiler returns READY", compiled.get("governance_status") == "READY", str(compiled))
-    spec_hash = compiled.get("compilation", {}).get("proposed_spec")
 
     yes_body = {
         **contract,
@@ -132,6 +168,73 @@ def main():
         auth_headers,
     )
     require("resolution verification succeeds", status == 200 and verified.get("verified") is True, str(verified))
+    require("request hash recomputes cleanly", verified.get("request_integrity", {}).get("matches") is True, str(verified))
+    require("response hash recomputes cleanly", verified.get("response_integrity", {}).get("matches") is True, str(verified))
+    require("embedded hashes match persisted pins", verified.get("embedded_hashes_match") is True, str(verified))
+
+    status, wrong_expected = call(
+        args.base_url,
+        "POST",
+        "/v1/contracts/verify",
+        {"resolution_id": resolution_id, "expected_response_sha256": "sha256:not-the-real-digest"},
+        auth_headers,
+    )
+    require("wrong expected response hash is rejected", status == 200 and wrong_expected.get("verified") is False, str(wrong_expected))
+    require("expected hash mismatch is surfaced", wrong_expected.get("expected_response_matches") is False, str(wrong_expected))
+
+    original_response = tamper_json_column(
+        resolution_id,
+        "response_json",
+        lambda payload: payload.__setitem__("verdict", "NO" if payload.get("verdict") != "NO" else "YES"),
+    )
+    try:
+        status, tampered_response = call(
+            args.base_url,
+            "POST",
+            "/v1/contracts/verify",
+            {"resolution_id": resolution_id},
+            auth_headers,
+        )
+        require("tampered response is detected", status == 200 and tampered_response.get("verified") is False, str(tampered_response))
+        require("response integrity failure is surfaced", tampered_response.get("response_integrity", {}).get("matches") is False, str(tampered_response))
+    finally:
+        restore_json_column(resolution_id, "response_json", original_response)
+
+    status, restored_response = call(
+        args.base_url,
+        "POST",
+        "/v1/contracts/verify",
+        {"resolution_id": resolution_id},
+        auth_headers,
+    )
+    require("response verifies after restoration", status == 200 and restored_response.get("verified") is True, str(restored_response))
+
+    original_request = tamper_json_column(
+        resolution_id,
+        "request_json",
+        lambda payload: payload.__setitem__("title", str(payload.get("title", "")) + " [tampered]"),
+    )
+    try:
+        status, tampered_request = call(
+            args.base_url,
+            "POST",
+            "/v1/contracts/verify",
+            {"resolution_id": resolution_id},
+            auth_headers,
+        )
+        require("tampered request is detected", status == 200 and tampered_request.get("verified") is False, str(tampered_request))
+        require("request integrity failure is surfaced", tampered_request.get("request_integrity", {}).get("matches") is False, str(tampered_request))
+    finally:
+        restore_json_column(resolution_id, "request_json", original_request)
+
+    status, restored_request = call(
+        args.base_url,
+        "POST",
+        "/v1/contracts/verify",
+        {"resolution_id": resolution_id},
+        auth_headers,
+    )
+    require("request verifies after restoration", status == 200 and restored_request.get("verified") is True, str(restored_request))
 
     status, audit = call(args.base_url, "GET", f"/v1/audit/{resolution_id}", headers=auth_headers)
     require("resolution audit succeeds", status == 200, str(audit))
