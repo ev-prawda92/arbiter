@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import enterprise
 from .public_api import router as v1_router
+from .public_limits import limiter
 
 app = FastAPI(
     title="Arbiter Resolution API",
@@ -25,9 +29,19 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def security_headers(request: Request, call_next):
+async def public_boundary(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or __import__("secrets").token_hex(12)
+    identity = request.headers.get("X-Arbiter-Key") or (request.client.host if request.client else "unknown")
+    allowed, remaining, retry_after = limiter.check(identity)
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "rate limit exceeded", "retry_after_seconds": retry_after},
+            headers={"Retry-After": str(retry_after), "X-RateLimit-Remaining": "0", **enterprise.security_headers(request_id)},
+        )
     response = await call_next(request)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-Arbiter-Mode"] = os.environ.get("ARBITER_PUBLIC_MODE", "sandbox")
     for key, value in enterprise.security_headers(request_id).items():
         response.headers[key] = value
     return response
@@ -35,7 +49,13 @@ async def security_headers(request: Request, call_next):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "service": "arbiter-resolution-api", "version": "1.0.0-preview"}
+    return {
+        "ok": True,
+        "service": "arbiter-resolution-api",
+        "version": "1.0.0-preview",
+        "mode": os.environ.get("ARBITER_PUBLIC_MODE", "sandbox"),
+        "settlement_authority": False,
+    }
 
 
 app.include_router(v1_router)
