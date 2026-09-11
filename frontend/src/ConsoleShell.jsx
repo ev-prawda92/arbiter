@@ -7,7 +7,7 @@ const GROUPS = [
       ['overview', 'Overview', '⌂'],
       ['work', 'Work Queue', '◎'],
       ['cases', 'Cases', '▤'],
-      ['resolution', 'Resolution', '◇'],
+      ['resolution', 'Resolution Docket', '◇'],
       ['portfolio', 'Portfolio', '◫'],
     ],
   },
@@ -34,7 +34,8 @@ export function ConsoleRail({ view, onViewChange, onRefresh }) {
       </div>
 
       <button className="console-primary" onClick={() => onViewChange('work')}>
-        <span>◎</span> Open resolution console
+        <span>◎</span>
+        <span>Open work queue</span>
       </button>
 
       <nav className="console-nav" aria-label="Arbiter console">
@@ -57,6 +58,7 @@ export function ConsoleRail({ view, onViewChange, onRefresh }) {
 
       <div className="console-rail-footer">
         <button onClick={onRefresh}>↻ Refresh governed state</button>
+        <div className="console-system-label">Governed decision boundary</div>
         <p>AI interprets. Policy governs.<br />Evidence proves. Logic resolves.</p>
       </div>
     </aside>
@@ -71,7 +73,13 @@ export function ConsolePageHeader({ eyebrow, title, description, action, actionL
         <h1>{title}</h1>
         {description && <p className="console-description">{description}</p>}
       </div>
-      {action && <button className="console-ai-button" onClick={action}>✦ {actionLabel}</button>}
+      {action && (
+        <button className="console-ai-button" onClick={action} title="Advisory interpretation only — governed resolution remains deterministic">
+          <span className="console-ai-spark">✦</span>
+          <span>{actionLabel}</span>
+          <small>Advisory</small>
+        </button>
+      )}
     </header>
   )
 }
