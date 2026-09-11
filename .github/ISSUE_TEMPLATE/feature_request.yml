@@ -1,0 +1,46 @@
+name: Feature request
+description: Propose an improvement to Arbiter
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What user, operator, or integration problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the capability and the expected external behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Contract compilation / semantic intelligence
+        - Evidence and authorities
+        - Resolution engine
+        - Public API / SDK
+        - Benchmark / evaluation
+        - Governance / policy
+        - Audit / verification
+        - Operator UI / work queue
+        - Deployment / operations
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Governance / safety boundaries
+      description: If this changes resolution behavior, explain what remains deterministic, auditable, reviewable, or fail-closed.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What would make this feature complete and testable?
