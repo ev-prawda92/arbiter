@@ -1,0 +1,92 @@
+.ops-intel {
+  margin: 14px 0;
+  border: 1px solid #d9d4eb;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfaff 0%, #f6f3ff 100%);
+  overflow: hidden;
+  box-shadow: 0 8px 26px rgba(65, 86, 207, .07);
+}
+
+.ops-intel-head {
+  padding: 16px 18px 13px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  border-bottom: 1px solid #e3def3;
+}
+
+.ops-intel-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #4e63df;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.ops-intel-head h2 { margin: 0; color: #25222a; font-size: 16px; letter-spacing: -.015em; }
+.ops-intel-head p { max-width: 760px; margin: 5px 0 0; color: #6f6875; font-size: 11px; line-height: 1.5; }
+.ops-intel-boundary { border-radius: 999px; padding: 5px 8px; background: #ebe7ff; color: #4b55ac; font-size: 9px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
+
+.ops-intel-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid #e3def3;
+}
+.ops-intel-stats > div { padding: 12px 16px; border-right: 1px solid #e3def3; }
+.ops-intel-stats > div:last-child { border-right: 0; }
+.ops-intel-stats strong { display: block; color: #26232b; font-size: 18px; line-height: 1; }
+.ops-intel-stats span { display: block; margin-top: 6px; color: #7a7480; font-size: 8.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+
+.ops-intel-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 0; }
+.ops-intel-panel + .ops-intel-panel { border-left: 1px solid #e3def3; }
+.ops-intel-panel { min-width: 0; }
+.ops-intel-panel-head { padding: 11px 14px; display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #ebe7f5; background: rgba(255,255,255,.42); }
+.ops-intel-panel-head span { color: #514b56; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.ops-intel-panel-head b { color: #80798a; font-size: 9px; }
+
+.ops-cluster {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #ebe7f5;
+  padding: 11px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  background: transparent;
+  text-align: left;
+}
+.ops-cluster:last-child { border-bottom: 0; }
+.ops-cluster:hover { background: #f0ecff; }
+.ops-cluster > div:first-child { min-width: 0; }
+.ops-cluster strong { display: block; color: #2d2930; font-size: 10.5px; }
+.ops-cluster span { display: block; margin-top: 3px; color: #77707b; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-cluster-meta { flex: 0 0 auto; text-align: right; }
+.ops-cluster-meta b { display: block; color: #353046; font-size: 10px; }
+.ops-cluster-meta span { margin-top: 3px; color: #8b8492; font-size: 8.5px; }
+
+.ops-sequence { margin: 0; padding: 5px 12px 8px 36px; }
+.ops-sequence li { padding: 2px 0; color: #6a60c9; }
+.ops-sequence button { width: 100%; border: 0; border-radius: 7px; padding: 7px 8px; background: transparent; text-align: left; }
+.ops-sequence button:hover { background: #f0ecff; }
+.ops-sequence button span { display: block; color: #3e3942; font-size: 10px; font-weight: 700; }
+.ops-sequence small { display: block; margin-top: 2px; color: #8a8490; font-size: 8.5px; }
+.ops-intel-empty { margin: 0; padding: 18px 14px; color: #8a8490; font-size: 10px; }
+
+@media (max-width: 1050px) {
+  .ops-intel-stats { grid-template-columns: repeat(3, 1fr); }
+  .ops-intel-stats > div:nth-child(3) { border-right: 0; }
+  .ops-intel-stats > div:nth-child(n+4) { border-top: 1px solid #e3def3; }
+  .ops-intel-grid { grid-template-columns: 1fr; }
+  .ops-intel-panel + .ops-intel-panel { border-left: 0; border-top: 1px solid #e3def3; }
+}
+
+@media (max-width: 680px) {
+  .ops-intel-head { flex-direction: column; }
+  .ops-intel-stats { grid-template-columns: 1fr 1fr; }
+  .ops-intel-stats > div { border-top: 1px solid #e3def3; }
+  .ops-intel-stats > div:nth-child(1), .ops-intel-stats > div:nth-child(2) { border-top: 0; }
+}
