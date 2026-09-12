@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ConsoleMetric, ConsolePageHeader, ConsoleRail } from './ConsoleShell'
+import OperationsIntelligence from './OperationsIntelligence'
 import './console.css'
 
 const VIEW_META = {
@@ -177,6 +178,7 @@ function WorkPanel({ data, selectedId, setSelectedId }) {
   const selected = items.find(i => i.id === selectedId) || active[0] || items[0]
   const summary = queue?.summary || {}
   const health = overview?.health || {}
+  const intelligence = overview?.agent_brief?.operations_intelligence
   return (
     <>
       <ConsoleBanner health={health} text="Arbiter surfaces the cases that need judgment and keeps deterministic logic as the decision boundary." />
@@ -187,6 +189,7 @@ function WorkPanel({ data, selectedId, setSelectedId }) {
         <ConsoleMetric value={money(summary.notional)} label="Notional represented" />
         <ConsoleMetric value={String(health.posture || '—').toUpperCase()} label="Portfolio posture" />
       </section>
+      <OperationsIntelligence intelligence={intelligence} onSelectCase={setSelectedId} />
       <div className="console-workspace">
         <section className="console-table-card">
           <SectionHead kicker="Needs attention" title="Decision queue" meta={`${active.length} open`} />
@@ -219,7 +222,7 @@ function ResolutionInspector({ selected }) {
         <TraceStep label="Evidence" value="Frozen evidence state" state={normalizeVerdict(selected) === 'HOLD' ? 'Insufficient' : 'Review'} />
         <TraceStep label="Resolution" value={selected.recommended_action || 'Operator review required'} state={normalizeVerdict(selected)} />
       </div>
-      <div className="console-next-action"><span>Recommended next action</span><strong>{selected.recommended_action || 'Inspect the governed case record.'}</strong><button onClick={() => window.location.href = '/'}>Open full Arbiter case →</button></div>
+      <div className="console-next-action"><span>Recommended next action</span><strong>{selected.recommended_action || 'Inspect the governed case record.'}</strong><button onClick={() => selected?.subject && (window.location.href = `/console.html?case=${encodeURIComponent(selected.subject)}`)}>Open case workspace →</button></div>
     </> : <ConsoleEmpty text="Select a case to inspect its decision trace." />}
   </aside>
 }
