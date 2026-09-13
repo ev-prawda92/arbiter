@@ -22,17 +22,18 @@ export default function OperationsIntelligence({ intelligence, onSelectCase }) {
       <div className="ops-intel-head">
         <div>
           <span className="ops-intel-kicker">Arbiter Operations Intelligence</span>
-          <h2>{summary.active_cases || 0} cases → {summary.distinct_work_patterns || 0} meaningful work patterns</h2>
-          <p>Arbiter groups repeated blockers, separates ready work from external dependencies, and recommends the fastest path through the queue.</p>
+          <h2>{summary.active_cases || 0} cases → {summary.estimated_human_decisions ?? summary.distinct_work_patterns ?? 0} human decisions</h2>
+          <p>Arbiter compresses repeated blockers, separates investigation from true review-ready work, and brings operators only the decisions that still need a human.</p>
         </div>
         <span className="ops-intel-boundary">Advisory only</span>
       </div>
 
       <div className="ops-intel-stats">
-        <div><strong>{summary.ready_for_review ?? 0}</strong><span>Ready now</span></div>
+        <div><strong>{summary.ready_for_review ?? 0}</strong><span>Ready for review</span></div>
+        <div><strong>{summary.needs_investigation ?? 0}</strong><span>Investigating</span></div>
         <div><strong>{summary.waiting_on_external_data ?? 0}</strong><span>Waiting on data</span></div>
         <div><strong>{summary.policy_interpretation ?? 0}</strong><span>Policy judgment</span></div>
-        <div><strong>{summary.repeated_patterns ?? 0}</strong><span>Repeated patterns</span></div>
+        <div><strong>{summary.human_decisions_avoided ?? 0}</strong><span>Touches avoided</span></div>
         <div><strong>{summary.compression_ratio || 1}×</strong><span>Queue compression</span></div>
       </div>
 
@@ -47,20 +48,20 @@ export default function OperationsIntelligence({ intelligence, onSelectCase }) {
               </div>
               <div className="ops-cluster-meta">
                 <b>{money(cluster.notional)}</b>
-                <span>priority {cluster.max_priority_score}</span>
+                <span>{(cluster.workflow_states || []).map(labelize).join(' · ') || `priority ${cluster.max_priority_score}`}</span>
               </div>
             </button>
           )) : <p className="ops-intel-empty">No repeated root-cause pattern currently spans multiple cases.</p>}
         </div>
 
         <div className="ops-intel-panel">
-          <div className="ops-intel-panel-head"><span>Recommended work sequence</span><b>Next actions</b></div>
+          <div className="ops-intel-panel-head"><span>Recommended work sequence</span><b>Next decisions</b></div>
           <ol className="ops-sequence">
             {sequence.map(step => (
               <li key={`${step.type}-${step.id}`}>
                 <button onClick={() => step.type === 'case' && onSelectCase?.(step.id)}>
                   <span>{step.label}</span>
-                  <small>{step.case_count > 1 ? `${step.case_count} cases` : '1 case'}{step.notional ? ` · ${money(step.notional)}` : ''}</small>
+                  <small>{step.case_count > 1 ? `${step.case_count} cases` : '1 case'}{step.workflow_state ? ` · ${labelize(step.workflow_state)}` : ''}{step.notional ? ` · ${money(step.notional)}` : ''}</small>
                 </button>
               </li>
             ))}
