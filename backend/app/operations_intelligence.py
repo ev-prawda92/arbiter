@@ -33,10 +33,30 @@ def _stable_cluster_id(blocker: str, signature: str) -> str:
 
 
 def _blocker(item: dict[str, Any]) -> str:
-    kind = str(item.get("kind") or "").lower()
+    kind = str(item.get("kind") or "").lower().strip()
     text = " ".join(
         str(item.get(k) or "") for k in ("title", "detail", "recommended_action")
     ).lower()
+
+    # Explicit structured kinds take precedence over free-text inference. This
+    # prevents a routine operator-review item such as "authority checks are
+    # complete" from being misclassified as an authority conflict merely
+    # because the descriptive text contains the word "authority".
+    explicit_kind_map = {
+        "operator_review": "operator_review",
+        "resolution_hold": "resolution_hold",
+        "monitoring": "monitoring",
+        "policy_review": "policy_interpretation",
+        "policy_interpretation": "policy_interpretation",
+        "evidence_conflict": "evidence_conflict",
+        "evidence_gap": "evidence_missing",
+        "evidence_missing": "evidence_missing",
+        "authority_conflict": "authority_conflict",
+        "audit_integrity": "audit_integrity",
+        "timing_revision": "timing_revision",
+    }
+    if kind in explicit_kind_map:
+        return explicit_kind_map[kind]
 
     if "audit" in kind or "audit" in text:
         return "audit_integrity"
