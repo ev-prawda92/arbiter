@@ -3,8 +3,6 @@
 from pathlib import Path
 import sys
 
-# Allow this gate to run directly from the repository root via
-# `python3 scripts/operations_intelligence_gate.py`.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -70,6 +68,7 @@ def main():
 
     result = analyze_queue(queue)
     summary = result["summary"]
+    conflict_cluster = next(c for c in result["clusters"] if c["blocker_type"] == "evidence_conflict")
 
     check(result["mode"] == "advisory_non_binding", "operations intelligence stays advisory")
     check(result["version"] == "0.32.0", "v0.32 semantics are active")
@@ -79,9 +78,14 @@ def main():
     check(summary["needs_investigation"] >= 3, "conflicts and HOLD remain investigative")
     check(summary["ready_for_review"] == 1, "ready-now metric is conservative")
     check(summary["distinct_work_patterns"] < summary["active_cases"], "repeated work compressed into fewer patterns")
-    check(any(c["count"] == 2 for c in result["clusters"]), "duplicate evidence-conflict pattern clustered")
+    check(conflict_cluster["count"] == 2, "duplicate evidence-conflict pattern clustered")
+    check(bool(conflict_cluster.get("root_cause")), "cluster exposes root cause")
+    check(bool(conflict_cluster.get("why_human")), "cluster explains why human judgment remains")
+    check(bool(conflict_cluster.get("clear_condition")), "cluster exposes a clear condition")
+    check(conflict_cluster.get("primary_action") == "Review conflicting evidence", "cluster exposes one primary action")
     check(result["recommended_sequence"], "recommended work sequence produced")
     check(len(result["ready_cases"]) == 1, "only truly ready case surfaced")
+    check(len(result["policy_cases"]) == 1, "policy-review cases are surfaced explicitly")
     check(any(i["id"] == "w7" for i in result["investigating_cases"]), "HOLD is not mislabeled ready")
     check(summary["estimated_human_decisions"] < summary["active_cases"], "cluster-first human decision load is reduced")
     check(summary["human_decisions_avoided"] > 0, "friction-reduction metric is produced")
