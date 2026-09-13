@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """Deterministic gate for Arbiter Operations Intelligence v0.32."""
+from pathlib import Path
+import sys
+
+# Allow this gate to run directly from the repository root via
+# `python3 scripts/operations_intelligence_gate.py`.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from backend.app.operations_intelligence import analyze_queue
 
 
