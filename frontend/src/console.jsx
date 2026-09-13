@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ConsoleMetric, ConsolePageHeader, ConsoleRail } from './ConsoleShell'
-import OperationsIntelligence from './OperationsIntelligence'
 import './console.css'
 
 const VIEW_META = {
   overview: ['Executive overview', 'See portfolio posture, exposed notional, audit integrity, and the exceptions that need attention.'],
-  work: ['Resolution operations', 'Follow each decision from contract terms to authority, evidence, resolution, human review, and audit.'],
+  work: ['Resolution operations', 'A concise operating dashboard. Use the workspace to investigate, decide, and act.'],
   cases: ['Case registry', 'Review saved contract analyses and reusable templates without leaving the operating console.'],
   resolution: ['Resolution docket', 'Inspect contracts, governed resolution state, and the rationale behind each decision.'],
   portfolio: ['Portfolio intelligence', 'See where resolution risk and held notional concentrate across the portfolio.'],
@@ -51,7 +50,6 @@ async function getJson(path) {
 function ConsoleApp() {
   const [view, setView] = useState('work')
   const [data, setData] = useState({})
-  const [selectedId, setSelectedId] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [advisorOpen, setAdvisorOpen] = useState(false)
@@ -65,8 +63,6 @@ function ConsoleApp() {
       if (target === 'work') {
         const [queue, overview] = await Promise.all([getJson('/api/work-queue'), getJson('/api/overview')])
         next = { queue, overview }
-        const firstActive = (queue.items || []).find(item => item.status !== 'resolved')
-        if (!selectedId && firstActive) setSelectedId(firstActive.id)
       } else if (target === 'overview') {
         next = await getJson('/api/overview')
       } else if (target === 'cases') {
@@ -109,6 +105,8 @@ function ConsoleApp() {
 
   const meta = VIEW_META[view] || VIEW_META.work
   const advisor = data.work?.overview?.agent_brief || data.overview?.agent_brief
+  const openWorkspace = () => document.querySelector('.cw-launch')?.click()
+  const headerAction = view === 'work' ? openWorkspace : () => setAdvisorOpen(true)
 
   return (
     <div className="console-app">
@@ -118,13 +116,15 @@ function ConsoleApp() {
           eyebrow="Governed resolution console"
           title={meta[0]}
           description={meta[1]}
-          action={() => setAdvisorOpen(true)}
+          action={headerAction}
+          actionLabel={view === 'work' ? 'Open workspace' : 'Ask Arbiter'}
+          actionMeta={view === 'work' ? 'Do the work' : 'Advisory'}
         />
         {error && <div className="console-error">{error}</div>}
         {loading && <div className="console-loading">Refreshing governed state…</div>}
 
         {view === 'overview' && <OverviewPanel data={data.overview} onOpenWork={() => setView('work')} />}
-        {view === 'work' && <WorkPanel data={data.work} selectedId={selectedId} setSelectedId={setSelectedId} />}
+        {view === 'work' && <WorkPanel data={data.work} onOpenWorkspace={openWorkspace} />}
         {view === 'cases' && <CasesPanel data={data.cases} />}
         {view === 'resolution' && <ResolutionPanel data={data.resolution} />}
         {view === 'portfolio' && <PortfolioPanel data={data.portfolio} />}
@@ -162,7 +162,7 @@ function OverviewPanel({ data, onOpenWork }) {
         <ConsoleCard title="What needs attention" kicker="Operator load">
           <div className="console-brief-stack">
             {(data.agent_brief?.brief || []).map((line, i) => <p key={i}>{line}</p>)}
-            <button className="console-dark-button" onClick={onOpenWork}>Open work queue →</button>
+            <button className="console-dark-button" onClick={onOpenWork}>Open operations dashboard →</button>
           </div>
         </ConsoleCard>
       </div>
@@ -170,61 +170,44 @@ function OverviewPanel({ data, onOpenWork }) {
   )
 }
 
-function WorkPanel({ data, selectedId, setSelectedId }) {
+function WorkPanel({ data, onOpenWorkspace }) {
   if (!data) return <ConsoleEmpty text="Loading resolution operations…" />
   const { queue, overview } = data
-  const items = queue?.items || []
-  const active = items.filter(i => i.status !== 'resolved')
-  const selected = items.find(i => i.id === selectedId) || active[0] || items[0]
-  const summary = queue?.summary || {}
+  const active = (queue?.items || []).filter(i => i.status !== 'resolved')
   const health = overview?.health || {}
-  const intelligence = overview?.agent_brief?.operations_intelligence
+  const intelligence = overview?.agent_brief?.operations_intelligence || {}
+  const s = intelligence.summary || {}
+  const clusters = intelligence.clusters || []
+  const decisions = s.estimated_human_decisions ?? clusters.length
   return (
     <>
-      <ConsoleBanner health={health} text="Arbiter surfaces the cases that need judgment and keeps deterministic logic as the decision boundary." />
+      <ConsoleBanner health={health} text="Dashboard here. Investigation and action happen in the workspace." />
       <section className="console-metrics">
-        <ConsoleMetric value={summary.active ?? active.length} label="Active cases" />
-        <ConsoleMetric value={summary.critical ?? 0} label="Critical" tone="bad" />
-        <ConsoleMetric value={summary.high ?? 0} label="High priority" tone="warn" />
-        <ConsoleMetric value={money(summary.notional)} label="Notional represented" />
-        <ConsoleMetric value={String(health.posture || '—').toUpperCase()} label="Portfolio posture" />
+        <ConsoleMetric value={s.active_cases ?? active.length} label="Active cases" />
+        <ConsoleMetric value={decisions} label="Human decisions" tone={decisions > 0 ? 'warn' : 'default'} />
+        <ConsoleMetric value={s.human_decisions_avoided ?? '—'} label="Touches avoided" />
+        <ConsoleMetric value={money(s.notional_represented ?? queue?.summary?.notional)} label="Notional represented" />
+        <ConsoleMetric value={s.compression_ratio ? `${s.compression_ratio}×` : '—'} label="Queue compression" />
       </section>
-      <OperationsIntelligence intelligence={intelligence} onSelectCase={setSelectedId} />
-      <div className="console-workspace">
-        <section className="console-table-card">
-          <SectionHead kicker="Needs attention" title="Decision queue" meta={`${active.length} open`} />
-          <div className="console-table-scroll"><table className="console-table"><thead><tr><th>Case</th><th>State</th><th>Owner</th><th>Resolution basis</th><th>Notional</th></tr></thead><tbody>
-            {active.map(item => {
-              const verdict = normalizeVerdict(item)
-              return <tr key={item.id} className={selected?.id === item.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}>
-                <td><strong>{item.title}</strong><span>{labelize(item.kind || 'resolution')}</span></td>
-                <td><Pill value={verdict} /></td><td>{item.owner_role || 'Resolution Ops'}</td>
-                <td className="basis">{item.detail || item.recommended_action || 'Review governed case state.'}</td>
-                <td>{item.notional ? money(item.notional) : '—'}</td>
-              </tr>
-            })}
-            {!active.length && <tr><td colSpan="5"><ConsoleEmpty text="No active exceptions. Arbiter will surface governed work here when state changes." /></td></tr>}
-          </tbody></table></div>
-        </section>
-        <ResolutionInspector selected={selected} />
+
+      <div className="console-two-col">
+        <ConsoleCard kicker="Work patterns" title={`${active.length} cases → ${decisions} decisions`}>
+          <div className="console-list">
+            {clusters.slice(0, 5).map(cluster => <div className="console-list-row" key={cluster.cluster_id}><div><strong>{labelize(cluster.blocker_type)}</strong><span>{cluster.count} case{cluster.count === 1 ? '' : 's'} · {cluster.root_cause || cluster.recommended_action || 'Shared governed blocker'}</span></div><b>{money(cluster.notional)}</b></div>)}
+            {!clusters.length && <ConsoleEmpty text="No active work patterns." />}
+          </div>
+        </ConsoleCard>
+
+        <ConsoleCard kicker="Operator handoff" title="The workspace is where decisions happen">
+          <div className="console-brief-stack">
+            <p><strong>{s.needs_investigation ?? 0}</strong> investigating · <strong>{s.ready_for_review ?? 0}</strong> ready · <strong>{s.waiting_on_external_data ?? 0}</strong> waiting · <strong>{s.policy_interpretation ?? 0}</strong> policy judgment.</p>
+            <p>Open the workspace to investigate a shared root cause, inspect underlying cases only when needed, ask Arbiter in context, take the next action, and re-evaluate the affected work.</p>
+            <button className="console-dark-button" onClick={onOpenWorkspace}>Open case workspace →</button>
+          </div>
+        </ConsoleCard>
       </div>
     </>
   )
-}
-
-function ResolutionInspector({ selected }) {
-  return <aside className="console-inspector"><SectionHead kicker="Selected case" title="Resolution trace" />
-    {selected ? <>
-      <div className="console-inspector-title"><Pill value={normalizeVerdict(selected)} /><h3>{selected.title}</h3><p>{selected.detail}</p></div>
-      <div className="console-trace">
-        <TraceStep label="Contract" value={labelize(selected.kind || 'exception')} state="Captured" />
-        <TraceStep label="Authority" value="Governed source precedence" state={selected.severity === 'critical' ? 'Review' : 'Checked'} />
-        <TraceStep label="Evidence" value="Frozen evidence state" state={normalizeVerdict(selected) === 'HOLD' ? 'Insufficient' : 'Review'} />
-        <TraceStep label="Resolution" value={selected.recommended_action || 'Operator review required'} state={normalizeVerdict(selected)} />
-      </div>
-      <div className="console-next-action"><span>Recommended next action</span><strong>{selected.recommended_action || 'Inspect the governed case record.'}</strong><button onClick={() => selected?.subject && (window.location.href = `/console.html?case=${encodeURIComponent(selected.subject)}`)}>Open case workspace →</button></div>
-    </> : <ConsoleEmpty text="Select a case to inspect its decision trace." />}
-  </aside>
 }
 
 function CasesPanel({ data }) {
@@ -283,9 +266,8 @@ function PolicyPanel({ data }) {
 function AdvisorDrawer({ brief, onClose, onOpenWork }) {
   return <div className="console-drawer-backdrop" onClick={onClose}><aside className="console-drawer" onClick={e => e.stopPropagation()}><div className="console-drawer-head"><div><span>Advisory only</span><h2>Ask Arbiter</h2></div><button onClick={onClose}>×</button></div>
     <div className="console-advisor-intro"><strong>{brief?.headline || 'Resolution operations briefing'}</strong><p>{brief?.boundary || 'Advisory summaries never override governed resolution logic.'}</p></div>
-    <h3>Current briefing</h3>{(brief?.brief || ['Open the work queue to inspect current governed exceptions.']).map((x,i) => <p className="console-advisor-line" key={i}>{x}</p>)}
-    <h3>Top actions</h3>{(brief?.top_actions || []).map(a => <div className="console-advisor-action" key={a.id}><Pill value={a.severity || 'REVIEW'} /><strong>{a.title}</strong><p>{a.recommended_action}</p></div>)}
-    <button className="console-dark-button" onClick={onOpenWork}>Open resolution operations →</button>
+    <h3>Current briefing</h3>{(brief?.brief || ['Open the operations dashboard to inspect current governed exceptions.']).map((x,i) => <p className="console-advisor-line" key={i}>{x}</p>)}
+    <button className="console-dark-button" onClick={onOpenWork}>Open operations dashboard →</button>
   </aside></div>
 }
 
@@ -297,10 +279,6 @@ function ConsoleCard({ title, kicker, children }) { return <section className="c
 function SectionHead({ kicker, title, meta }) { return <div className="console-section-head"><div><span className="console-kicker">{kicker}</span><h2>{title}</h2></div>{meta && <span>{meta}</span>}</div> }
 function Pill({ value }) { return <span className={`console-pill ${statusTone(value)}`}>{labelize(value)}</span> }
 function ConsoleEmpty({ text }) { return <div className="console-empty">{text}</div> }
-
-function TraceStep({ label, value, state }) {
-  return <div className="console-trace-step"><div className="console-trace-dot" /><div><span>{label}</span><strong>{value}</strong></div><Pill value={state} /></div>
-}
 
 function JsonSummary({ title, value }) {
   const rows = Object.entries(value || {}).filter(([,v]) => ['string','number','boolean'].includes(typeof v)).slice(0, 8)

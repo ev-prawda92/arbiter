@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Deterministic gate for Arbiter Operations Intelligence v0.31."""
+"""Deterministic gate for Arbiter Operations Intelligence v0.32."""
+from pathlib import Path
+import sys
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from backend.app.operations_intelligence import analyze_queue
 
 
@@ -42,20 +49,46 @@ def main():
                 "severity": "medium", "status": "resolved", "owner_role": "Market Ops",
                 "recommended_action": "Continue monitoring.", "notional": 0,
             },
+            {
+                "id": "w6", "kind": "operator_review", "title": "Routine governed review",
+                "detail": "Evidence and authority checks are complete; operator review remains.",
+                "severity": "medium", "status": "open", "owner_role": "Resolution Ops",
+                "recommended_action": "Confirm governed record before settlement.", "notional": 500_000,
+                "ready_for_review": True,
+            },
+            {
+                "id": "w7", "kind": "resolution_hold", "title": "Resolution HOLD",
+                "detail": "HOLD remains while conflicting evidence is investigated.",
+                "severity": "high", "status": "open", "owner_role": "Resolution Ops",
+                "recommended_action": "Investigate before review.", "notional": 750_000,
+                "resolution": "HOLD",
+            },
         ]
     }
 
     result = analyze_queue(queue)
     summary = result["summary"]
+    conflict_cluster = next(c for c in result["clusters"] if c["blocker_type"] == "evidence_conflict")
 
     check(result["mode"] == "advisory_non_binding", "operations intelligence stays advisory")
-    check(summary["active_cases"] == 4, "resolved work excluded from active analysis")
+    check(result["version"] == "0.32.0", "v0.32 semantics are active")
+    check(summary["active_cases"] == 6, "resolved work excluded from active analysis")
     check(summary["waiting_on_external_data"] == 1, "external evidence wait detected")
     check(summary["policy_interpretation"] == 1, "policy interpretation detected")
+    check(summary["needs_investigation"] >= 3, "conflicts and HOLD remain investigative")
+    check(summary["ready_for_review"] == 1, "ready-now metric is conservative")
     check(summary["distinct_work_patterns"] < summary["active_cases"], "repeated work compressed into fewer patterns")
-    check(any(c["count"] == 2 for c in result["clusters"]), "duplicate evidence-conflict pattern clustered")
+    check(conflict_cluster["count"] == 2, "duplicate evidence-conflict pattern clustered")
+    check(bool(conflict_cluster.get("root_cause")), "cluster exposes root cause")
+    check(bool(conflict_cluster.get("why_human")), "cluster explains why human judgment remains")
+    check(bool(conflict_cluster.get("clear_condition")), "cluster exposes a clear condition")
+    check(conflict_cluster.get("primary_action") == "Review conflicting evidence", "cluster exposes one primary action")
     check(result["recommended_sequence"], "recommended work sequence produced")
-    check(result["ready_cases"], "ready-for-review cases surfaced")
+    check(len(result["ready_cases"]) == 1, "only truly ready case surfaced")
+    check(len(result["policy_cases"]) == 1, "policy-review cases are surfaced explicitly")
+    check(any(i["id"] == "w7" for i in result["investigating_cases"]), "HOLD is not mislabeled ready")
+    check(summary["estimated_human_decisions"] < summary["active_cases"], "cluster-first human decision load is reduced")
+    check(summary["human_decisions_avoided"] > 0, "friction-reduction metric is produced")
 
     print("OPERATIONS INTELLIGENCE GATE: PASS")
 
