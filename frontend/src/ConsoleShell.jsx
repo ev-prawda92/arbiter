@@ -5,7 +5,7 @@ const GROUPS = [
     label: 'Operations',
     items: [
       ['overview', 'Overview', '⌂'],
-      ['work', 'Work Queue', '◎'],
+      ['work', 'Operations', '◎'],
       ['cases', 'Cases', '▤'],
       ['resolution', 'Resolution Docket', '◇'],
       ['portfolio', 'Portfolio', '◫'],
@@ -35,7 +35,7 @@ export function ConsoleRail({ view, onViewChange, onRefresh }) {
 
       <button className="console-primary" onClick={() => onViewChange('work')}>
         <span>◎</span>
-        <span>Open work queue</span>
+        <span>Operations dashboard</span>
       </button>
 
       <nav className="console-nav" aria-label="Arbiter console">
@@ -65,7 +65,7 @@ export function ConsoleRail({ view, onViewChange, onRefresh }) {
   )
 }
 
-export function ConsolePageHeader({ eyebrow, title, description, action, actionLabel = 'Ask Arbiter' }) {
+export function ConsolePageHeader({ eyebrow, title, description, action, actionLabel = 'Ask Arbiter', actionMeta = 'Advisory' }) {
   return (
     <header className="console-page-header">
       <div>
@@ -74,10 +74,10 @@ export function ConsolePageHeader({ eyebrow, title, description, action, actionL
         {description && <p className="console-description">{description}</p>}
       </div>
       {action && (
-        <button className="console-ai-button" onClick={action} title="Advisory interpretation only — governed resolution remains deterministic">
+        <button className="console-ai-button" onClick={action}>
           <span className="console-ai-spark">✦</span>
           <span>{actionLabel}</span>
-          <small>Advisory</small>
+          <small>{actionMeta}</small>
         </button>
       )}
     </header>
