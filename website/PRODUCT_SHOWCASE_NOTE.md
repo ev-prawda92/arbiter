@@ -1,0 +1,1 @@
+Product showcase assets are embedded on the public site from the website/assets directory. The primary showcase combines the Resolution Docket, Operations Dashboard, and Operator Workspace to tell the current Arbiter product story.
