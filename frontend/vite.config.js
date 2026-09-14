@@ -19,6 +19,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         console: resolve(__dirname, 'console.html'),
+        decisionWorkbench: resolve(__dirname, 'decision-workbench.html'),
       },
     },
   }
