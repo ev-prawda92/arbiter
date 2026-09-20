@@ -48,6 +48,12 @@ jobs:
       - name: Curation gate
         run: python scripts/curation_gate.py
 
+      - name: Operations Intelligence gate
+        run: python scripts/operations_intelligence_gate.py
+
+      - name: Decision Record gate
+        run: python scripts/decision_record_gate.py
+
       - name: Public API gate
         env:
           ARBITER_DATABASE_PATH: /tmp/arbiter-public.db
