@@ -74,7 +74,7 @@ def main() -> None:
         check(posture["count"] == 2, "posture count mismatch")
 
         audit = store.verify_audit_chain()
-        check(audit.get("valid") is True, "audit chain failed after decisions")
+        check(audit.get("ok") is True, f"audit chain failed after decisions: {audit}")
 
         try:
             svc.create(
