@@ -92,6 +92,12 @@ def apply_decision_to_workflow(
     This updates only workflow state. It never mutates contract semantics, evidence,
     deterministic resolution outcome, settlement authorization, or payout state.
     """
+    # A superseded decision is no longer authoritative and must not be applied.
+    decision_id = str(decision.get("decision_id") or "")
+    if decision_id:
+        from .decision_records import DecisionRecordService
+        if DecisionRecordService(resolution_store).is_superseded(decision_id):
+            raise ValueError(f"refusing to apply superseded decision {decision_id}")
     by_id = {str(item.get("id")): item for item in (current_queue.get("items") or [])}
     affected = [str(x) for x in (decision.get("affected_case_ids") or []) if x]
     updated: list[str] = []

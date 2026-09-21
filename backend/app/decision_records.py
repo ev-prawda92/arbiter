@@ -265,6 +265,29 @@ class DecisionRecordService:
             ),
         }
 
+    def is_superseded(self, decision_id: str) -> bool:
+        """True when some other decision record supersedes this one."""
+        with self.store.connect() as db:
+            row = db.execute(
+                "SELECT 1 FROM decision_records WHERE supersedes=? LIMIT 1",
+                (decision_id,),
+            ).fetchone()
+        return row is not None
+
+    def authoritative(
+        self,
+        *,
+        cluster_id: str | None = None,
+        contract_id: str | None = None,
+        decision_type: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Recorded decisions that nothing else supersedes. A superseded decision
+        is retained (append-only history) but is no longer authoritative."""
+        records = self.list(cluster_id=cluster_id, contract_id=contract_id, decision_type=decision_type, limit=500)
+        live = [r for r in records if not self.is_superseded(r["decision_id"])]
+        return live[: max(1, min(int(limit), 500))]
+
 
 _service: DecisionRecordService | None = None
 
