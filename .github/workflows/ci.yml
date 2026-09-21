@@ -54,6 +54,9 @@ jobs:
       - name: Decision Record gate
         run: python scripts/decision_record_gate.py
 
+      - name: Decision Propagation gate
+        run: python scripts/decision_propagation_gate.py
+
       - name: Public API gate
         env:
           ARBITER_DATABASE_PATH: /tmp/arbiter-public.db
