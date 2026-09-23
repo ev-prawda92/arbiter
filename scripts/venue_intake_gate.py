@@ -25,6 +25,9 @@ the network. Properties asserted (fail-closed):
   V15 fine print recurring across events (Kalshi pitcher props, rules quoted
       from the live API) is template; a clarification confined to one event
       (MOU-style) stays flagged however many of its markets repeat it
+  V16 Kalshi discovery walks open events across pages and hosts, filters by
+      event category (Sports excluded by default; allow-list honoured),
+      skips parlays / rule-less / closed markets, and reports per-category counts
   V14 re-triage closes untouched intake work the classifier no longer flags,
       and never touches operator-moved, decision-covered or watchlist-pinned work
 """
@@ -300,6 +303,59 @@ def main() -> None:
     check(not any("KXMLB" in m for m in got15), "V15 pitcher props sharing fine print across two events are not flagged")
     check(got15 == ["KXIRAN-27-26AUG", "KXIRAN-27-26NOV", "KXIRAN-27-26OCT", "KXIRAN-27-26SEP"],
           "V15 an MOU-style clarification on 4 markets of ONE event stays flagged")
+
+    # V16 Kalshi events by category
+    def ev(ticker, title, category, markets):
+        return {"event_ticker": ticker, "series_ticker": ticker.split("-")[0], "title": title,
+                "category": category, "markets": markets}
+
+    def nested(ticker, title, rules, status="active", **extra):
+        m = {"ticker": ticker, "title": title, "rules_primary": rules, "rules_secondary": "", "status": status,
+             "result": "", "close_time": "2026-12-31T00:00:00Z"}
+        m.update(extra)
+        return m
+
+    clar = ("Resolves Yes if the NATO allies formally appoint a new Secretary General. "
+            "An acting or interim appointment does not count as an appointment for this market.")
+    page1 = {"cursor": "p2", "events": [
+        ev("KXNBAGAME-26SEP23LALBOS", "Lakers at Celtics", "Sports",
+           [nested("KXNBAGAME-26SEP23LALBOS-LAL", "Lakers win?", "If the Lakers win the game, resolves Yes.")]),
+        ev("KXNEXTNATOSECGEN-99", "Who will be the next Secretary General of NATO?", "Elections",
+           [nested(f"KXNEXTNATOSECGEN-99-{c}", f"{c} next NATO SG?", clar) for c in ("KIOH", "RUTT", "STOL")]),
+    ]}
+    page2 = {"cursor": "", "events": [
+        ev("KXFEDDECISION-26OCT", "Fed decision in October", "Economics",
+           [nested("KXFEDDECISION-26OCT-H0", "Fed holds?", "Resolves Yes if the target range is unchanged."),
+            nested("KXFEDDECISION-26OCT-C25", "Fed cuts 25bp?", "Resolves Yes if the target range is cut by 25 bp.",
+                   status="closed")]),
+        ev("KXMVECROSS-1", "parlay", "Politics",
+           [nested("KXMVECROSSCATEGORY-S1-A", "parlay leg", "", mve_collection_ticker="KXMVE")]),
+    ]}
+    pages = {"": page1, "p2": page2}
+    calls = []
+
+    def fake_json(url):
+        calls.append(url)
+        from urllib.parse import parse_qs, urlparse
+        cursor = (parse_qs(urlparse(url).query).get("cursor") or [""])[0]
+        return copy.deepcopy(pages[cursor])
+
+    listed = venue_intake.list_kalshi_events(100, get_json=fake_json)
+    tickers = sorted(m["ticker"] for m, _, _ in listed)
+    check(len([c for c in calls if "cursor=p2" in c]) == 2, "V16 follows the cursor to page 2 on both hosts")
+    check(tickers == ["KXFEDDECISION-26OCT-H0", "KXNEXTNATOSECGEN-99-KIOH", "KXNEXTNATOSECGEN-99-RUTT",
+                      "KXNEXTNATOSECGEN-99-STOL"],
+          "V16 sports excluded; parlay, rule-less and closed markets skipped; no duplicates across hosts")
+    only = venue_intake.list_kalshi_events(100, categories=["economics"], exclude=[], get_json=fake_json)
+    check([m["ticker"] for m, _, _ in only] == ["KXFEDDECISION-26OCT-H0"], "V16 category allow-list honoured (case-insensitive)")
+    with_sports = venue_intake.list_kalshi_events(100, exclude=[], get_json=fake_json)
+    check(any(m["ticker"].startswith("KXNBAGAME") for m, _, _ in with_sports), "V16 sports included when not excluded")
+    kev, _, kst = venue_intake.discover(lambda venue, limit: listed if venue == "kalshi" else [], limit=100)
+    nato = [e for e in kev if e.event_id == "kalshi-KXNEXTNATOSECGEN-99"]
+    check(len(nato) == 1 and len(nato[0].markets) == 3 and nato[0].label.startswith("Who will be the next Secretary"),
+          "V16 the NATO event's one-event clarification is flagged as ONE pattern, labelled with the event title")
+    check(kst["by_category"]["kalshi"] == {"Elections": {"scanned": 3, "flagged": 3}, "Economics": {"scanned": 1, "flagged": 0}},
+          "V16 per-category scanned/flagged counts reported")
 
     # V14 re-triage
     tstore = ResolutionStore(os.path.join(tmp, "retriage.db"))

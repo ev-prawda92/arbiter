@@ -40,7 +40,7 @@ from .resolution_infra import (
     utcnow,
 )
 
-VERSION = "0.36.0"
+VERSION = "0.37.0"
 ACTOR = "system:venue-intake"
 PARSER_VERSION = f"venue-intake-{VERSION}"
 
@@ -128,7 +128,8 @@ def normalize(venue: str, raw: dict[str, Any], url: str) -> dict[str, Any]:
         outcome = result if result in {"YES", "NO"} else None
         settled = outcome is not None or status in {"settled", "finalized"}
         return {
-            "venue": "kalshi", "market_id": market_id, "event_id": raw.get("event_ticker"),
+            "venue": "kalshi", "market_id": market_id,
+            "event_id": raw.get("event_ticker") or (market_id.rsplit("-", 1)[0] if "-" in market_id else market_id),
             "title": str(raw.get("title") or raw.get("subtitle") or "").strip(), "rules": rules,
             "status": "settled" if settled else ("closed" if status in {"closed", "determined"} else "open"),
             "outcome": outcome, "closed_at": raw.get("close_time"), "settled_at": raw.get("settlement_ts"),
@@ -504,9 +505,80 @@ def _is_kalshi_parlay(raw: dict[str, Any]) -> bool:
     return bool(raw.get("mve_collection_ticker")) or ticker.startswith("KXMVE")
 
 
-def list_open_live(venue: str, limit: int) -> list[tuple[dict[str, Any], str]]:
-    """Open markets from the public venue APIs (Kalshi: both hosts, no parlays)."""
-    out: list[tuple[dict[str, Any], str]] = []
+# Kalshi's flat open-market list leads with sports: 1,000 markets on Sep 23 2026
+# were all sports props. Its events list carries a category per event, so
+# discovery walks events and filters by category instead.
+KALSHI_DEFAULT_EXCLUDE = frozenset({"Sports"})
+KALSHI_EVENT_PAGE = 200
+KALSHI_MAX_PAGES = 100
+
+
+def list_kalshi_events(limit: int, categories: Iterable[str] | None = None,
+                       exclude: Iterable[str] = KALSHI_DEFAULT_EXCLUDE,
+                       get_json: Callable[[str], Any] = _fetch_json,
+                       ) -> list[tuple[dict[str, Any], str, dict[str, Any]]]:
+    """Open Kalshi markets gathered through open events, filtered by event category.
+
+    Returns (raw market, url, meta) with meta = {"category", "event_ticker",
+    "event_title"}. Walks both Kalshi hosts with cursor paging, de-duplicates by
+    ticker, and skips parlays and markets without rules. Stops once ``limit``
+    markets are collected. ``categories`` (if given) is an allow-list;
+    ``exclude`` a deny-list (Sports by default). Category names match Kalshi's,
+    case-insensitively.
+    """
+    allow = {c.strip().lower() for c in categories or [] if c.strip()}
+    deny = {c.strip().lower() for c in exclude or [] if c.strip()}
+    out: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
+    seen: set[str] = set()
+    for host in KALSHI_HOSTS:
+        cursor, pages = "", 0
+        while len(out) < limit and pages < KALSHI_MAX_PAGES:
+            params = {"status": "open", "with_nested_markets": "true", "limit": KALSHI_EVENT_PAGE}
+            if cursor:
+                params["cursor"] = cursor
+            url = f"{host}/trade-api/v2/events?" + urllib.parse.urlencode(params)
+            try:
+                payload = get_json(url)
+            except RuntimeError:
+                break
+            pages += 1
+            events = (payload.get("events") or []) if isinstance(payload, dict) else []
+            for ev in events:
+                category = str(ev.get("category") or "Uncategorized")
+                if category.lower() in deny or (allow and category.lower() not in allow):
+                    continue
+                for m in ev.get("markets") or []:
+                    t = str(m.get("ticker") or "")
+                    if (not t or t in seen or _is_kalshi_parlay(m)
+                            or not str(m.get("rules_primary") or "").strip()
+                            or str(m.get("status") or "").lower() not in {"active", "open", "initialized", ""}):
+                        continue
+                    seen.add(t)
+                    out.append((m, f"{host}/trade-api/v2/markets/{urllib.parse.quote(t)}",
+                                {"category": category, "event_ticker": ev.get("event_ticker"),
+                                 "event_title": ev.get("title")}))
+                    if len(out) >= limit:
+                        break
+                if len(out) >= limit:
+                    break
+            cursor = (payload.get("cursor") or "") if isinstance(payload, dict) else ""
+            if not cursor or not events:
+                break
+    return out
+
+
+def list_open_live(venue: str, limit: int, kalshi_source: str = "events",
+                   categories: Iterable[str] | None = None,
+                   exclude: Iterable[str] = KALSHI_DEFAULT_EXCLUDE) -> list[tuple[Any, ...]]:
+    """Open markets from the public venue APIs.
+
+    Kalshi: by default through events filtered by category (see
+    list_kalshi_events); ``kalshi_source="markets"`` uses the flat market list
+    (both hosts, no parlays), which in practice is mostly sports.
+    """
+    out: list[tuple[Any, ...]] = []
+    if venue == "kalshi" and kalshi_source == "events":
+        return list_kalshi_events(limit, categories=categories, exclude=exclude)
     if venue == "kalshi":
         seen: set[str] = set()
         for host in KALSHI_HOSTS:
@@ -546,7 +618,8 @@ def list_open_live(venue: str, limit: int) -> list[tuple[dict[str, Any], str]]:
 def _event_key(venue: str, raw: dict[str, Any]) -> tuple[str, str]:
     """(event id, label) used to group a venue's markets on one real-world event."""
     if venue == "kalshi":
-        ev = str(raw.get("event_ticker") or raw.get("ticker"))
+        ticker = str(raw.get("ticker") or "")
+        ev = str(raw.get("event_ticker") or (ticker.rsplit("-", 1)[0] if "-" in ticker else ticker))
         return f"kalshi-{ev}", str(raw.get("title") or ev)
     events = raw.get("events") if isinstance(raw.get("events"), list) else []
     first = events[0] if events and isinstance(events[0], dict) else {}
@@ -564,7 +637,7 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
     """
     cache: dict[tuple[str, str], tuple[dict[str, Any], str]] = {}
     grouped: dict[str, WatchedEvent] = {}
-    stats: dict[str, Any] = {"scanned": {}, "flagged": {}, "errors": {}, "boilerplate": {}}
+    stats: dict[str, Any] = {"scanned": {}, "flagged": {}, "errors": {}, "boilerplate": {}, "by_category": {}}
     for venue in venues:
         try:
             listed = list_fetcher(venue, limit)
@@ -573,12 +646,20 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
             continue
         stats["scanned"][venue] = len(listed)
         pool: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
-        for raw, url in listed:
+        meta_of: dict[str, dict[str, Any]] = {}
+        for item in listed:
+            raw, url = item[0], item[1]
+            meta = item[2] if len(item) > 2 else {}
             if venue == "kalshi" and _is_kalshi_parlay(raw):
                 continue  # auto-generated parlays have no rules of their own
             row = normalize(venue, raw, url)
             if row["market_id"] and row["rules"] and row["status"] != "settled":
                 pool.append((raw, url, row))
+                meta_of[row["market_id"]] = meta
+            cat = (meta or {}).get("category")
+            if cat:
+                bucket = stats["by_category"].setdefault(venue, {}).setdefault(cat, {"scanned": 0, "flagged": 0})
+                bucket["scanned"] += 1
         learned = boilerplate_for([r for _, _, r in pool])
         sentence_key = SENTENCE_KEY.format(venue=venue)
         if sentence_key in learned:
@@ -592,6 +673,11 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
             flagged += 1
             cache[(venue, row["market_id"])] = (raw, url)
             key, label = _event_key(venue, raw)
+            meta = meta_of.get(row["market_id"]) or {}
+            if meta.get("event_title"):
+                label = str(meta["event_title"])
+            if meta.get("category"):
+                stats["by_category"][venue][meta["category"]]["flagged"] += 1
             grouped.setdefault(key, WatchedEvent(event_id=key, label=label)).markets.append((venue, row["market_id"]))
         stats["flagged"][venue] = flagged
 

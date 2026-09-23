@@ -16,6 +16,12 @@ the same database the app uses (ARBITER_DATABASE_PATH, else
 backend/data/arbiter.db). Start the app afterwards and the markets that need a
 human judgment are in the work queue and the decision workbench.
 
+Kalshi discovery walks open EVENTS and filters by event category (Sports is
+excluded by default, since Kalshi's flat market list is mostly sports):
+    --kalshi-categories "Politics,Elections,Economics"   only these categories
+    --kalshi-exclude "Sports,Entertainment"             skip these (default: Sports)
+    --kalshi-source markets                             old flat market scan
+
 --retriage closes open intake work items the current classifier no longer
 flags (only items nobody has touched; decisions and operator changes win).
 It can run alone or with a sync.
@@ -46,6 +52,10 @@ def main() -> int:
     ap.add_argument("--discover", nargs="?", type=int, const=200, metavar="N",
                     help="scan up to N open markets per venue (default 200) instead of a watchlist")
     ap.add_argument("--include-all", action="store_true", help="with --discover, also track markets needing no judgment")
+    ap.add_argument("--kalshi-source", choices=("events", "markets"), default="events",
+                    help="Kalshi discovery via open events by category (default) or the flat market list")
+    ap.add_argument("--kalshi-categories", default="", help="comma-separated Kalshi categories to include (default: all)")
+    ap.add_argument("--kalshi-exclude", default="Sports", help="comma-separated Kalshi categories to skip (default: Sports)")
     ap.add_argument("--retriage", action="store_true",
                     help="close untouched intake work the current classifier no longer flags")
     ap.add_argument("--no-sync", action="store_true", help="with --retriage, skip fetching (offline)")
@@ -73,7 +83,14 @@ def main() -> int:
     stats = None
     boilerplate = None
     if args.discover:
-        events, fetcher, stats = venue_intake.discover(limit=args.discover, include_all=args.include_all)
+        cats = [c for c in args.kalshi_categories.split(",") if c.strip()]
+        excl = [c for c in args.kalshi_exclude.split(",") if c.strip()]
+
+        def lister(venue: str, limit: int):
+            return venue_intake.list_open_live(venue, limit, kalshi_source=args.kalshi_source,
+                                               categories=cats, exclude=excl)
+
+        events, fetcher, stats = venue_intake.discover(lister, limit=args.discover, include_all=args.include_all)
         boilerplate = stats["boilerplate"]
         if args.save_raw:
             cached = fetcher
@@ -100,6 +117,9 @@ def main() -> int:
         print(f"discover: scanned open markets ({scanned}); need a human judgment ({flagged})")
         for v, err in stats["errors"].items():
             print(f"discover: {v} unavailable - {err}")
+        for v, cats_seen in stats.get("by_category", {}).items():
+            parts = [f"{c} {n['flagged']}/{n['scanned']}" for c, n in sorted(cats_seen.items(), key=lambda x: -x[1]["scanned"])]
+            print(f"  {v} by category (flagged/scanned): " + ", ".join(parts))
     print(f"{len(events)} events, {sum(len(e.markets) for e in events)} markets\n")
     for m in report["markets"]:
         outcome = m.get("outcome") or "-"
