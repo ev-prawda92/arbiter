@@ -181,3 +181,108 @@ def reevaluate(
         "overview": overview,
         "workload": workload_delta(before, after),
     }
+
+
+# ---------------------------------------------------------------------------
+# v0.35: authoritative decisions clear the work they answer
+# ---------------------------------------------------------------------------
+
+# Blockers that exist only because a human judgment was missing. A recorded,
+# authoritative decision supplies that judgment, so the work item's required
+# action is complete.
+DECIDABLE_BLOCKERS = {
+    "timing_revision",
+    "policy_interpretation",
+    "authority_conflict",
+    "evidence_conflict",
+    "evidence_review",
+}
+
+# Work that reflects live state of the world. A decision can never clear it:
+# a payout HOLD, a suspended/monitored source, a broken audit chain, or
+# evidence that has not arrived.
+NEVER_CLEARED_KINDS = {
+    "resolution_hold",
+    "authority_status",
+    "audit_integrity",
+    "evidence_gap",
+}
+
+
+def apply_authoritative_decisions(
+    queue: dict[str, Any],
+    decisions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Return a copy of ``queue`` with decision-answered work marked resolved.
+
+    Pure and derived: nothing is persisted. The queue is rebuilt from governed
+    state on every request, so superseding or withdrawing a decision simply
+    stops it from appearing in ``decisions`` and the work reopens.
+
+    A work item is cleared only when ALL hold:
+      * its id is in the decision's recorded ``affected_case_ids``;
+      * it still belongs to the decision's work pattern (same cluster id now
+        as when the decision was recorded), so drifted work is not cleared;
+      * its blocker is a judgment blocker, and its kind is not live-state work;
+      * an operator has not explicitly reopened it after the decision.
+
+    This changes workflow status only. It never touches contract terms,
+    evidence, YES/NO/HOLD outcomes, settlement, or payout authorization.
+    """
+    from .operations_intelligence import _blocker, _cluster_signature, _stable_cluster_id
+
+    by_case: dict[str, dict[str, Any]] = {}
+    # Oldest first so the most recent authoritative decision wins on overlap.
+    for d in sorted(decisions, key=lambda r: str(r.get("created_at") or "")):
+        if str(d.get("state") or "recorded") != "recorded":
+            continue
+        for case_id in d.get("affected_case_ids") or []:
+            by_case[str(case_id)] = d
+
+    items: list[dict[str, Any]] = []
+    cleared: list[str] = []
+    for raw in queue.get("items") or []:
+        item = dict(raw)
+        decision = by_case.get(str(item.get("id")))
+        if decision and item.get("status") != "resolved":
+            blocker = _blocker(item)
+            cluster_now = _stable_cluster_id(blocker, _cluster_signature(item))
+            reopened_after = (
+                item.get("status") == "open"
+                and item.get("updated_at")
+                and str(item["updated_at"]) > str(decision.get("created_at") or "")
+            )
+            if (
+                blocker in DECIDABLE_BLOCKERS
+                and str(item.get("kind") or "") not in NEVER_CLEARED_KINDS
+                and cluster_now == decision.get("cluster_id")
+                and not reopened_after
+            ):
+                item["status"] = "resolved"
+                item["note"] = (
+                    f"Cleared by governed decision {decision.get('decision_id')}: "
+                    f"{decision.get('selection')}"
+                )
+                item["governed_by"] = {
+                    "decision_id": decision.get("decision_id"),
+                    "decision_hash": decision.get("decision_hash"),
+                    "decision_type": decision.get("decision_type"),
+                    "selection": decision.get("selection"),
+                    "cluster_id": decision.get("cluster_id"),
+                }
+                cleared.append(str(item.get("id")))
+        items.append(item)
+
+    order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    status_order = {"open": 0, "in_progress": 1, "resolved": 2}
+    items.sort(key=lambda x: (status_order.get(x.get("status"), 0), order.get(x.get("severity"), 9), -float(x.get("notional") or 0)))
+    active = [i for i in items if i.get("status") != "resolved"]
+    summary = {
+        "active": len(active),
+        "critical": sum(i.get("severity") == "critical" for i in active),
+        "high": sum(i.get("severity") == "high" for i in active),
+        "in_progress": sum(i.get("status") == "in_progress" for i in active),
+        "notional": sum(float(i.get("notional") or 0) for i in active),
+        "cleared_by_decision": len(cleared),
+    }
+    return {**queue, "items": items, "summary": summary, "cleared_by_decision": cleared}

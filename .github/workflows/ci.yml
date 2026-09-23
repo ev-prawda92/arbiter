@@ -60,6 +60,9 @@ jobs:
       - name: Decision API route gate
         run: python scripts/decision_api_route_gate.py
 
+      - name: Decision Clearing gate
+        run: python scripts/decision_clearing_gate.py
+
       - name: Public API gate
         env:
           ARBITER_DATABASE_PATH: /tmp/arbiter-public.db

@@ -644,6 +644,12 @@ def _workflow_payload():
     infra["evidence_exceptions"] = evsvc.list_exceptions(active_only=True)
     exec_payload = executive.build(reports, portfolio_payload, infra)
     queue = workflow.build_work_queue(reports, portfolio_payload, infra, resolution_store.list_work_states())
+    # v0.35: authoritative (non-superseded) governed decisions clear the work
+    # they answer. Derived on every build; never persisted or settlement-facing.
+    from . import decision_operations, decision_records
+    queue = decision_operations.apply_authoritative_decisions(
+        queue, decision_records.get_service(resolution_store).authoritative(limit=500)
+    )
     brief = workflow.build_agent_brief(queue, exec_payload)
     overview = workflow.build_overview(exec_payload, queue, brief)
     return reports, portfolio_payload, exec_payload, queue, brief, overview
