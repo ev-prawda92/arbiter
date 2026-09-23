@@ -19,6 +19,15 @@ from .hashing import canonical_json, sha256_text
 
 USER_AGENT = "Arbiter-Holdout-Collector/0.27 (+benchmark-research)"
 
+# Kalshi split its API: general markets on external-api, but election /
+# geopolitics / political markets (elections, "will X agree to a deal", etc.)
+# are served ONLY on the elections host. The hard corpus is heavy on exactly
+# those categories, so both hosts must be queried.
+KALSHI_HOSTS = (
+    "https://external-api.kalshi.com",
+    "https://api.elections.kalshi.com",
+)
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -95,6 +104,18 @@ def _parse_jsonish(value: Any) -> list[Any]:
     return []
 
 
+def _uma_sequence(raw: dict[str, Any]) -> list[str]:
+    """The full proposed/disputed sequence Polymarket exposes as
+    umaResolutionStatuses (a JSON-encoded string list). Empty when absent."""
+    return [str(x).lower() for x in _parse_jsonish(raw.get("umaResolutionStatuses"))]
+
+
+def _uma_dispute_count(raw: dict[str, Any]) -> int:
+    """Number of UMA dispute rounds a market went through before final
+    resolution. An objective, bulk-available signal of a contested resolution."""
+    return sum(1 for x in _uma_sequence(raw) if x == "disputed")
+
+
 def normalize_polymarket_market(raw: dict[str, Any], source_url: str, collected_at: str | None = None) -> dict[str, Any] | None:
     if raw.get("closed") is not True:
         return None
@@ -148,6 +169,8 @@ def normalize_polymarket_market(raw: dict[str, Any], source_url: str, collected_
             "condition_id": raw.get("conditionId"),
             "resolved_by": raw.get("resolvedBy"),
             "uma_resolution_status": raw.get("umaResolutionStatus"),
+            "uma_status_sequence": _uma_sequence(raw),
+            "uma_dispute_count": _uma_dispute_count(raw),
             "market_type": raw.get("marketType"),
         },
     }
@@ -161,11 +184,11 @@ def collect_kalshi(limit: int = 100, include_historical: bool = True, sleep_seco
     /historical/markets. The collector uses cursor pagination and keeps only
     rows with a binary YES/NO result and non-empty rules.
     """
-    bases = [
-        ("https://external-api.kalshi.com/trade-api/v2/markets", {"status": "settled"}),
-    ]
-    if include_historical:
-        bases.append(("https://external-api.kalshi.com/trade-api/v2/historical/markets", {}))
+    bases = []
+    for host in KALSHI_HOSTS:
+        bases.append((f"{host}/trade-api/v2/markets", {"status": "settled"}))
+        if include_historical:
+            bases.append((f"{host}/trade-api/v2/historical/markets", {}))
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
     for base, extra in bases:
@@ -233,3 +256,49 @@ def dedupe_candidates(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         chosen.setdefault(key, row)
     return list(chosen.values())
+
+
+# --- Targeted fetch-by-id --------------------------------------------------
+# The bulk collectors above page the "whatever settled recently" endpoints.
+# Cross-venue disagreement cases cannot be found that way: the two venues are
+# rarely listing the same events in the same page window. These fetchers pull a
+# *named* market by identifier so a seed list of known dual-listed events can be
+# collected deterministically. They reuse the normalizers above, so their output
+# is the same candidate schema.
+
+def fetch_kalshi_market(ticker: str, collected_at: str | None = None) -> dict[str, Any] | None:
+    """Fetch one settled Kalshi market by ticker. Returns a normalized candidate
+    row, or None if the market is missing or not a resolved binary."""
+    ticker = str(ticker or "").strip()
+    if not ticker:
+        return None
+    for host in KALSHI_HOSTS:
+        url = f"{host}/trade-api/v2/markets/{urllib.parse.quote(ticker)}"
+        try:
+            payload = _fetch_json(url)
+        except RuntimeError:
+            continue  # not on this host (404) -> try the next
+        market = payload.get("market") if isinstance(payload, dict) else None
+        if isinstance(market, dict):
+            return normalize_kalshi_market(market, url, collected_at or _now())
+    return None
+
+
+def fetch_polymarket_market(identifier: str, collected_at: str | None = None) -> dict[str, Any] | None:
+    """Fetch one closed Polymarket market by numeric id or slug. Returns a
+    normalized candidate row, or None if missing / not a resolved binary."""
+    identifier = str(identifier or "").strip()
+    if not identifier:
+        return None
+    if identifier.isdigit():
+        url = f"https://gamma-api.polymarket.com/markets/{identifier}"
+        payload = _fetch_json(url)
+        market = payload if isinstance(payload, dict) else None
+    else:
+        url = _query("https://gamma-api.polymarket.com/markets", {"slug": identifier})
+        payload = _fetch_json(url)
+        markets = payload if isinstance(payload, list) else payload.get("markets", []) if isinstance(payload, dict) else []
+        market = markets[0] if markets else None
+    if not isinstance(market, dict):
+        return None
+    return normalize_polymarket_market(market, url, collected_at or _now())
