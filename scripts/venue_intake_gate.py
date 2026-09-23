@@ -22,6 +22,9 @@ the network. Properties asserted (fail-closed):
   V12 no false alarms from venue templates or sports "win the" wording
   V13 on the real Sep 23 2026 scan (300 open markets captured from the live
       APIs), exactly the known 5 markets are flagged - a precision regression
+  V15 fine print recurring across events (Kalshi pitcher props, rules quoted
+      from the live API) is template; a clarification confined to one event
+      (MOU-style) stays flagged however many of its markets repeat it
   V14 re-triage closes untouched intake work the classifier no longer flags,
       and never touches operator-moved, decision-covered or watchlist-pinned work
 """
@@ -263,8 +266,40 @@ def main() -> None:
     real_events, real_fetch, real_stats = venue_intake.discover(lambda venue, limit: real[venue], limit=1000)
     flagged = sorted(m for e in real_events for _, m in e.markets)
     check(real_stats["scanned"] == {"kalshi": 200, "polymarket": 100}, "V13 the real scan has 300 open markets")
-    check(flagged == ["3519811", "3539958", "3582091", "3697620", "4385336"],
-          f"V13 exactly the 5 known markets are flagged on the real scan (got {len(flagged)})")
+    expected = ["3519811", "3539958", "3582091", "3697620", "4385336"] + [
+        f"KXNCAAFTEAMRECTD-26SEP26UCLAMD-{t}" for t in ("MD2", "MD3", "MD4", "UCLA2", "UCLA3", "UCLA4")]
+    check(flagged == sorted(expected),
+          f"V13 exactly the 11 known markets are flagged on the real scan (got {len(flagged)})")
+
+    # V15 standing fine print vs one-event clarification
+    def pitcher(ticker, name, stat, n):
+        return kalshi(ticker, f"{name}: {n}+ {stat}?",
+                      f"If {name} records {n}+ {stat} in the Arizona vs Colorado professional baseball game "
+                      "originally scheduled for Sep 23, 2026 at 8:40 PM EDT, then the market resolves to Yes.") | {
+            "rules_secondary": (f"Player Participation & Settlement Criteria: If {name} is scratched or is not a starting "
+                                f"pitcher, the market will resolve to the fair market price. If {name} is not a starting "
+                                "pitcher but later enters the game, the market will resolve to the fair market price, "
+                                "relief appearances will not count towards this market. If "
+                                f"{name} is a starting pitcher and records at least one batter faced the market will "
+                                f"settle based on {stat} recorded."),
+            "event_ticker": ticker.rsplit("-", 1)[0]}
+    mou = ("If the US and Iran sign a formal agreement with verifiable restrictions and sanctions relief, resolves Yes. "
+           "The June 2026 memorandum of understanding does not count as an agreement for this market.")
+    pool = [
+        pitcher("KXMLBERA-26SEP232040AZCOL-AZMKELLY29-2", "Merrill Kelly", "earned runs", 2),
+        pitcher("KXMLBERA-26SEP232040AZCOL-COLMADAMS38-2", "Mason Adams", "earned runs", 2),
+        pitcher("KXMLBWA-26SEP232040AZCOL-AZMKELLY29-1", "Merrill Kelly", "walks allowed", 1),
+        *[dict(kalshi(f"KXIRAN-27-26{mo}", "US-Iran deal?", mo and mou), event_ticker="KXIRAN-27")
+          for mo in ("AUG", "SEP", "OCT", "NOV")],
+        *[(kalshi(f"KXETH-{n}K", f"Ethereum above ${n},000?", f"Resolves Yes if Ethereum is above ${n},000 on Dec 31."))
+          for n in range(3, 9)],
+    ]
+    ev15, _, st15 = venue_intake.discover(lambda venue, limit: [(m, "fixture") for m in pool] if venue == "kalshi" else [],
+                                          limit=50)
+    got15 = sorted(m for e in ev15 for _, m in e.markets)
+    check(not any("KXMLB" in m for m in got15), "V15 pitcher props sharing fine print across two events are not flagged")
+    check(got15 == ["KXIRAN-27-26AUG", "KXIRAN-27-26NOV", "KXIRAN-27-26OCT", "KXIRAN-27-26SEP"],
+          "V15 an MOU-style clarification on 4 markets of ONE event stays flagged")
 
     # V14 re-triage
     tstore = ResolutionStore(os.path.join(tmp, "retriage.db"))
@@ -295,8 +330,25 @@ def main() -> None:
     remaining = [x for x in evsvc.list_exceptions() if x["status"] != "resolved"
                  and x["work_item_id"] not in {moved["work_item_id"], decided_item["work_item_id"]}
                  and x["exception_id"] != pinned_id]
-    check(sorted(x["subject"].split("-", 1)[1] for x in remaining) == flagged,
-          "V14 after re-triage the untouched queue holds exactly the 5 real flags")
+    got_remaining = sorted(x["subject"].split("-", 1)[1] for x in remaining)
+    held = {moved["subject"].split("-", 1)[1], decided_item["subject"].split("-", 1)[1]}
+    check(got_remaining == sorted(set(flagged) - held),
+          "V14 after re-triage the untouched queue holds exactly the real flags")
+    # an item closed by re-triage comes back if the classifier flags it again;
+    # one an operator resolved does not
+    target = tri["closed"][0]["subject"]
+    op_closed = tri["closed"][1]["subject"]
+    op_id = venue_intake._exception_id(tri["closed"][1]["kind"], op_closed)
+    tstore.set_work_state(evsvc.get_exception(op_id)["work_item_id"], "resolved", "Evan", "checked, fine", "operator:evan")
+    same_class = next(k for k, v in venue_intake.ROUTING.items() if v[0] == tri["closed"][0]["kind"])
+    pin_back = [venue_intake.WatchedEvent(
+        event_id="again", label="again", review_class=same_class,
+        markets=[(t.split("-", 1)[0].lower(), t.split("-", 1)[1]) for t in (target, op_closed)])]
+    venue_intake.sync(tstore, pin_back, fetcher=noisy_fetch)
+    reopened = evsvc.get_exception(venue_intake._exception_id(tri["closed"][0]["kind"], target))
+    check(reopened["status"] == "open", "V14 an item closed by re-triage reopens when flagged again")
+    check(evsvc.get_exception(op_id)["status"] == "resolved", "V14 an item an operator resolved stays resolved")
+
     closed_state = tstore.list_work_states()
     check(any("Closed by re-triage" in (v.get("note") or "") for v in closed_state.values()),
           "V14 each closure carries its reason")

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
@@ -154,7 +155,8 @@ def normalize(venue: str, raw: dict[str, Any], url: str) -> dict[str, Any]:
                     outcome = winners[0].strip().upper()
         settled = outcome is not None
         return {
-            "venue": "polymarket", "market_id": market_id, "event_id": raw.get("eventId"),
+            "venue": "polymarket", "market_id": market_id,
+            "event_id": raw.get("eventId") or ((raw.get("events") or [{}])[0] or {}).get("id"),
             "title": str(raw.get("question") or "").strip(), "rules": rules,
             "status": "settled" if settled else ("closed" if raw.get("closed") is True else "open"),
             "outcome": outcome, "closed_at": raw.get("closedTime") or raw.get("endDate"),
@@ -174,40 +176,58 @@ def _classifier_row(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _series(row: dict[str, Any]) -> str:
-    """Kalshi series (ticker prefix); every market in a series shares one rules template."""
-    return str(row.get("market_id") or "").split("-")[0] if row.get("venue") == "kalshi" else ""
-
-
 def _disclaimer_hits(row: dict[str, Any]) -> set[str]:
     text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
     return {m for m in DISCLAIMER_MARKERS if m in text}
 
 
-def boilerplate_for(rows: list[dict[str, Any]]) -> dict[str, frozenset[str]]:
-    """Templated wording in a scanned pool, by the classifier's own rule: a term
-    on >=35% of a group's markets is template, not signal.
+def _normalize_sentence(sentence: str) -> str:
+    """Strip what varies between markets (names, numbers) so templated fine
+    print compares equal: 'If Merrill Kelly ... 2+' == 'If Mason Adams ... 1+'."""
+    s = re.sub(r"\b[A-Z][\w'&.-]*(?:\s+[A-Z][\w'&.-]*)*", "<x>", sentence)
+    s = re.sub(r"\d+(?:\.\d+)?", "<n>", s)
+    return re.sub(r"\s+", " ", s).strip().lower()
 
-    Keys are venues (interpretive wording and venue-wide fine print) and
-    ``series:<SERIES>`` for Kalshi series with 3+ markets in the pool, whose
-    shared fine print ("pinch hit at bats will not count") is template too.
+
+def _disclaimer_sentences(row: dict[str, Any]) -> set[str]:
+    """Normalized sentences of a market's rules that carry a disclaimer marker."""
+    out = set()
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(row.get("rules") or "")):
+        if sentence.strip() and any(m in sentence.lower() for m in DISCLAIMER_MARKERS):
+            out.add(_normalize_sentence(sentence))
+    return out
+
+
+SENTENCE_KEY = "sentences:{venue}"
+TEMPLATE_MIN_EVENTS = 2   # fine print recurring across 2+ distinct events is a standing template
+TEMPLATE_MIN_MARKETS = 3
+
+
+def boilerplate_for(rows: list[dict[str, Any]]) -> dict[str, frozenset[str]]:
+    """Templated wording in a scanned pool.
+
+    * ``<venue>``: interpretive wording on >=35% of a venue's markets (the
+      classifier's own rule), e.g. Polymarket's "consensus of credible reporting".
+    * ``sentences:<venue>``: disclaimer sentences (names and numbers
+      normalized out) that recur across 2+ distinct events and 3+ markets,
+      e.g. Kalshi's "relief appearances will not count towards this market".
+      A clarification confined to ONE event (the MOU ruling, a one-off
+      definition) is never template, however many of that event's markets
+      repeat it.
     """
     out: dict[str, frozenset[str]] = dict(_compute_boilerplate([_classifier_row(r) for r in rows]))
-    groups: dict[str, list[dict[str, Any]]] = {}
+    events: dict[tuple[str, str], set[str]] = {}
+    markets: dict[tuple[str, str], int] = {}
     for r in rows:
-        groups.setdefault(r["venue"], []).append(r)
-        if _series(r):
-            groups.setdefault(f"series:{_series(r)}", []).append(r)
-    for key, group in groups.items():
-        if key.startswith("series:") and len(group) < 3:
-            continue
-        counts: dict[str, int] = {}
-        for r in group:
-            for m in _disclaimer_hits(r):
-                counts[m] = counts.get(m, 0) + 1
-        templated = {m for m, c in counts.items() if c / len(group) >= BOILERPLATE_DF}
-        if templated or key.startswith("series:"):
-            out[key] = frozenset(out.get(key, frozenset()) | templated)
+        event = str(r.get("event_id") or r.get("market_id"))
+        for sentence in _disclaimer_sentences(r):
+            key = (r["venue"], sentence)
+            events.setdefault(key, set()).add(event)
+            markets[key] = markets.get(key, 0) + 1
+    for (venue, sentence), evs in events.items():
+        if len(evs) >= TEMPLATE_MIN_EVENTS and markets[(venue, sentence)] >= TEMPLATE_MIN_MARKETS:
+            k = SENTENCE_KEY.format(venue=venue)
+            out[k] = frozenset(out.get(k, frozenset()) | {sentence})
     return out
 
 
@@ -224,14 +244,14 @@ def _strict_election(row: dict[str, Any] | None) -> bool:
 
 
 def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
-    """A 'disputed' flag that rests only on fine print the venue puts on every
-    market of this kind (no actual dispute rounds) is template, not a dispute."""
+    """A 'disputed' flag that rests only on standing fine print (sentences the
+    venue repeats across many events), with no actual dispute rounds, is
+    template, not a dispute."""
     if row is None or (row.get("dispute_count") or 0) > 0:
         return False
-    hits = _disclaimer_hits(row)
-    template = (boilerplate or {}).get(row["venue"], frozenset()) | \
-        (boilerplate or {}).get(f"series:{_series(row)}", frozenset())
-    return bool(hits) and hits <= template
+    sentences = _disclaimer_sentences(row)
+    template = (boilerplate or {}).get(SENTENCE_KEY.format(venue=row["venue"]), frozenset())
+    return bool(sentences) and sentences <= template
 
 
 def review_class(verdict: dict[str, Any], override: str | None = None,
@@ -310,6 +330,7 @@ def _ensure_contract(store: ResolutionStore, row: dict[str, Any], event: Watched
         definition=definition, timing={"closed_at": row.get("closed_at"), "settled_at": row.get("settled_at")},
         authority_ids=[auth_id],
         metadata={"venue": row["venue"], "market_id": row["market_id"], "watched_event": event.event_id,
+                  "event_id": row.get("event_id"),
                   "source_url": row["source_url"]},
     ), actor=ACTOR, status="active")
     return contract_id, version, True
@@ -351,7 +372,15 @@ def _open_exception_once(store: ResolutionStore, *, kind: str, subject: str, con
     evsvc = get_evidence_service(store)
     existing = evsvc.get_exception(_exception_id(kind, subject))
     if existing:
-        return existing, False  # never reopen or reset work an operator/decision owns
+        state = store.list_work_states().get(existing["work_item_id"]) or {}
+        closed_by_retriage = (existing.get("status") == "resolved" and state.get("updated_by") == ACTOR
+                              and str(state.get("note") or "").startswith("Closed by re-triage"))
+        if not closed_by_retriage:
+            return existing, False  # never reopen or reset work an operator/decision owns
+        # Re-triage is the classifier correcting itself; if a later classifier
+        # flags the market again, the item comes back.
+        store._audit(ACTOR, "evidence.exception.reopened", "evidence_exception", existing["exception_id"],
+                     {"subject": subject, "reason": "flagged again after re-triage"})
     exc = evsvc._upsert_exception(kind=kind, subject=subject, contract_id=contract_id, authority_id=authority_id,
                                   severity=severity, title=title, detail=detail, action=action,
                                   metadata=metadata, actor=ACTOR)
@@ -551,9 +580,9 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
             if row["market_id"] and row["rules"] and row["status"] != "settled":
                 pool.append((raw, url, row))
         learned = boilerplate_for([r for _, _, r in pool])
-        for key, terms in learned.items():
-            if key == venue or key.startswith("series:"):
-                stats["boilerplate"][key] = terms
+        sentence_key = SENTENCE_KEY.format(venue=venue)
+        if sentence_key in learned:
+            stats["boilerplate"][sentence_key] = learned[sentence_key]
         stats["boilerplate"][venue] = learned.get(venue, frozenset()) | TEMPLATE_FLOOR.get(venue, frozenset())
         flagged = 0
         for raw, url, row in pool:
@@ -587,7 +616,9 @@ def _row_from_store(store: ResolutionStore, contract_id: str) -> dict[str, Any] 
                 if e.get("authority_id") == VENUE_AUTHORITIES.get(venue, ("",))[0]]
     latest = max(evidence, key=lambda e: int(e.get("revision_number") or 1), default={})
     observed = latest.get("normalized_value") or {}
+    meta = spec.get("metadata") or {}
     return {"venue": venue, "market_id": market_id, "title": spec.get("title") or "",
+            "event_id": meta.get("event_id") or meta.get("watched_event"),
             "rules": (spec.get("definition") or {}).get("yes_if") or "",
             "status": observed.get("status") or "open", "outcome": observed.get("outcome"),
             "closed_at": observed.get("closed_at"), "settled_at": observed.get("settled_at"),
