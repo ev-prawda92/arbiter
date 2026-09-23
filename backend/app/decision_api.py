@@ -91,6 +91,7 @@ def build_router(
         )
         return {
             "cluster": cluster,
+            "clearability": decision_operations.clearability(cluster, queue.get("items") or []),
             "decision_prompt": prompt,
             "precedents": precedents,
             "workload": decision_operations.workload_snapshot(overview),

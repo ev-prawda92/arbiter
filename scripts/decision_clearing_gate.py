@@ -14,6 +14,7 @@ Properties asserted (fail-closed):
   C5 superseding a decision re-derives clearing; dropped cases reopen
   C6 an operator reopening a case after the decision is respected
   C7 clearing is pure: the input queue is unchanged and nothing is written
+  C9 the decision workbench is told, per pattern, whether a decision can clear it
   C8 end to end over HTTP: one decision clears its pattern, the HOLD stays
      open, and contract/authority/evidence/resolution counts are unchanged
 """
@@ -156,6 +157,13 @@ def http_property() -> None:
     decidable = [c for c in clusters if c["blocker_type"] == "timing_revision"]
     check(bool(decidable), "C8 reference data exposes a timing work pattern")
     target = max(decidable, key=lambda c: c["count"])
+    hold = next((c for c in clusters if c["blocker_type"] == "resolution_hold"), None)
+    check(client.get(f"/api/decision-context/{target['cluster_id']}").json()["clearability"]["clearable"] is True,
+          "C9 the workbench is told a timing pattern can be cleared")
+    if hold:
+        ctx = client.get(f"/api/decision-context/{hold['cluster_id']}").json()["clearability"]
+        check(ctx["clearable"] is False and "payout hold" in ctx["reason"],
+              "C9 the workbench is told a payout-hold pattern cannot be cleared, and why")
     holds_before = [i["id"] for i in client.get("/api/work-queue").json()["items"]
                     if i["kind"] == "resolution_hold" and i["status"] != "resolved"]
     counts_before = resolution_store.summary()
