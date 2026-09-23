@@ -1,6 +1,6 @@
 {
-  "engine": "arbiter v0.34.0",
-  "run_at": "2026-09-23T12:44:19.218902+00:00",
+  "engine": "arbiter v0.35.0",
+  "run_at": "2026-09-23T14:58:34.172188+00:00",
   "markets": {
     "polymarket": {
       "venue": "polymarket",
@@ -25,10 +25,10 @@
   },
   "evidence": [
     {
-      "evidence_id": "evid_b5a2c9235a20405c",
+      "evidence_id": "evid_f97d55e8a4874a10",
       "authority_id": "auth_official_statements",
       "source_locator": "public record, June 2026",
-      "record_hash": "sha256:d6f77d8cd8ef6a87410971344e603eb923415b10a9e38b4a0cc031263b8e6a78",
+      "record_hash": "sha256:9b5a08e25747b79bb598c1ae0fa6c64ec8dd4d1b46530f094991f0d3863dfb8a",
       "value": {
         "event": "US-Iran Memorandum of Understanding",
         "date": "2026-06",
@@ -40,20 +40,20 @@
       }
     },
     {
-      "evidence_id": "evid_c0d81cf2cddc4db6",
+      "evidence_id": "evid_9cdbfc3f27b44072",
       "authority_id": "auth_polymarket_rules",
       "source_locator": "gamma-api.polymarket.com/markets/521878",
-      "record_hash": "sha256:32d29b3d0e8565247b1448e2b0ac9f28129329ab7ed7542ebd3d2c3402820927",
+      "record_hash": "sha256:632f0ce37a5a7a4af028958b3d15e81994325bc98096749de90f997a086c4697",
       "value": {
         "final_outcome": "NO",
         "resolved_at": "2026-01-01T08:35:00Z"
       }
     },
     {
-      "evidence_id": "evid_8680f94708404104",
+      "evidence_id": "evid_df1d6347816347cb",
       "authority_id": "auth_kalshi_rules",
       "source_locator": "api.elections.kalshi.com/trade-api/v2/markets/KXUSAIRANAGREEMENT-27-26SEP",
-      "record_hash": "sha256:ec4620c83ab05c73f365c398d33b7805eace59d3a1aa1412a162e1a2451aeb70",
+      "record_hash": "sha256:a166a949f774d94ffbc192f8d0286886cff83270da394bc7c76225d3c20e6421",
       "value": {
         "final_outcome": "NO",
         "resolved_at": "2026-09-01T14:00:00Z",
@@ -61,19 +61,91 @@
       }
     }
   ],
+  "queue_before": [
+    {
+      "id": "work_0de51fa8bff27d",
+      "subject": "KXUSAIRANAGREEMENT-27-26SEP",
+      "status": "open",
+      "note": "",
+      "governed_by": null
+    },
+    {
+      "id": "work_9689807d99346d",
+      "subject": "KXUSAIRANAGREEMENT-27-26AUG",
+      "status": "open",
+      "note": "",
+      "governed_by": null
+    },
+    {
+      "id": "work_0bda12af450422",
+      "subject": "POLYMARKET-527838",
+      "status": "open",
+      "note": "",
+      "governed_by": null
+    },
+    {
+      "id": "work_ee5bbef7e2ca08",
+      "subject": "POLYMARKET-546814",
+      "status": "open",
+      "note": "",
+      "governed_by": null
+    },
+    {
+      "id": "work_ded03bbcbc7ea9",
+      "subject": "POLYMARKET-521878",
+      "status": "resolved",
+      "note": "Settled NO on 2026-01-01; window closed before the MOU.",
+      "governed_by": null
+    }
+  ],
+  "work_patterns_before": [
+    {
+      "cluster_id": "cluster_ee2d83dea4ab",
+      "blocker_type": "policy_interpretation",
+      "count": 2,
+      "case_ids": [
+        "work_0de51fa8bff27d",
+        "work_9689807d99346d"
+      ]
+    },
+    {
+      "cluster_id": "cluster_8bde2dfa02eb",
+      "blocker_type": "policy_interpretation",
+      "count": 1,
+      "case_ids": [
+        "work_ee5bbef7e2ca08"
+      ]
+    },
+    {
+      "cluster_id": "cluster_2eda732484db",
+      "blocker_type": "timing_revision",
+      "count": 1,
+      "case_ids": [
+        "work_0bda12af450422"
+      ]
+    }
+  ],
+  "iran_pattern": {
+    "cluster_id": "cluster_ee2d83dea4ab",
+    "blocker_type": "policy_interpretation",
+    "case_ids": [
+      "work_0de51fa8bff27d",
+      "work_9689807d99346d"
+    ],
+    "question": "What governed policy interpretation should control this work pattern?"
+  },
   "decision": {
-    "decision_id": "dec_d597bbbbddba458a",
+    "decision_id": "dec_60d83b914de8422d",
     "decision_type": "policy_interpretation",
     "question": "Does the June 2026 US-Iran MOU constitute a qualifying nuclear agreement?",
-    "selection": "non_qualifying",
+    "selection": "MOU is non-qualifying",
     "rationale": "The MOU maintained the status quo and deferred substantive commitments to future negotiations. It contains no verifiable enrichment limits, centrifuge caps, or sanctions modification, so it does not meet the formal-instrument threshold.",
     "actor": "operator:resolution-ops",
     "affected_case_ids": [
-      "KXUSAIRANAGREEMENT-27-26SEP",
-      "KXUSAIRANAGREEMENT-27-26AUG",
-      "521878"
+      "work_0de51fa8bff27d",
+      "work_9689807d99346d"
     ],
-    "cluster_id": "iran-nuclear-deal",
+    "cluster_id": "cluster_ee2d83dea4ab",
     "contract_id": "kalshi:KXUSAIRANAGREEMENT-27-26SEP",
     "governing_rule": "YES requires a formal written instrument with verifiable nuclear restrictions AND sanctions relief.",
     "controlling_authority_ids": [
@@ -81,96 +153,150 @@
       "auth_official_statements"
     ],
     "controlling_evidence_ids": [
-      "evid_b5a2c9235a20405c"
+      "evid_f97d55e8a4874a10"
     ],
     "policy_basis": {
       "class": "interpretive_criteria"
     },
     "precedent_ids": [],
     "metadata": {},
-    "created_at": "2026-09-23T12:44:19.164076+00:00",
+    "created_at": "2026-09-23T14:58:34.142004+00:00",
     "state": "recorded",
     "supersedes": null,
     "schema": "arbiter.decision-record.v1",
-    "decision_hash": "sha256:259b42e079b8ffa2e73f06c65bd2a20af17b606ec4963aa412c990241ce6fdaf"
+    "decision_hash": "sha256:5dcf877599698c51cc11282bf0ccba39b45e8d0bba4d186f9aa0627e41317de4"
   },
-  "propagation": {
-    "updated": [
-      "KXUSAIRANAGREEMENT-27-26SEP",
-      "KXUSAIRANAGREEMENT-27-26AUG"
+  "application": {
+    "decision_id": "dec_60d83b914de8422d",
+    "cluster_id": "cluster_ee2d83dea4ab",
+    "affected_case_ids": [
+      "work_0de51fa8bff27d",
+      "work_9689807d99346d"
     ],
-    "skipped": [
-      "521878"
+    "updated_case_ids": [
+      "work_0de51fa8bff27d",
+      "work_9689807d99346d"
     ],
-    "untouched": [
-      "527838",
-      "546814"
-    ],
-    "replay_updated": [
-      "KXUSAIRANAGREEMENT-27-26SEP",
-      "KXUSAIRANAGREEMENT-27-26AUG"
-    ],
-    "work_states": {
-      "KXUSAIRANAGREEMENT-27-26AUG": {
-        "work_item_id": "KXUSAIRANAGREEMENT-27-26AUG",
-        "status": "in_progress",
-        "owner": "Resolution Ops",
-        "note": "Governed decision dec_d597bbbbddba458a recorded; reevaluation requested.",
-        "updated_at": "2026-09-23T12:44:19.199247+00:00",
-        "updated_by": "operator:resolution-ops"
-      },
-      "KXUSAIRANAGREEMENT-27-26SEP": {
-        "work_item_id": "KXUSAIRANAGREEMENT-27-26SEP",
-        "status": "in_progress",
-        "owner": "Resolution Ops",
-        "note": "Governed decision dec_d597bbbbddba458a recorded; reevaluation requested.",
-        "updated_at": "2026-09-23T12:44:19.192539+00:00",
-        "updated_by": "operator:resolution-ops"
-      }
-    },
+    "skipped_case_ids": [],
+    "reevaluation_requested": true,
     "boundary": "Decision application changes workflow state and requests governed reevaluation only. It does not directly change contract terms, evidence, YES/NO/HOLD outcomes, or settlement authorization."
   },
+  "queue_after": [
+    {
+      "id": "work_0bda12af450422",
+      "subject": "POLYMARKET-527838",
+      "status": "open",
+      "note": "",
+      "governed_by": null
+    },
+    {
+      "id": "work_ee5bbef7e2ca08",
+      "subject": "POLYMARKET-546814",
+      "status": "open",
+      "note": "",
+      "governed_by": null
+    },
+    {
+      "id": "work_0de51fa8bff27d",
+      "subject": "KXUSAIRANAGREEMENT-27-26SEP",
+      "status": "resolved",
+      "note": "Cleared by governed decision dec_60d83b914de8422d: MOU is non-qualifying",
+      "governed_by": {
+        "decision_id": "dec_60d83b914de8422d",
+        "decision_hash": "sha256:5dcf877599698c51cc11282bf0ccba39b45e8d0bba4d186f9aa0627e41317de4",
+        "decision_type": "policy_interpretation",
+        "selection": "MOU is non-qualifying",
+        "cluster_id": "cluster_ee2d83dea4ab"
+      }
+    },
+    {
+      "id": "work_9689807d99346d",
+      "subject": "KXUSAIRANAGREEMENT-27-26AUG",
+      "status": "resolved",
+      "note": "Cleared by governed decision dec_60d83b914de8422d: MOU is non-qualifying",
+      "governed_by": {
+        "decision_id": "dec_60d83b914de8422d",
+        "decision_hash": "sha256:5dcf877599698c51cc11282bf0ccba39b45e8d0bba4d186f9aa0627e41317de4",
+        "decision_type": "policy_interpretation",
+        "selection": "MOU is non-qualifying",
+        "cluster_id": "cluster_ee2d83dea4ab"
+      }
+    },
+    {
+      "id": "work_ded03bbcbc7ea9",
+      "subject": "POLYMARKET-521878",
+      "status": "resolved",
+      "note": "Settled NO on 2026-01-01; window closed before the MOU.",
+      "governed_by": null
+    }
+  ],
+  "workload": {
+    "before": {
+      "active_cases": 4,
+      "human_decisions": 3,
+      "work_patterns": 3
+    },
+    "after": {
+      "active_cases": 2,
+      "human_decisions": 2,
+      "work_patterns": 2
+    },
+    "cases_cleared": 2,
+    "human_decisions_removed": 1
+  },
+  "cleared": [
+    {
+      "id": "work_0de51fa8bff27d",
+      "subject": "KXUSAIRANAGREEMENT-27-26SEP",
+      "note": "Cleared by governed decision dec_60d83b914de8422d: MOU is non-qualifying"
+    },
+    {
+      "id": "work_9689807d99346d",
+      "subject": "KXUSAIRANAGREEMENT-27-26AUG",
+      "note": "Cleared by governed decision dec_60d83b914de8422d: MOU is non-qualifying"
+    }
+  ],
   "counts_before": {
-    "database": "/sessions/rcw-01dpdtqfed35ojvlcgtdyztv/tmp/arbiter-iran-_xweur2c/arbiter.db",
+    "database": "/tmp/arbiter-iran-v035-e2gf9sjx/arbiter.db",
     "database_backend": "sqlite",
     "contracts": 2,
     "authorities": 3,
     "evidence_records": 3,
     "resolution_runs": 0,
-    "audit_events": 8,
-    "work_item_states": 0,
+    "audit_events": 9,
+    "work_item_states": 1,
     "analysis_cases": 0,
     "analysis_case_runs": 0,
     "contract_templates": 0,
     "audit_chain": {
       "ok": true,
-      "events": 8,
-      "head": "sha256:254ac7257ebfc973d1eda8053e4bccdf98b4cb7702dbfaf47d04661272198709"
+      "events": 9,
+      "head": "sha256:3fd11b225d22fc20702a1c268cd106148ae79a6dd49e018f781197ab1a064ab6"
     }
   },
   "counts_after": {
-    "database": "/sessions/rcw-01dpdtqfed35ojvlcgtdyztv/tmp/arbiter-iran-_xweur2c/arbiter.db",
+    "database": "/tmp/arbiter-iran-v035-e2gf9sjx/arbiter.db",
     "database_backend": "sqlite",
     "contracts": 2,
     "authorities": 3,
     "evidence_records": 3,
     "resolution_runs": 0,
-    "audit_events": 15,
-    "work_item_states": 2,
+    "audit_events": 13,
+    "work_item_states": 3,
     "analysis_cases": 0,
     "analysis_case_runs": 0,
     "contract_templates": 0,
     "audit_chain": {
       "ok": true,
-      "events": 15,
-      "head": "sha256:d94ec0abc9224110d52e31c0d06c2238620d3ffdd696ac2f33201a13ac3dd9db"
+      "events": 13,
+      "head": "sha256:46e4283d65eb4e1571fd1ad6df1118e03060d63b93131357cfdd50ce145a39d1"
     }
   },
   "audit": [
     {
       "sequence": 1,
-      "event_id": "evt_0ed4bd6a7b4a4a69",
-      "occurred_at": "2026-09-23T12:44:19.124890+00:00",
+      "event_id": "evt_60366a528c1d4510",
+      "occurred_at": "2026-09-23T14:58:34.121097+00:00",
       "actor": "system:intake",
       "action": "authority.version.created",
       "object_type": "authority",
@@ -181,12 +307,12 @@
         "version": 1
       },
       "previous_hash": null,
-      "event_hash": "sha256:0db32f5dd68c80bf8d240f5be39a5a24bee771c0a69606fb04096eaf5f43f7d2"
+      "event_hash": "sha256:d71383280ff221f84bbbd81a211366fc2fc3492cf71d6ca643e11c640338e685"
     },
     {
       "sequence": 2,
-      "event_id": "evt_286905e914d04ca7",
-      "occurred_at": "2026-09-23T12:44:19.129599+00:00",
+      "event_id": "evt_4139d60f50434596",
+      "occurred_at": "2026-09-23T14:58:34.122721+00:00",
       "actor": "system:intake",
       "action": "authority.version.created",
       "object_type": "authority",
@@ -196,13 +322,13 @@
         "status": "approved",
         "version": 1
       },
-      "previous_hash": "sha256:0db32f5dd68c80bf8d240f5be39a5a24bee771c0a69606fb04096eaf5f43f7d2",
-      "event_hash": "sha256:89edbe1e3e6c5d83384c2123d5d12ab17fb4470d963366dec521999a0442c95d"
+      "previous_hash": "sha256:d71383280ff221f84bbbd81a211366fc2fc3492cf71d6ca643e11c640338e685",
+      "event_hash": "sha256:d6e5583553b21f035877b48f3bcd4ca13001136044fdc953fb5949706b7655d4"
     },
     {
       "sequence": 3,
-      "event_id": "evt_602852f5bc0847f3",
-      "occurred_at": "2026-09-23T12:44:19.134807+00:00",
+      "event_id": "evt_7b983a42b7c84ad9",
+      "occurred_at": "2026-09-23T14:58:34.124599+00:00",
       "actor": "system:intake",
       "action": "authority.version.created",
       "object_type": "authority",
@@ -212,13 +338,13 @@
         "status": "approved",
         "version": 1
       },
-      "previous_hash": "sha256:89edbe1e3e6c5d83384c2123d5d12ab17fb4470d963366dec521999a0442c95d",
-      "event_hash": "sha256:e2928d9fcd81093b74e48fbb9ad95332fdb551a7ae2dcd969797bc47d2131d8d"
+      "previous_hash": "sha256:d6e5583553b21f035877b48f3bcd4ca13001136044fdc953fb5949706b7655d4",
+      "event_hash": "sha256:d0fedd48029c842004d7a603e386279169dbaed46d7d6bed66a17cf10c4ed26d"
     },
     {
       "sequence": 4,
-      "event_id": "evt_01e8fe7380194364",
-      "occurred_at": "2026-09-23T12:44:19.139626+00:00",
+      "event_id": "evt_9d5e5834cb7a4c5c",
+      "occurred_at": "2026-09-23T14:58:34.127003+00:00",
       "actor": "system:intake",
       "action": "contract.version.created",
       "object_type": "contract",
@@ -228,13 +354,13 @@
         "status": "active",
         "version": 1
       },
-      "previous_hash": "sha256:e2928d9fcd81093b74e48fbb9ad95332fdb551a7ae2dcd969797bc47d2131d8d",
-      "event_hash": "sha256:d7c7cef748bcd44a8d73b083f33961f18f275628c236d1a085e19e45aec68b77"
+      "previous_hash": "sha256:d0fedd48029c842004d7a603e386279169dbaed46d7d6bed66a17cf10c4ed26d",
+      "event_hash": "sha256:f98c143f3bd1dc857b97c342b3ce40aad07d54a5106f35d3713319a7ec2b518f"
     },
     {
       "sequence": 5,
-      "event_id": "evt_333df97540fa47ed",
-      "occurred_at": "2026-09-23T12:44:19.145698+00:00",
+      "event_id": "evt_b022334236944bbd",
+      "occurred_at": "2026-09-23T14:58:34.129152+00:00",
       "actor": "system:intake",
       "action": "contract.version.created",
       "object_type": "contract",
@@ -244,214 +370,185 @@
         "status": "active",
         "version": 1
       },
-      "previous_hash": "sha256:d7c7cef748bcd44a8d73b083f33961f18f275628c236d1a085e19e45aec68b77",
-      "event_hash": "sha256:820a50568eab246b872702aa484a26621ffbb22b8c0e6e2c5b4fe11e0b164d8d"
+      "previous_hash": "sha256:f98c143f3bd1dc857b97c342b3ce40aad07d54a5106f35d3713319a7ec2b518f",
+      "event_hash": "sha256:0b1d51abc09aeae6c28cd58e5bd2d5531cf3f403866bf0f530db59052d7f0cac"
     },
     {
       "sequence": 6,
-      "event_id": "evt_591b914bb8de4ab3",
-      "occurred_at": "2026-09-23T12:44:19.150700+00:00",
+      "event_id": "evt_f9bfcbbd08ea4076",
+      "occurred_at": "2026-09-23T14:58:34.131525+00:00",
       "actor": "system:evidence",
       "action": "evidence.appended",
       "object_type": "evidence",
-      "object_id": "evid_b5a2c9235a20405c",
+      "object_id": "evid_f97d55e8a4874a10",
       "details": {
         "authority_id": "auth_official_statements",
         "contract_id": "kalshi:KXUSAIRANAGREEMENT-27-26SEP",
-        "record_hash": "sha256:d6f77d8cd8ef6a87410971344e603eb923415b10a9e38b4a0cc031263b8e6a78",
+        "record_hash": "sha256:9b5a08e25747b79bb598c1ae0fa6c64ec8dd4d1b46530f094991f0d3863dfb8a",
         "revision_number": 1
       },
-      "previous_hash": "sha256:820a50568eab246b872702aa484a26621ffbb22b8c0e6e2c5b4fe11e0b164d8d",
-      "event_hash": "sha256:f9639e94cd294c2c5114451460c53e67e493abf22729041ae20f562f2d42d7bb"
+      "previous_hash": "sha256:0b1d51abc09aeae6c28cd58e5bd2d5531cf3f403866bf0f530db59052d7f0cac",
+      "event_hash": "sha256:434c4d709617e119c005b03190909236eff2cc2da66e92d21d701d07a9d840fb"
     },
     {
       "sequence": 7,
-      "event_id": "evt_0333dd35028e4cd7",
-      "occurred_at": "2026-09-23T12:44:19.155673+00:00",
+      "event_id": "evt_7870f9d1a9654c71",
+      "occurred_at": "2026-09-23T14:58:34.133474+00:00",
       "actor": "system:evidence",
       "action": "evidence.appended",
       "object_type": "evidence",
-      "object_id": "evid_c0d81cf2cddc4db6",
+      "object_id": "evid_9cdbfc3f27b44072",
       "details": {
         "authority_id": "auth_polymarket_rules",
         "contract_id": "polymarket:521878",
-        "record_hash": "sha256:32d29b3d0e8565247b1448e2b0ac9f28129329ab7ed7542ebd3d2c3402820927",
+        "record_hash": "sha256:632f0ce37a5a7a4af028958b3d15e81994325bc98096749de90f997a086c4697",
         "revision_number": 1
       },
-      "previous_hash": "sha256:f9639e94cd294c2c5114451460c53e67e493abf22729041ae20f562f2d42d7bb",
-      "event_hash": "sha256:ddc4a7c9c39c2bd13c4db0f24a80803bda50bce4a068a29db0c72b8d0580a54e"
+      "previous_hash": "sha256:434c4d709617e119c005b03190909236eff2cc2da66e92d21d701d07a9d840fb",
+      "event_hash": "sha256:b6b071fec39bdc34d652e40e78d5c2228429d17ae89930375ef079a84357fcf1"
     },
     {
       "sequence": 8,
-      "event_id": "evt_719e17e36e9a46ce",
-      "occurred_at": "2026-09-23T12:44:19.160501+00:00",
+      "event_id": "evt_56eed2dec5c64471",
+      "occurred_at": "2026-09-23T14:58:34.135627+00:00",
       "actor": "system:evidence",
       "action": "evidence.appended",
       "object_type": "evidence",
-      "object_id": "evid_8680f94708404104",
+      "object_id": "evid_df1d6347816347cb",
       "details": {
         "authority_id": "auth_kalshi_rules",
         "contract_id": "kalshi:KXUSAIRANAGREEMENT-27-26SEP",
-        "record_hash": "sha256:ec4620c83ab05c73f365c398d33b7805eace59d3a1aa1412a162e1a2451aeb70",
+        "record_hash": "sha256:a166a949f774d94ffbc192f8d0286886cff83270da394bc7c76225d3c20e6421",
         "revision_number": 1
       },
-      "previous_hash": "sha256:ddc4a7c9c39c2bd13c4db0f24a80803bda50bce4a068a29db0c72b8d0580a54e",
-      "event_hash": "sha256:254ac7257ebfc973d1eda8053e4bccdf98b4cb7702dbfaf47d04661272198709"
+      "previous_hash": "sha256:b6b071fec39bdc34d652e40e78d5c2228429d17ae89930375ef079a84357fcf1",
+      "event_hash": "sha256:94e49d3f9324c80e90c626c0c4e78916a76630a8d47242d0edf640bb57eee0fb"
     },
     {
       "sequence": 9,
-      "event_id": "evt_9c1d4d4b6c5940d7",
-      "occurred_at": "2026-09-23T12:44:19.166963+00:00",
-      "actor": "operator:resolution-ops",
-      "action": "decision.recorded",
-      "object_type": "decision_record",
-      "object_id": "dec_d597bbbbddba458a",
+      "event_id": "evt_ddf150f2dde74a76",
+      "occurred_at": "2026-09-23T14:58:34.137718+00:00",
+      "actor": "system:venue-sync",
+      "action": "work_item.updated",
+      "object_type": "work_item",
+      "object_id": "work_ded03bbcbc7ea9",
       "details": {
-        "affected_case_ids": [
-          "KXUSAIRANAGREEMENT-27-26SEP",
-          "KXUSAIRANAGREEMENT-27-26AUG",
-          "521878"
-        ],
-        "cluster_id": "iran-nuclear-deal",
-        "contract_id": "kalshi:KXUSAIRANAGREEMENT-27-26SEP",
-        "decision_hash": "sha256:259b42e079b8ffa2e73f06c65bd2a20af17b606ec4963aa412c990241ce6fdaf",
-        "decision_type": "policy_interpretation",
-        "supersedes": null
+        "note": "Settled NO on 2026-01-01; window closed before the MOU.",
+        "owner": "Resolution Ops",
+        "status": "resolved"
       },
-      "previous_hash": "sha256:254ac7257ebfc973d1eda8053e4bccdf98b4cb7702dbfaf47d04661272198709",
-      "event_hash": "sha256:e860d573363695a0ea3d00dff464e15efd9ad9a3dd27770d54bcc5a5850ed623"
+      "previous_hash": "sha256:94e49d3f9324c80e90c626c0c4e78916a76630a8d47242d0edf640bb57eee0fb",
+      "event_hash": "sha256:3fd11b225d22fc20702a1c268cd106148ae79a6dd49e018f781197ab1a064ab6"
     },
     {
       "sequence": 10,
-      "event_id": "evt_208068750d264bb6",
-      "occurred_at": "2026-09-23T12:44:19.173817+00:00",
+      "event_id": "evt_dd3c3824c8264d02",
+      "occurred_at": "2026-09-23T14:58:34.145006+00:00",
       "actor": "operator:resolution-ops",
-      "action": "work_item.updated",
-      "object_type": "work_item",
-      "object_id": "KXUSAIRANAGREEMENT-27-26SEP",
+      "action": "decision.recorded",
+      "object_type": "decision_record",
+      "object_id": "dec_60d83b914de8422d",
       "details": {
-        "note": "Governed decision dec_d597bbbbddba458a recorded; reevaluation requested.",
-        "owner": "Resolution Ops",
-        "status": "in_progress"
+        "affected_case_ids": [
+          "work_0de51fa8bff27d",
+          "work_9689807d99346d"
+        ],
+        "cluster_id": "cluster_ee2d83dea4ab",
+        "contract_id": "kalshi:KXUSAIRANAGREEMENT-27-26SEP",
+        "decision_hash": "sha256:5dcf877599698c51cc11282bf0ccba39b45e8d0bba4d186f9aa0627e41317de4",
+        "decision_type": "policy_interpretation",
+        "supersedes": null
       },
-      "previous_hash": "sha256:e860d573363695a0ea3d00dff464e15efd9ad9a3dd27770d54bcc5a5850ed623",
-      "event_hash": "sha256:49aa7d95e7674b99ccb023eecd57d61a9135a8038e0a265742d2df64144dce4a"
+      "previous_hash": "sha256:3fd11b225d22fc20702a1c268cd106148ae79a6dd49e018f781197ab1a064ab6",
+      "event_hash": "sha256:e75460c7429b2de2b4e7460e0bbb549e0125a93f243d6b08a6970e12dc4f4112"
     },
     {
       "sequence": 11,
-      "event_id": "evt_b4c656cbee5045a9",
-      "occurred_at": "2026-09-23T12:44:19.181892+00:00",
+      "event_id": "evt_703c905b1b73488c",
+      "occurred_at": "2026-09-23T14:58:34.147300+00:00",
       "actor": "operator:resolution-ops",
       "action": "work_item.updated",
       "object_type": "work_item",
-      "object_id": "KXUSAIRANAGREEMENT-27-26AUG",
+      "object_id": "work_0de51fa8bff27d",
       "details": {
-        "note": "Governed decision dec_d597bbbbddba458a recorded; reevaluation requested.",
+        "note": "Governed decision dec_60d83b914de8422d recorded; reevaluation requested.",
         "owner": "Resolution Ops",
         "status": "in_progress"
       },
-      "previous_hash": "sha256:49aa7d95e7674b99ccb023eecd57d61a9135a8038e0a265742d2df64144dce4a",
-      "event_hash": "sha256:48a604eb950dcc48e1c17615fa68d33564177146d4c25c5b7efbd8757f64e001"
+      "previous_hash": "sha256:e75460c7429b2de2b4e7460e0bbb549e0125a93f243d6b08a6970e12dc4f4112",
+      "event_hash": "sha256:30d0d4a64f69b778e2cb3bb6f5234373e27ac306ae5d3653938aeb30a9aae3c5"
     },
     {
       "sequence": 12,
-      "event_id": "evt_febe2e91c69f4d98",
-      "occurred_at": "2026-09-23T12:44:19.185137+00:00",
+      "event_id": "evt_243c822ec6af447d",
+      "occurred_at": "2026-09-23T14:58:34.148797+00:00",
       "actor": "operator:resolution-ops",
-      "action": "decision.reevaluation.requested",
-      "object_type": "decision_record",
-      "object_id": "dec_d597bbbbddba458a",
+      "action": "work_item.updated",
+      "object_type": "work_item",
+      "object_id": "work_9689807d99346d",
       "details": {
-        "affected_case_ids": [
-          "KXUSAIRANAGREEMENT-27-26SEP",
-          "KXUSAIRANAGREEMENT-27-26AUG",
-          "521878"
-        ],
-        "boundary": "Decision application changes workflow state and requests governed reevaluation only. It does not directly change contract terms, evidence, YES/NO/HOLD outcomes, or settlement authorization.",
-        "cluster_id": "iran-nuclear-deal",
-        "decision_id": "dec_d597bbbbddba458a",
-        "reevaluation_requested": true,
-        "skipped_case_ids": [
-          "521878"
-        ],
-        "updated_case_ids": [
-          "KXUSAIRANAGREEMENT-27-26SEP",
-          "KXUSAIRANAGREEMENT-27-26AUG"
-        ]
+        "note": "Governed decision dec_60d83b914de8422d recorded; reevaluation requested.",
+        "owner": "Resolution Ops",
+        "status": "in_progress"
       },
-      "previous_hash": "sha256:48a604eb950dcc48e1c17615fa68d33564177146d4c25c5b7efbd8757f64e001",
-      "event_hash": "sha256:29cd6b58166666c22b3716148dc00f9c913aa0590ca72dc8b24b8b10f7779450"
+      "previous_hash": "sha256:30d0d4a64f69b778e2cb3bb6f5234373e27ac306ae5d3653938aeb30a9aae3c5",
+      "event_hash": "sha256:817f5df1926715ff595e2911acef9ef0b77e5840d0fd98031bf108d075e39ad5"
     },
     {
       "sequence": 13,
-      "event_id": "evt_16d30a7ca4ce413f",
-      "occurred_at": "2026-09-23T12:44:19.196849+00:00",
-      "actor": "operator:resolution-ops",
-      "action": "work_item.updated",
-      "object_type": "work_item",
-      "object_id": "KXUSAIRANAGREEMENT-27-26SEP",
-      "details": {
-        "note": "Governed decision dec_d597bbbbddba458a recorded; reevaluation requested.",
-        "owner": "Resolution Ops",
-        "status": "in_progress"
-      },
-      "previous_hash": "sha256:29cd6b58166666c22b3716148dc00f9c913aa0590ca72dc8b24b8b10f7779450",
-      "event_hash": "sha256:80d988660ff5bc6e82fd302294b466b28dd7f8d018e4d3ba55c7d9f5cf91b6a6"
-    },
-    {
-      "sequence": 14,
-      "event_id": "evt_7a28ddb2a616463e",
-      "occurred_at": "2026-09-23T12:44:19.202308+00:00",
-      "actor": "operator:resolution-ops",
-      "action": "work_item.updated",
-      "object_type": "work_item",
-      "object_id": "KXUSAIRANAGREEMENT-27-26AUG",
-      "details": {
-        "note": "Governed decision dec_d597bbbbddba458a recorded; reevaluation requested.",
-        "owner": "Resolution Ops",
-        "status": "in_progress"
-      },
-      "previous_hash": "sha256:80d988660ff5bc6e82fd302294b466b28dd7f8d018e4d3ba55c7d9f5cf91b6a6",
-      "event_hash": "sha256:1202c27c16b7dca62ce944d9294e6eb630a24ce781ffd866bfac63bdf47ae81f"
-    },
-    {
-      "sequence": 15,
-      "event_id": "evt_126884f0a3fc4252",
-      "occurred_at": "2026-09-23T12:44:19.204939+00:00",
+      "event_id": "evt_2d9bfc79d42a476c",
+      "occurred_at": "2026-09-23T14:58:34.149891+00:00",
       "actor": "operator:resolution-ops",
       "action": "decision.reevaluation.requested",
       "object_type": "decision_record",
-      "object_id": "dec_d597bbbbddba458a",
+      "object_id": "dec_60d83b914de8422d",
       "details": {
         "affected_case_ids": [
-          "KXUSAIRANAGREEMENT-27-26SEP",
-          "KXUSAIRANAGREEMENT-27-26AUG",
-          "521878"
+          "work_0de51fa8bff27d",
+          "work_9689807d99346d"
         ],
         "boundary": "Decision application changes workflow state and requests governed reevaluation only. It does not directly change contract terms, evidence, YES/NO/HOLD outcomes, or settlement authorization.",
-        "cluster_id": "iran-nuclear-deal",
-        "decision_id": "dec_d597bbbbddba458a",
+        "cluster_id": "cluster_ee2d83dea4ab",
+        "decision_id": "dec_60d83b914de8422d",
         "reevaluation_requested": true,
-        "skipped_case_ids": [
-          "521878"
-        ],
+        "skipped_case_ids": [],
         "updated_case_ids": [
-          "KXUSAIRANAGREEMENT-27-26SEP",
-          "KXUSAIRANAGREEMENT-27-26AUG"
+          "work_0de51fa8bff27d",
+          "work_9689807d99346d"
         ]
       },
-      "previous_hash": "sha256:1202c27c16b7dca62ce944d9294e6eb630a24ce781ffd866bfac63bdf47ae81f",
-      "event_hash": "sha256:d94ec0abc9224110d52e31c0d06c2238620d3ffdd696ac2f33201a13ac3dd9db"
+      "previous_hash": "sha256:817f5df1926715ff595e2911acef9ef0b77e5840d0fd98031bf108d075e39ad5",
+      "event_hash": "sha256:46e4283d65eb4e1571fd1ad6df1118e03060d63b93131357cfdd50ce145a39d1"
     }
   ],
   "chain": {
     "ok": true,
-    "events": 15,
-    "head": "sha256:d94ec0abc9224110d52e31c0d06c2238620d3ffdd696ac2f33201a13ac3dd9db"
+    "events": 13,
+    "head": "sha256:46e4283d65eb4e1571fd1ad6df1118e03060d63b93131357cfdd50ce145a39d1"
   },
   "tamper_test": {
     "ok": false,
-    "sequence": 9,
-    "reason": "event_hash mismatch"
+    "sequence": 10,
+    "reason": "event_hash mismatch",
+    "edited_event": 10
+  },
+  "what_if": {
+    "reversal_decision_id": "dec_29ff55e62dcb44a1",
+    "reversal_hash": "sha256:7bcce8044b243e4584d8d4f5f93bda2f2ac97e22ac50fdb0360a9a67eb51c7d7",
+    "supersedes": "dec_60d83b914de8422d",
+    "authoritative_ids": [
+      "dec_29ff55e62dcb44a1"
+    ],
+    "original_is_authoritative": false,
+    "original_refused_at_apply": true,
+    "records_kept": 2,
+    "cases_now_cite": [
+      "dec_29ff55e62dcb44a1"
+    ],
+    "audit_ok": {
+      "ok": true,
+      "events": 14,
+      "head": "sha256:4e789c3f5ebeb9404cde397ec69e00eb00f8351993829b2380efe93809b50ef2"
+    }
   }
 }
