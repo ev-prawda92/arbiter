@@ -33,6 +33,33 @@ API response.
 - **Never reopens work:** once a work item exists, its state belongs to
   operators and governed decisions, not to the sync.
 
+## Precision, tuned on a real scan
+
+The first live dry run (Sep 23, 300 open markets) flagged 105; almost all were
+false alarms. Three causes, each fixed and locked in by a gate that replays
+that real scan (`tests/fixtures/venue_scan_2026-09-23.json.gz`):
+
+- **Venue templates:** Polymarket puts "consensus of credible reporting" on
+  nearly every market. Intake now learns templated wording from each scan
+  (the classifier's own 35% rule) plus a known-template floor.
+- **Series fine print:** Kalshi player props all say "pinch hit at bats will
+  not count". Fine print shared across a Kalshi series is template, not a
+  dispute (real UMA dispute rounds still count).
+- **Sports vs elections:** "win the 4th quarter" is not an election. A
+  contested-official-source flag now needs electoral wording.
+
+Result on the same scan: 5 flagged (four elections and one market with a
+real what-counts clarification), down from 105.
+
+## Re-triage
+
+    python3 scripts/sync_venues.py --retriage --no-sync --dry-run
+    python3 scripts/sync_venues.py --retriage --no-sync
+
+Closes open intake work the current classifier no longer flags, with the
+reason audited. Never touches work an operator moved, a decision covers, or a
+watchlist pinned to a review class.
+
 ## Workbench
 
 The decision workbench now says up front when a decision cannot clear a
@@ -41,6 +68,6 @@ button reads "Record decision (cases stay open)" instead of promising a clear.
 
 ## Validation
 
-- New Venue Intake gate (25 checks, offline fixtures) in CI.
+- New Venue Intake gate (offline; includes the real-scan replay and re-triage) in CI.
 - Decision Clearing gate extended (C9: per-pattern clearability).
 - All gates pass; full release gate 452/452.

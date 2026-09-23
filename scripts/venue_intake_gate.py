@@ -19,10 +19,16 @@ the network. Properties asserted (fail-closed):
   V10 --dry-run writes nothing at all
   V11 discovery scans open markets, skips parlays / settled / clean ones, and
       groups a venue event's flagged markets into one work pattern
+  V12 no false alarms from venue templates or sports "win the" wording
+  V13 on the real Sep 23 2026 scan (300 open markets captured from the live
+      APIs), exactly the known 5 markets are flagged - a precision regression
+  V14 re-triage closes untouched intake work the classifier no longer flags,
+      and never touches operator-moved, decision-covered or watchlist-pinned work
 """
 from __future__ import annotations
 
 import copy
+import gzip
 import json
 import os
 import sys
@@ -208,27 +214,93 @@ def main() -> None:
             (kalshi("KXCEASE-26-OCT", "Ceasefire by October?", vague), "fixture://k/1"),
             (kalshi("KXCEASE-26-NOV", "Ceasefire by November?", vague), "fixture://k/2"),
             (kalshi("KXBTC-120K", "Bitcoin above $120,000?", "Resolves Yes if Bitcoin is above $120,000 on Dec 31."), "fixture://k/3"),
+            # a realistic pool: sports markets that say "win the", and clean thresholds
+            *[(kalshi(f"KXWNBA{q}QWINNER-26SEP23DALSEA-SEA", f"Will Seattle win the {q}th quarter?",
+                      f"If Seattle wins the {q}th quarter of the game, the market resolves to Yes. Winner of the quarter per the official box score."),
+               f"fixture://k/q{q}") for q in range(1, 5)],
+            *[(kalshi(f"KXETH-{n}K", f"Ethereum above ${n},000?", f"Resolves Yes if Ethereum is above ${n},000 on Dec 31."),
+               f"fixture://k/e{n}") for n in range(3, 9)],
             (dict(kalshi("KXMVECROSS-1", "parlay", vague), mve_collection_ticker="KXMVE"), "fixture://k/4"),
             (kalshi("KXDONE-1", "Already settled", vague, status="settled", result="no"), "fixture://k/5"),
         ],
         "polymarket": [
             (dict(poly("910001", "CPI above 3% in October?", "Resolves per the BLS CPI release for October."),
                   events=[{"id": "e77", "title": "US CPI October"}]), "fixture://p/1"),
+            # Polymarket's standard template wording on ordinary markets
+            *[(dict(poly(f"92000{n}", f"Will team {n} make the playoffs?",
+                         "This market will resolve to Yes if the team qualifies. The primary resolution source will be "
+                         "official league information, however a consensus of credible reporting may also be used."),
+                    events=[{"id": f"s{n}", "title": f"Team {n} playoffs"}]), f"fixture://p/s{n}") for n in range(1, 10)],
         ],
     }
     found, cached_fetch, stats = venue_intake.discover(lambda venue, limit: listings[venue], limit=50)
     keys = {e.event_id: sorted(m for _, m in e.markets) for e in found}
-    check(stats["scanned"] == {"kalshi": 5, "polymarket": 1}, "V11 discovery scanned every listed open market")
+    check(stats["scanned"] == {"kalshi": 15, "polymarket": 10}, "V11 discovery scanned every listed open market")
     check(keys.get("kalshi-KXCEASE-26") == ["KXCEASE-26-NOV", "KXCEASE-26-OCT"],
           "V11 the two ceasefire markets are grouped under one Kalshi event")
-    check("polymarket-e77" in keys and not any("BTC" in k or "MVE" in k or "DONE" in k for ks in keys.values() for k in ks),
+    check("polymarket-e77" in keys and not any("BTC" in k or "ETH" in k or "MVE" in k or "DONE" in k for ks in keys.values() for k in ks),
           "V11 CPI kept; clean threshold, parlay and settled markets skipped")
+    check(not any("WNBA" in k for ks in keys.values() for k in ks),
+          "V12 sports 'win the quarter' markets are not flagged as contested official sources")
+    check(not any(k.startswith("polymarket-s") for k in keys),
+          "V12 Polymarket's template 'consensus of credible reporting' alone does not flag a market")
+    check("consensus of credible reporting" in stats["boilerplate"]["polymarket"],
+          "V12 discovery learned the Polymarket template wording from the scan")
     dstore = ResolutionStore(os.path.join(tmp, "discover.db"))
     drep = venue_intake.sync(dstore, found, fetcher=cached_fetch)
     dops = operations_intelligence.analyze_queue(queue_for(dstore))
     cease = [c for c in dops["clusters"] if c["count"] == 2]
     check(drep["totals"]["work_items_opened"] == 3 and len(cease) == 1,
           "V11 discovered markets land in the queue; the ceasefire pair is one work pattern")
+
+    # V13 real-scan precision
+    scan_path = os.path.join(ROOT, "tests", "fixtures", "venue_scan_2026-09-23.json.gz")
+    with gzip.open(scan_path, "rt") as fh:
+        scan = json.load(fh)["markets"]
+    real = {"kalshi": [], "polymarket": []}
+    for m in scan:
+        real[m["venue"]].append((m["raw"], m["url"]))
+    real_events, real_fetch, real_stats = venue_intake.discover(lambda venue, limit: real[venue], limit=1000)
+    flagged = sorted(m for e in real_events for _, m in e.markets)
+    check(real_stats["scanned"] == {"kalshi": 200, "polymarket": 100}, "V13 the real scan has 300 open markets")
+    check(flagged == ["3519811", "3539958", "3582091", "3697620", "4385336"],
+          f"V13 exactly the 5 known markets are flagged on the real scan (got {len(flagged)})")
+
+    # V14 re-triage
+    tstore = ResolutionStore(os.path.join(tmp, "retriage.db"))
+    noisy_events, noisy_fetch, _ = venue_intake.discover(lambda venue, limit: real[venue], limit=1000, include_all=True)
+    venue_intake.sync(tstore, noisy_events, fetcher=noisy_fetch, boilerplate={})  # pre-fix behaviour: no template learning
+    evsvc = get_evidence_service(tstore)
+    opened = [x for x in evsvc.list_exceptions() if (x.get("metadata") or {}).get("source") == "venue_intake"]
+    check(len(opened) > 50, f"V14 setup: the pre-fix sync opened a noisy queue ({len(opened)} items)")
+    moved, decided_item = opened[0], opened[1]
+    tstore.set_work_state(moved["work_item_id"], "in_progress", "Evan", "looking at it", "operator:evan")
+    DecisionRecordService(tstore).create(decision_type="policy_interpretation", question="q", selection="s",
+                                         rationale="r", actor="operator:gate",
+                                         affected_case_ids=[decided_item["work_item_id"]], cluster_id="c")
+    pinned_events = [venue_intake.WatchedEvent(event_id="pinned", label="pinned", review_class="interpretive_criteria",
+                                               markets=[("kalshi", real["kalshi"][0][0]["ticker"])])]
+    venue_intake.sync(tstore, pinned_events, fetcher=noisy_fetch, boilerplate={})
+    open_before, audit_before = len(evsvc.list_exceptions()), audit_count(tstore)
+    preview = venue_intake.retriage(tstore, dry_run=True)
+    check(len(evsvc.list_exceptions()) == open_before and audit_count(tstore) == audit_before,
+          "V14 dry-run re-triage writes nothing")
+    tri = venue_intake.retriage(tstore)
+    check(tri["totals"]["closed"] == preview["totals"]["closed"] > 0, f"V14 re-triage closed {tri['totals']['closed']} stale items")
+    still_open = {x["work_item_id"] for x in evsvc.list_exceptions() if x["status"] != "resolved"}
+    check(moved["work_item_id"] in still_open, "V14 an item an operator moved is left alone")
+    check(decided_item["work_item_id"] in still_open, "V14 an item a decision covers is left alone")
+    pinned_id = venue_intake._exception_id("policy_review", "KALSHI-" + real["kalshi"][0][0]["ticker"])
+    check(evsvc.get_exception(pinned_id)["status"] == "open", "V14 a watchlist-pinned item is left alone")
+    remaining = [x for x in evsvc.list_exceptions() if x["status"] != "resolved"
+                 and x["work_item_id"] not in {moved["work_item_id"], decided_item["work_item_id"]}
+                 and x["exception_id"] != pinned_id]
+    check(sorted(x["subject"].split("-", 1)[1] for x in remaining) == flagged,
+          "V14 after re-triage the untouched queue holds exactly the 5 real flags")
+    closed_state = tstore.list_work_states()
+    check(any("Closed by re-triage" in (v.get("note") or "") for v in closed_state.values()),
+          "V14 each closure carries its reason")
+    check(tstore.verify_audit_chain()["ok"] is True, "V14 audit chain intact after re-triage")
 
     check(store.verify_audit_chain()["ok"] is True, "audit chain intact after all syncs")
     print("VENUE INTAKE GATE: PASS")

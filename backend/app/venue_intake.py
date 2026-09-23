@@ -28,7 +28,7 @@ from typing import Any, Callable, Iterable
 
 from .active_evidence import get_service as get_evidence_service
 from .real_benchmark.collectors import KALSHI_HOSTS, _fetch_json, _parse_jsonish, _uma_dispute_count
-from .real_benchmark.hardness import classify_candidate
+from .real_benchmark.hardness import BOILERPLATE_DF, DISCLAIMER_MARKERS, PRIORITY, _compute_boilerplate, classify_candidate
 from .resolution_infra import (
     Authority,
     EvidenceRecord,
@@ -60,7 +60,25 @@ ROUTING = {
 }
 CROSS_VENUE_KIND = "evidence_conflict"
 
+# The benchmark classifier treats "win the"/"winner of" as election language,
+# which is right for its election-heavy corpus but flags every sports market
+# ("Will Seattle win the 4th quarter?") in a live scan. For live intake a
+# contested-official-source flag needs genuinely electoral wording.
+STRICT_ELECTION_MARKERS = (
+    "election", "presidential", "parliamentary", "prime minister", "president of",
+    "referendum", "electoral", "ballot",
+)
+
 Fetcher = Callable[[str, str], tuple[dict[str, Any], str]]
+
+# Known venue rule templates, applied even when there is no scan pool to learn
+# from (watchlist mode). Wording on a venue's standard template says nothing
+# about how hard a particular market is.
+TEMPLATE_FLOOR: dict[str, frozenset[str]] = {
+    "polymarket": frozenset({"consensus of credible reporting", "credible reporting", "a consensus of",
+                             "consensus", "credible"}),
+    "kalshi": frozenset(),
+}
 
 
 # --------------------------------------------------------------------------
@@ -146,24 +164,90 @@ def normalize(venue: str, raw: dict[str, Any], url: str) -> dict[str, Any]:
     raise ValueError(f"unsupported venue: {venue}")
 
 
-def classify(row: dict[str, Any]) -> dict[str, Any]:
-    """Run the deterministic hardness classifier on a live row."""
-    return classify_candidate({
+def _classifier_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
         "case_id": f"{row['venue']}-{row['market_id']}", "venue": row["venue"],
         "title": row["title"], "rules": row["rules"],
         "known_outcome": row.get("outcome") or "",
         "closed_at": row.get("closed_at"), "settled_at": row.get("settled_at"),
         "metadata": {"uma_dispute_count": row.get("dispute_count") or 0},
-    })
+    }
 
 
-def review_class(verdict: dict[str, Any], override: str | None = None) -> str | None:
+def _series(row: dict[str, Any]) -> str:
+    """Kalshi series (ticker prefix); every market in a series shares one rules template."""
+    return str(row.get("market_id") or "").split("-")[0] if row.get("venue") == "kalshi" else ""
+
+
+def _disclaimer_hits(row: dict[str, Any]) -> set[str]:
+    text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
+    return {m for m in DISCLAIMER_MARKERS if m in text}
+
+
+def boilerplate_for(rows: list[dict[str, Any]]) -> dict[str, frozenset[str]]:
+    """Templated wording in a scanned pool, by the classifier's own rule: a term
+    on >=35% of a group's markets is template, not signal.
+
+    Keys are venues (interpretive wording and venue-wide fine print) and
+    ``series:<SERIES>`` for Kalshi series with 3+ markets in the pool, whose
+    shared fine print ("pinch hit at bats will not count") is template too.
+    """
+    out: dict[str, frozenset[str]] = dict(_compute_boilerplate([_classifier_row(r) for r in rows]))
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        groups.setdefault(r["venue"], []).append(r)
+        if _series(r):
+            groups.setdefault(f"series:{_series(r)}", []).append(r)
+    for key, group in groups.items():
+        if key.startswith("series:") and len(group) < 3:
+            continue
+        counts: dict[str, int] = {}
+        for r in group:
+            for m in _disclaimer_hits(r):
+                counts[m] = counts.get(m, 0) + 1
+        templated = {m for m, c in counts.items() if c / len(group) >= BOILERPLATE_DF}
+        if templated or key.startswith("series:"):
+            out[key] = frozenset(out.get(key, frozenset()) | templated)
+    return out
+
+
+def classify(row: dict[str, Any], boilerplate: dict[str, frozenset[str]] | None = None) -> dict[str, Any]:
+    """Run the deterministic hardness classifier on a live row."""
+    return classify_candidate(_classifier_row(row), (boilerplate or {}).get(row["venue"], frozenset()))
+
+
+def _strict_election(row: dict[str, Any] | None) -> bool:
+    if row is None:
+        return True
+    text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
+    return any(m in text for m in STRICT_ELECTION_MARKERS)
+
+
+def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
+    """A 'disputed' flag that rests only on fine print the venue puts on every
+    market of this kind (no actual dispute rounds) is template, not a dispute."""
+    if row is None or (row.get("dispute_count") or 0) > 0:
+        return False
+    hits = _disclaimer_hits(row)
+    template = (boilerplate or {}).get(row["venue"], frozenset()) | \
+        (boilerplate or {}).get(f"series:{_series(row)}", frozenset())
+    return bool(hits) and hits <= template
+
+
+def review_class(verdict: dict[str, Any], override: str | None = None,
+                 row: dict[str, Any] | None = None,
+                 boilerplate: dict[str, frozenset[str]] | None = None) -> str | None:
     """The hardness class that should put this market in front of a human, if any."""
     if override:
         return override
-    primary = verdict.get("primary_class")
-    if primary in ROUTING:
-        return primary
+    fired = [c for c in PRIORITY if c in (verdict.get("fired_classes") or [])]
+    for klass in fired:
+        if klass == "multi_source_conflict" and not _strict_election(row):
+            continue  # sports "win the ..." is not a contested official source
+        if klass == "disputed" and _templated_disclaimer(row, boilerplate):
+            continue  # series fine print, not a dispute
+        if klass in ROUTING:
+            return klass
     if verdict.get("interpretive_hint"):
         return "interpretive_criteria"
     return None
@@ -290,8 +374,14 @@ def _close_exception_for_settlement(store: ResolutionStore, kind: str, subject: 
 
 
 def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetcher = fetch_live,
-         dry_run: bool = False) -> dict[str, Any]:
-    """Pull every watched market and bring governed state up to date."""
+         dry_run: bool = False, boilerplate: dict[str, frozenset[str]] | None = None) -> dict[str, Any]:
+    """Pull every watched market and bring governed state up to date.
+
+    ``boilerplate`` is per-venue templated wording (see boilerplate_for); pass
+    the set computed over a discovery scan so sync classifies exactly as
+    discovery did. Without it, a floor of known venue templates is used.
+    """
+    boilerplate = boilerplate if boilerplate is not None else dict(TEMPLATE_FLOOR)
     report: dict[str, Any] = {"version": VERSION, "started_at": utcnow(), "dry_run": dry_run,
                               "markets": [], "errors": [], "events": []}
     for event in events:
@@ -305,8 +395,8 @@ def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetche
                 entry["error"] = f"{type(exc).__name__}: {exc}"
                 report["errors"].append(entry)
                 continue
-            verdict = classify(row)
-            klass = review_class(verdict, event.review_class)
+            verdict = classify(row, boilerplate)
+            klass = review_class(verdict, event.review_class, row, boilerplate)
             entry.update({"title": row["title"], "status": row["status"], "outcome": row.get("outcome"),
                           "hardness": verdict["primary_class"], "review_class": klass,
                           "reasons": verdict.get("reasons", {}), "raw_sha256": canonical_hash(raw)})
@@ -334,7 +424,8 @@ def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetche
                         severity=severity, title=f"{row['title']} ({venue} {market_id})",
                         detail=f"Needs a human judgment ({klass.replace('_', ' ')}): {reasons}",
                         action=action.format(label=event.label),
-                        metadata={"watched_event": event.event_id, "hardness": verdict, "source": "venue_intake"})
+                        metadata={"watched_event": event.event_id, "hardness": verdict, "source": "venue_intake",
+                                  "review_class_override": event.review_class})
                     entry["work_item"] = "opened" if created else "exists"
                     entry["work_item_id"] = exc.get("work_item_id")
             else:
@@ -444,7 +535,7 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
     """
     cache: dict[tuple[str, str], tuple[dict[str, Any], str]] = {}
     grouped: dict[str, WatchedEvent] = {}
-    stats: dict[str, Any] = {"scanned": {}, "flagged": {}, "errors": {}}
+    stats: dict[str, Any] = {"scanned": {}, "flagged": {}, "errors": {}, "boilerplate": {}}
     for venue in venues:
         try:
             listed = list_fetcher(venue, limit)
@@ -452,14 +543,22 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
             stats["errors"][venue] = f"{type(exc).__name__}: {exc}"
             continue
         stats["scanned"][venue] = len(listed)
-        flagged = 0
+        pool: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
         for raw, url in listed:
             if venue == "kalshi" and _is_kalshi_parlay(raw):
                 continue  # auto-generated parlays have no rules of their own
             row = normalize(venue, raw, url)
-            if not row["market_id"] or not row["rules"] or row["status"] == "settled":
-                continue
-            if not include_all and review_class(classify(row)) is None:
+            if row["market_id"] and row["rules"] and row["status"] != "settled":
+                pool.append((raw, url, row))
+        learned = boilerplate_for([r for _, _, r in pool])
+        for key, terms in learned.items():
+            if key == venue or key.startswith("series:"):
+                stats["boilerplate"][key] = terms
+        stats["boilerplate"][venue] = learned.get(venue, frozenset()) | TEMPLATE_FLOOR.get(venue, frozenset())
+        flagged = 0
+        for raw, url, row in pool:
+            klass = review_class(classify(row, stats["boilerplate"]), None, row, stats["boilerplate"])
+            if not include_all and klass is None:
                 continue
             flagged += 1
             cache[(venue, row["market_id"])] = (raw, url)
@@ -473,3 +572,81 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
         return fetch_live(venue, market_id)
 
     return list(grouped.values()), cached, stats
+
+
+# --------------------------------------------------------------------------
+# re-triage: close intake work the current classifier no longer flags
+# --------------------------------------------------------------------------
+
+def _row_from_store(store: ResolutionStore, contract_id: str) -> dict[str, Any] | None:
+    spec = store.latest_contract(contract_id)
+    if not spec:
+        return None
+    venue, _, market_id = contract_id.partition(":")
+    evidence = [e for e in store.list_evidence(contract_id, limit=500)
+                if e.get("authority_id") == VENUE_AUTHORITIES.get(venue, ("",))[0]]
+    latest = max(evidence, key=lambda e: int(e.get("revision_number") or 1), default={})
+    observed = latest.get("normalized_value") or {}
+    return {"venue": venue, "market_id": market_id, "title": spec.get("title") or "",
+            "rules": (spec.get("definition") or {}).get("yes_if") or "",
+            "status": observed.get("status") or "open", "outcome": observed.get("outcome"),
+            "closed_at": observed.get("closed_at"), "settled_at": observed.get("settled_at"),
+            "dispute_count": observed.get("dispute_count") or 0}
+
+
+def retriage(store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | None = None,
+             dry_run: bool = False) -> dict[str, Any]:
+    """Close open intake work items the current classifier no longer flags.
+
+    Only touches items that are exactly as intake left them: still open, last
+    updated by intake itself, and not covered by any recorded decision.
+    Anything an operator or a decision has touched is left alone. Each
+    closure is audited with the reason. Cross-venue items are never
+    re-triaged (they come from settled outcomes, not wording).
+    """
+    from .decision_records import DecisionRecordService
+
+    evsvc = get_evidence_service(store)
+    intake = [x for x in evsvc.list_exceptions(active_only=True)
+              if (x.get("metadata") or {}).get("source") == "venue_intake" and x.get("kind") != CROSS_VENUE_KIND]
+    rows = {x["exception_id"]: _row_from_store(store, x.get("contract_id") or "") for x in intake}
+    if boilerplate is None:
+        boilerplate = boilerplate_for([r for r in rows.values() if r])
+        for v in VENUE_AUTHORITIES:
+            boilerplate[v] = boilerplate.get(v, frozenset()) | TEMPLATE_FLOOR.get(v, frozenset())
+
+    decided = {str(c) for d in DecisionRecordService(store).list(limit=500) for c in d.get("affected_case_ids") or []}
+    with store.connect() as db:
+        touched_by = {r["work_item_id"]: (r["status"], r["updated_by"])
+                      for r in db.execute("SELECT work_item_id,status,updated_by FROM work_item_state").fetchall()}
+
+    report = {"version": VERSION, "dry_run": dry_run, "checked": len(intake), "closed": [], "kept": [], "skipped": []}
+    for exc in intake:
+        wid = exc["work_item_id"]
+        row = rows.get(exc["exception_id"])
+        state = touched_by.get(wid, ("open", ACTOR))
+        label = {"subject": exc["subject"], "kind": exc["kind"], "title": (row or {}).get("title")}
+        if (exc.get("metadata") or {}).get("review_class_override"):
+            report["skipped"].append({**label, "why": "review class set deliberately on the watchlist"})
+            continue
+        if row is None or state[0] != "open" or state[1] != ACTOR or wid in decided:
+            report["skipped"].append({**label, "why": "touched by an operator or decision" if row else "no contract"})
+            continue
+        klass = review_class(classify(row, boilerplate), None, row, boilerplate)
+        expected_kind = ROUTING[klass][0] if klass else None
+        if expected_kind == exc["kind"]:
+            report["kept"].append({**label, "review_class": klass})
+            continue
+        report["closed"].append({**label, "now": klass or "no human judgment needed"})
+        if dry_run:
+            continue
+        note = (f"Closed by re-triage ({VERSION}): the classifier no longer routes this market to "
+                f"{exc['kind'].replace('_', ' ')} ({klass or 'no human judgment needed'}).")
+        with store.connect() as db:
+            db.execute("UPDATE evidence_exceptions SET status='resolved', updated_at=? WHERE exception_id=?",
+                       (utcnow(), exc["exception_id"]))
+        store.set_work_state(wid, "resolved", "Resolution Ops", note, ACTOR)
+        store._audit(ACTOR, "evidence.exception.retriaged", "evidence_exception", exc["exception_id"],
+                     {"subject": exc["subject"], "from_kind": exc["kind"], "now": klass})
+    report["totals"] = {k: len(report[k]) for k in ("closed", "kept", "skipped")}
+    return report

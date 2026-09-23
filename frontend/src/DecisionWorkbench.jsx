@@ -100,7 +100,7 @@ export default function DecisionWorkbench() {
   return <div className="dw-shell">
     <header className="dw-header">
       <div>
-        <span>Arbiter v0.35 · Decision Operations</span>
+        <span>Arbiter v0.36 · Decision Operations</span>
         <h1>Make the smallest human decision. Clear everything else.</h1>
         <p>One governed judgment can apply to an entire repeated work pattern, then Arbiter re-evaluates the affected queue.</p>
       </div>
