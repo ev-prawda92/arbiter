@@ -19,3 +19,14 @@ app.include_router(
         require_scope=developer.require_scope,
     )
 )
+
+# main.py mounts the built frontend as a catch-all StaticFiles app at "/".
+# Starlette matches routes in registration order, so anything registered after
+# that mount (the decision API above) would be shadowed and return 404. Keep
+# every Mount last so API routes always win.
+from starlette.routing import Mount  # noqa: E402
+
+_mounts = [r for r in app.router.routes if isinstance(r, Mount)]
+for _mount in _mounts:
+    app.router.routes.remove(_mount)
+    app.router.routes.append(_mount)
