@@ -6,6 +6,7 @@ are append-only, auditable, and explicitly non-settlement-authorizing: recording
 judgment may trigger downstream re-evaluation, but it never mutates contract terms,
 evidence, or a binding YES/NO/HOLD outcome by itself.
 """
+
 from __future__ import annotations
 
 import json
@@ -245,8 +246,10 @@ class DecisionRecordService:
             candidate_rule = " ".join(str(record.get("governing_rule") or "").lower().split())
             if normalized_rule and candidate_rule == normalized_rule:
                 score += 10
-            elif normalized_rule and candidate_rule and (
-                normalized_rule in candidate_rule or candidate_rule in normalized_rule
+            elif (
+                normalized_rule
+                and candidate_rule
+                and (normalized_rule in candidate_rule or candidate_rule in normalized_rule)
             ):
                 score += 4
             scored.append((score, record))

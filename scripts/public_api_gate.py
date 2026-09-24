@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Smoke/regression gate for the standalone Arbiter public Resolution API."""
+
 from __future__ import annotations
 
 import argparse
@@ -140,7 +141,9 @@ def main():
 
     status, replay = call(args.base_url, "POST", "/v1/contracts/resolve", no_body, no_headers)
     require("idempotent replay succeeds", status == 200, str(replay))
-    require("idempotent replay preserves resolution id", replay.get("resolution_id") == no.get("resolution_id"), str(replay))
+    require(
+        "idempotent replay preserves resolution id", replay.get("resolution_id") == no.get("resolution_id"), str(replay)
+    )
 
     conflict_body = {
         **contract,
@@ -168,8 +171,12 @@ def main():
         auth_headers,
     )
     require("resolution verification succeeds", status == 200 and verified.get("verified") is True, str(verified))
-    require("request hash recomputes cleanly", verified.get("request_integrity", {}).get("matches") is True, str(verified))
-    require("response hash recomputes cleanly", verified.get("response_integrity", {}).get("matches") is True, str(verified))
+    require(
+        "request hash recomputes cleanly", verified.get("request_integrity", {}).get("matches") is True, str(verified)
+    )
+    require(
+        "response hash recomputes cleanly", verified.get("response_integrity", {}).get("matches") is True, str(verified)
+    )
     require("embedded hashes match persisted pins", verified.get("embedded_hashes_match") is True, str(verified))
 
     status, wrong_expected = call(
@@ -179,8 +186,16 @@ def main():
         {"resolution_id": resolution_id, "expected_response_sha256": "sha256:not-the-real-digest"},
         auth_headers,
     )
-    require("wrong expected response hash is rejected", status == 200 and wrong_expected.get("verified") is False, str(wrong_expected))
-    require("expected hash mismatch is surfaced", wrong_expected.get("expected_response_matches") is False, str(wrong_expected))
+    require(
+        "wrong expected response hash is rejected",
+        status == 200 and wrong_expected.get("verified") is False,
+        str(wrong_expected),
+    )
+    require(
+        "expected hash mismatch is surfaced",
+        wrong_expected.get("expected_response_matches") is False,
+        str(wrong_expected),
+    )
 
     original_response = tamper_json_column(
         resolution_id,
@@ -195,8 +210,16 @@ def main():
             {"resolution_id": resolution_id},
             auth_headers,
         )
-        require("tampered response is detected", status == 200 and tampered_response.get("verified") is False, str(tampered_response))
-        require("response integrity failure is surfaced", tampered_response.get("response_integrity", {}).get("matches") is False, str(tampered_response))
+        require(
+            "tampered response is detected",
+            status == 200 and tampered_response.get("verified") is False,
+            str(tampered_response),
+        )
+        require(
+            "response integrity failure is surfaced",
+            tampered_response.get("response_integrity", {}).get("matches") is False,
+            str(tampered_response),
+        )
     finally:
         restore_json_column(resolution_id, "response_json", original_response)
 
@@ -207,7 +230,11 @@ def main():
         {"resolution_id": resolution_id},
         auth_headers,
     )
-    require("response verifies after restoration", status == 200 and restored_response.get("verified") is True, str(restored_response))
+    require(
+        "response verifies after restoration",
+        status == 200 and restored_response.get("verified") is True,
+        str(restored_response),
+    )
 
     original_request = tamper_json_column(
         resolution_id,
@@ -222,8 +249,16 @@ def main():
             {"resolution_id": resolution_id},
             auth_headers,
         )
-        require("tampered request is detected", status == 200 and tampered_request.get("verified") is False, str(tampered_request))
-        require("request integrity failure is surfaced", tampered_request.get("request_integrity", {}).get("matches") is False, str(tampered_request))
+        require(
+            "tampered request is detected",
+            status == 200 and tampered_request.get("verified") is False,
+            str(tampered_request),
+        )
+        require(
+            "request integrity failure is surfaced",
+            tampered_request.get("request_integrity", {}).get("matches") is False,
+            str(tampered_request),
+        )
     finally:
         restore_json_column(resolution_id, "request_json", original_request)
 
@@ -234,7 +269,11 @@ def main():
         {"resolution_id": resolution_id},
         auth_headers,
     )
-    require("request verifies after restoration", status == 200 and restored_request.get("verified") is True, str(restored_request))
+    require(
+        "request verifies after restoration",
+        status == 200 and restored_request.get("verified") is True,
+        str(restored_request),
+    )
 
     status, audit = call(args.base_url, "GET", f"/v1/audit/{resolution_id}", headers=auth_headers)
     require("resolution audit succeeds", status == 200, str(audit))

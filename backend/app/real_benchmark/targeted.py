@@ -21,6 +21,7 @@ Identifiers are lists so a single question that was split into several related
 markets can be pulled together. Fetching is the only step here that needs the
 network; the join and coverage report are pure functions over fetched rows.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -98,17 +99,19 @@ def collect_targeted(
         p_outcomes = sorted({r["known_outcome"] for r in seed_rows if r["venue"] == "polymarket"})
         dual = bool(k_outcomes) and bool(p_outcomes)
         disagree = dual and set(k_outcomes) != set(p_outcomes)
-        coverage.append({
-            "seed_event_id": seed.seed_event_id,
-            "label": seed.label,
-            "kalshi_resolved": len([r for r in seed_rows if r["venue"] == "kalshi"]),
-            "polymarket_resolved": len([r for r in seed_rows if r["venue"] == "polymarket"]),
-            "kalshi_outcomes": k_outcomes,
-            "polymarket_outcomes": p_outcomes,
-            "dual_listed": dual,
-            "outcome_disagreement": disagree,
-            "errors": errors,
-        })
+        coverage.append(
+            {
+                "seed_event_id": seed.seed_event_id,
+                "label": seed.label,
+                "kalshi_resolved": len([r for r in seed_rows if r["venue"] == "kalshi"]),
+                "polymarket_resolved": len([r for r in seed_rows if r["venue"] == "polymarket"]),
+                "kalshi_outcomes": k_outcomes,
+                "polymarket_outcomes": p_outcomes,
+                "dual_listed": dual,
+                "outcome_disagreement": disagree,
+                "errors": errors,
+            }
+        )
 
     # Run the fuzzy join too, but confined within each seed group, so it can
     # corroborate the seed's own dual-listing claim with shared anchors.

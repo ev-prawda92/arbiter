@@ -8,6 +8,7 @@ The gateway intentionally has no model tools enabled in v0.16. Contract text is
 untrusted data, not executable instruction. Binding resolution remains in the
 compiler, evidence, policy, approval, and deterministic resolution layers.
 """
+
 from __future__ import annotations
 
 import json
@@ -47,8 +48,7 @@ PROMPTS: dict[str, dict[str, str]] = {
             "Never authorize settlement. Return only the requested structured output."
         ),
         "template": (
-            "TITLE:\n{title}\n\nRULES:\n{rules}\n\n"
-            "DETERMINISTIC SEMANTIC ANALYSIS:\n{deterministic_semantics}"
+            "TITLE:\n{title}\n\nRULES:\n{rules}\n\nDETERMINISTIC SEMANTIC ANALYSIS:\n{deterministic_semantics}"
         ),
     },
     "case_copilot": {
@@ -80,7 +80,17 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             "notes": {"type": "string"},
             "advisory_only": {"type": "boolean", "enum": [True]},
         },
-        "required": ["source", "timing", "definition", "sourceFlags", "timingFlags", "definitionFlags", "outcome", "notes", "advisory_only"],
+        "required": [
+            "source",
+            "timing",
+            "definition",
+            "sourceFlags",
+            "timingFlags",
+            "definitionFlags",
+            "outcome",
+            "notes",
+            "advisory_only",
+        ],
         "additionalProperties": False,
     },
     "semantic_review": {
@@ -107,7 +117,15 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             "confidence": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH"]},
             "advisory_only": {"type": "boolean", "enum": [True]},
         },
-        "required": ["summary", "domain", "ambiguities", "clarifying_questions", "suggested_fields", "confidence", "advisory_only"],
+        "required": [
+            "summary",
+            "domain",
+            "ambiguities",
+            "clarifying_questions",
+            "suggested_fields",
+            "confidence",
+            "advisory_only",
+        ],
         "additionalProperties": False,
     },
     "case_copilot": {
@@ -121,7 +139,15 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             "requires_human_judgment": {"type": "boolean"},
             "advisory_only": {"type": "boolean", "enum": [True]},
         },
-        "required": ["answer", "case_state", "next_actions", "grounding", "confidence", "requires_human_judgment", "advisory_only"],
+        "required": [
+            "answer",
+            "case_state",
+            "next_actions",
+            "grounding",
+            "confidence",
+            "requires_human_judgment",
+            "advisory_only",
+        ],
         "additionalProperties": False,
     },
 }
@@ -161,7 +187,8 @@ def load_config() -> GatewayConfig:
         max_output_tokens=int(os.environ.get("ARBITER_MODEL_MAX_OUTPUT_TOKENS", "1800")),
         max_input_chars=int(os.environ.get("ARBITER_MODEL_MAX_INPUT_CHARS", "120000")),
         daily_max_calls=int(os.environ.get("ARBITER_MODEL_DAILY_MAX_CALLS", "500")),
-        store_provider_responses=os.environ.get("ARBITER_MODEL_PROVIDER_STORE", "false").lower() in {"1", "true", "yes"},
+        store_provider_responses=os.environ.get("ARBITER_MODEL_PROVIDER_STORE", "false").lower()
+        in {"1", "true", "yes"},
     )
 
 
@@ -185,29 +212,41 @@ def _validate_schema(value: Any, schema: dict[str, Any], path: str = "$") -> lis
     types = expected if isinstance(expected, list) else [expected]
     ok = False
     for t in types:
-        if t == "null" and value is None: ok = True
-        elif t == "object" and isinstance(value, dict): ok = True
-        elif t == "array" and isinstance(value, list): ok = True
-        elif t == "string" and isinstance(value, str): ok = True
-        elif t == "integer" and isinstance(value, int) and not isinstance(value, bool): ok = True
-        elif t == "number" and isinstance(value, (int, float)) and not isinstance(value, bool): ok = True
-        elif t == "boolean" and isinstance(value, bool): ok = True
+        if t == "null" and value is None:
+            ok = True
+        elif t == "object" and isinstance(value, dict):
+            ok = True
+        elif t == "array" and isinstance(value, list):
+            ok = True
+        elif t == "string" and isinstance(value, str):
+            ok = True
+        elif t == "integer" and isinstance(value, int) and not isinstance(value, bool):
+            ok = True
+        elif t == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            ok = True
+        elif t == "boolean" and isinstance(value, bool):
+            ok = True
     if expected is not None and not ok:
         return [f"{path}: expected {expected}"]
     if "enum" in schema and value not in schema["enum"]:
         errors.append(f"{path}: value outside enum")
     if isinstance(value, (int, float)) and not isinstance(value, bool):
-        if "minimum" in schema and value < schema["minimum"]: errors.append(f"{path}: below minimum")
-        if "maximum" in schema and value > schema["maximum"]: errors.append(f"{path}: above maximum")
+        if "minimum" in schema and value < schema["minimum"]:
+            errors.append(f"{path}: below minimum")
+        if "maximum" in schema and value > schema["maximum"]:
+            errors.append(f"{path}: above maximum")
     if isinstance(value, dict):
         for key in schema.get("required") or []:
-            if key not in value: errors.append(f"{path}.{key}: required")
+            if key not in value:
+                errors.append(f"{path}.{key}: required")
         props = schema.get("properties") or {}
         if schema.get("additionalProperties") is False:
             for key in value:
-                if key not in props: errors.append(f"{path}.{key}: unexpected property")
+                if key not in props:
+                    errors.append(f"{path}.{key}: unexpected property")
         for key, subschema in props.items():
-            if key in value: errors.extend(_validate_schema(value[key], subschema, f"{path}.{key}"))
+            if key in value:
+                errors.extend(_validate_schema(value[key], subschema, f"{path}.{key}"))
     if isinstance(value, list) and schema.get("items"):
         for i, item in enumerate(value):
             errors.extend(_validate_schema(item, schema["items"], f"{path}[{i}]"))
@@ -266,11 +305,18 @@ class ModelGateway:
                     ON model_invocations(purpose, started_at DESC);
                 """
             )
-            row = db.execute("SELECT 1 FROM schema_migrations WHERE migration_id=?", ("v0.16-model-gateway",)).fetchone()
+            row = db.execute(
+                "SELECT 1 FROM schema_migrations WHERE migration_id=?", ("v0.16-model-gateway",)
+            ).fetchone()
             if not row:
                 db.execute(
                     "INSERT INTO schema_migrations(migration_id,applied_at,checksum,description) VALUES(?,?,?,?)",
-                    ("v0.16-model-gateway", utcnow(), canonical_hash({"migration":"v0.16-model-gateway","tables":1}), "governed model invocation provenance"),
+                    (
+                        "v0.16-model-gateway",
+                        utcnow(),
+                        canonical_hash({"migration": "v0.16-model-gateway", "tables": 1}),
+                        "governed model invocation provenance",
+                    ),
                 )
 
     def _daily_count(self, tenant_id: str) -> int:
@@ -283,21 +329,40 @@ class ModelGateway:
 
     def posture(self) -> dict[str, Any]:
         cfg = load_config()
-        provider_ready = (
-            (cfg.provider == "openai" and bool(cfg.openai_api_key))
-            or (cfg.provider == "anthropic" and bool(cfg.anthropic_api_key))
+        provider_ready = (cfg.provider == "openai" and bool(cfg.openai_api_key)) or (
+            cfg.provider == "anthropic" and bool(cfg.anthropic_api_key)
         )
         findings: list[dict[str, str]] = []
         if cfg.provider == "disabled":
-            findings.append({"severity": "INFO", "code": "MODEL_GATEWAY_DISABLED", "detail": "No external model provider is configured; Arbiter's binding control plane remains fully available."})
+            findings.append(
+                {
+                    "severity": "INFO",
+                    "code": "MODEL_GATEWAY_DISABLED",
+                    "detail": "No external model provider is configured; Arbiter's binding control plane remains fully available.",
+                }
+            )
         elif not provider_ready:
-            findings.append({"severity": "WARN", "code": "MODEL_PROVIDER_KEY_MISSING", "detail": f"{cfg.provider} is selected but its API key is not configured."})
+            findings.append(
+                {
+                    "severity": "WARN",
+                    "code": "MODEL_PROVIDER_KEY_MISSING",
+                    "detail": f"{cfg.provider} is selected but its API key is not configured.",
+                }
+            )
         for label, model_id in (("default", cfg.default_model), ("fast", cfg.fast_model)):
             if not _looks_pinned(model_id):
-                findings.append({"severity": "WARN", "code": "FLOATING_MODEL_ALIAS", "detail": f"{label} model '{model_id}' is a floating alias. Pin a dated/provider-fixed model identifier for settlement-sensitive production workflows when available."})
+                findings.append(
+                    {
+                        "severity": "WARN",
+                        "code": "FLOATING_MODEL_ALIAS",
+                        "detail": f"{label} model '{model_id}' is a floating alias. Pin a dated/provider-fixed model identifier for settlement-sensitive production workflows when available.",
+                    }
+                )
         with self.store.connect() as db:
             total = int(db.execute("SELECT COUNT(*) AS n FROM model_invocations").fetchone()["n"])
-            failed = int(db.execute("SELECT COUNT(*) AS n FROM model_invocations WHERE status!='completed'").fetchone()["n"])
+            failed = int(
+                db.execute("SELECT COUNT(*) AS n FROM model_invocations WHERE status!='completed'").fetchone()["n"]
+            )
         return {
             "gateway_version": GATEWAY_VERSION,
             "provider": cfg.provider,
@@ -321,9 +386,14 @@ class ModelGateway:
         limit = max(1, min(int(limit), 500))
         with self.store.connect() as db:
             if tenant_id:
-                rows = db.execute("SELECT * FROM model_invocations WHERE tenant_id=? ORDER BY started_at DESC LIMIT ?", (tenant_id, limit)).fetchall()
+                rows = db.execute(
+                    "SELECT * FROM model_invocations WHERE tenant_id=? ORDER BY started_at DESC LIMIT ?",
+                    (tenant_id, limit),
+                ).fetchall()
             else:
-                rows = db.execute("SELECT * FROM model_invocations ORDER BY started_at DESC LIMIT ?", (limit,)).fetchall()
+                rows = db.execute(
+                    "SELECT * FROM model_invocations ORDER BY started_at DESC LIMIT ?", (limit,)
+                ).fetchall()
         out: list[dict[str, Any]] = []
         for row in rows:
             d = dict(row)
@@ -343,42 +413,82 @@ class ModelGateway:
                     output_json,error_type,error_message,metadata_json
                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
-                    rec["invocation_id"], rec["tenant_id"], rec["principal_id"], rec["purpose"], rec["provider"],
-                    rec["configured_model_id"], rec.get("provider_model_id"), rec["prompt_id"], rec["prompt_version"],
-                    rec["input_hash"], rec.get("output_hash"), rec["status"], rec["started_at"], rec.get("completed_at"),
-                    rec.get("latency_ms"), rec.get("input_tokens"), rec.get("output_tokens"), rec.get("total_tokens"),
-                    rec.get("response_id"), rec["validation_status"], json.dumps(rec.get("validation_errors") or []),
+                    rec["invocation_id"],
+                    rec["tenant_id"],
+                    rec["principal_id"],
+                    rec["purpose"],
+                    rec["provider"],
+                    rec["configured_model_id"],
+                    rec.get("provider_model_id"),
+                    rec["prompt_id"],
+                    rec["prompt_version"],
+                    rec["input_hash"],
+                    rec.get("output_hash"),
+                    rec["status"],
+                    rec["started_at"],
+                    rec.get("completed_at"),
+                    rec.get("latency_ms"),
+                    rec.get("input_tokens"),
+                    rec.get("output_tokens"),
+                    rec.get("total_tokens"),
+                    rec.get("response_id"),
+                    rec["validation_status"],
+                    json.dumps(rec.get("validation_errors") or []),
                     json.dumps(rec.get("output"), sort_keys=True) if rec.get("output") is not None else None,
-                    rec.get("error_type"), rec.get("error_message"), json.dumps(rec.get("metadata") or {}, sort_keys=True),
+                    rec.get("error_type"),
+                    rec.get("error_message"),
+                    json.dumps(rec.get("metadata") or {}, sort_keys=True),
                 ),
             )
         self.store._audit(
-            rec.get("actor") or rec["principal_id"], "model.invocation.recorded", "model_invocation", rec["invocation_id"],
+            rec.get("actor") or rec["principal_id"],
+            "model.invocation.recorded",
+            "model_invocation",
+            rec["invocation_id"],
             {
-                "tenant_id": rec["tenant_id"], "purpose": rec["purpose"], "provider": rec["provider"],
-                "configured_model_id": rec["configured_model_id"], "provider_model_id": rec.get("provider_model_id"),
-                "prompt_id": rec["prompt_id"], "prompt_version": rec["prompt_version"],
-                "input_hash": rec["input_hash"], "output_hash": rec.get("output_hash"), "status": rec["status"],
-                "validation_status": rec["validation_status"], "advisory_only": True,
+                "tenant_id": rec["tenant_id"],
+                "purpose": rec["purpose"],
+                "provider": rec["provider"],
+                "configured_model_id": rec["configured_model_id"],
+                "provider_model_id": rec.get("provider_model_id"),
+                "prompt_id": rec["prompt_id"],
+                "prompt_version": rec["prompt_version"],
+                "input_hash": rec["input_hash"],
+                "output_hash": rec.get("output_hash"),
+                "status": rec["status"],
+                "validation_status": rec["validation_status"],
+                "advisory_only": True,
             },
         )
 
-    def _base_record(self, *, purpose: str, provider: str, model: str, tenant_id: str, principal_id: str, actor: str, input_hash: str) -> dict[str, Any]:
+    def _base_record(
+        self, *, purpose: str, provider: str, model: str, tenant_id: str, principal_id: str, actor: str, input_hash: str
+    ) -> dict[str, Any]:
         p = PROMPTS[purpose]
         return {
-            "invocation_id": gen_id("model"), "tenant_id": tenant_id, "principal_id": principal_id,
-            "purpose": purpose, "provider": provider, "configured_model_id": model,
-            "prompt_id": p["id"], "prompt_version": p["version"], "input_hash": input_hash,
-            "status": "started", "started_at": utcnow(), "validation_status": "NOT_RUN", "actor": actor,
+            "invocation_id": gen_id("model"),
+            "tenant_id": tenant_id,
+            "principal_id": principal_id,
+            "purpose": purpose,
+            "provider": provider,
+            "configured_model_id": model,
+            "prompt_id": p["id"],
+            "prompt_version": p["version"],
+            "input_hash": input_hash,
+            "status": "started",
+            "started_at": utcnow(),
+            "validation_status": "NOT_RUN",
+            "actor": actor,
             "metadata": {"binding": False, "authority": "advisory"},
         }
-
 
     def _tenant_config(self, tenant_id: str, purpose: str) -> GatewayConfig:
         """Resolve tenant-administered provider credentials first, then environment fallback."""
         cfg = load_config()
         try:
-            resolved = enterprise_secrets.get_service(self.store).resolve_provider(tenant_id, cfg.provider if cfg.provider != "disabled" else None)
+            resolved = enterprise_secrets.get_service(self.store).resolve_provider(
+                tenant_id, cfg.provider if cfg.provider != "disabled" else None
+            )
         except Exception:
             resolved = None
         if not resolved:
@@ -420,16 +530,33 @@ class ModelGateway:
             raise RuntimeError("tenant model-call daily limit reached")
 
         prompt = PROMPTS[purpose]
-        rendered = prompt["template"].format(**{k: (json.dumps(v, sort_keys=True) if isinstance(v, (dict, list)) else str(v)) for k, v in variables.items()})
+        rendered = prompt["template"].format(
+            **{
+                k: (json.dumps(v, sort_keys=True) if isinstance(v, (dict, list)) else str(v))
+                for k, v in variables.items()
+            }
+        )
         if len(rendered) > cfg.max_input_chars:
             raise ValueError(f"model input exceeds ARBITER_MODEL_MAX_INPUT_CHARS ({cfg.max_input_chars})")
         model = cfg.fast_model if model_tier == "fast" else cfg.default_model
         input_payload = {
-            "purpose": purpose, "prompt_id": prompt["id"], "prompt_version": prompt["version"],
-            "instructions": prompt["instructions"], "input": rendered, "configured_model_id": model,
+            "purpose": purpose,
+            "prompt_id": prompt["id"],
+            "prompt_version": prompt["version"],
+            "instructions": prompt["instructions"],
+            "input": rendered,
+            "configured_model_id": model,
         }
         input_hash = canonical_hash(input_payload)
-        rec = self._base_record(purpose=purpose, provider=cfg.provider, model=model, tenant_id=tenant_id, principal_id=principal_id, actor=actor, input_hash=input_hash)
+        rec = self._base_record(
+            purpose=purpose,
+            provider=cfg.provider,
+            model=model,
+            tenant_id=tenant_id,
+            principal_id=principal_id,
+            actor=actor,
+            input_hash=input_hash,
+        )
         started = time.perf_counter()
         try:
             if cfg.provider == "openai":
@@ -440,27 +567,42 @@ class ModelGateway:
             validation_errors = _validate_schema(output, SCHEMAS[purpose])
             if validation_errors:
                 raise ValueError("structured output validation failed: " + "; ".join(validation_errors[:8]))
-            rec.update({
-                "provider_model_id": raw.get("provider_model_id") or model,
-                "output": output,
-                "output_hash": canonical_hash(output),
-                "status": "completed",
-                "completed_at": utcnow(),
-                "latency_ms": int((time.perf_counter() - started) * 1000),
-                "input_tokens": raw.get("input_tokens"), "output_tokens": raw.get("output_tokens"), "total_tokens": raw.get("total_tokens"),
-                "response_id": raw.get("response_id"), "validation_status": "PASS", "validation_errors": [],
-            })
+            rec.update(
+                {
+                    "provider_model_id": raw.get("provider_model_id") or model,
+                    "output": output,
+                    "output_hash": canonical_hash(output),
+                    "status": "completed",
+                    "completed_at": utcnow(),
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "input_tokens": raw.get("input_tokens"),
+                    "output_tokens": raw.get("output_tokens"),
+                    "total_tokens": raw.get("total_tokens"),
+                    "response_id": raw.get("response_id"),
+                    "validation_status": "PASS",
+                    "validation_errors": [],
+                }
+            )
             self._record(rec)
             return self._envelope(rec)
         except Exception as exc:  # persist failures too
-            rec.update({
-                "status": "failed", "completed_at": utcnow(), "latency_ms": int((time.perf_counter() - started) * 1000),
-                "validation_status": "FAIL", "validation_errors": [], "error_type": type(exc).__name__, "error_message": str(exc)[:1000],
-            })
+            rec.update(
+                {
+                    "status": "failed",
+                    "completed_at": utcnow(),
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "validation_status": "FAIL",
+                    "validation_errors": [],
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc)[:1000],
+                }
+            )
             self._record(rec)
             raise
 
-    def _invoke_openai(self, cfg: GatewayConfig, model: str, prompt: dict[str, str], rendered: str, schema: dict[str, Any]) -> dict[str, Any]:
+    def _invoke_openai(
+        self, cfg: GatewayConfig, model: str, prompt: dict[str, str], rendered: str, schema: dict[str, Any]
+    ) -> dict[str, Any]:
         body: dict[str, Any] = {
             "model": model,
             "instructions": prompt["instructions"],
@@ -468,7 +610,14 @@ class ModelGateway:
             "store": cfg.store_provider_responses,
             "max_output_tokens": cfg.max_output_tokens,
             "reasoning": {"effort": cfg.reasoning_effort},
-            "text": {"format": {"type": "json_schema", "name": prompt["id"].replace(".", "_"), "strict": True, "schema": schema}},
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": prompt["id"].replace(".", "_"),
+                    "strict": True,
+                    "schema": schema,
+                }
+            },
         }
         headers = {"Authorization": f"Bearer {cfg.openai_api_key}", "Content-Type": "application/json"}
         with httpx.Client(timeout=cfg.timeout_seconds) as client:
@@ -489,33 +638,63 @@ class ModelGateway:
             "total_tokens": usage.get("total_tokens"),
         }
 
-    def _invoke_anthropic(self, cfg: GatewayConfig, model: str, prompt: dict[str, str], rendered: str) -> dict[str, Any]:
+    def _invoke_anthropic(
+        self, cfg: GatewayConfig, model: str, prompt: dict[str, str], rendered: str
+    ) -> dict[str, Any]:
         # Compatibility path for existing deployments. OpenAI Structured Outputs is the preferred v0.16 path.
-        schema_text = json.dumps(SCHEMAS[next(k for k, v in PROMPTS.items() if v["id"] == prompt["id"])], separators=(",", ":"))
+        schema_text = json.dumps(
+            SCHEMAS[next(k for k, v in PROMPTS.items() if v["id"] == prompt["id"])], separators=(",", ":")
+        )
         body = {
             "model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             "max_tokens": cfg.max_output_tokens,
             "system": prompt["instructions"] + " Output valid JSON matching this schema: " + schema_text,
             "messages": [{"role": "user", "content": rendered}],
         }
-        headers = {"x-api-key": cfg.anthropic_api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+        headers = {
+            "x-api-key": cfg.anthropic_api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
         with httpx.Client(timeout=cfg.timeout_seconds) as client:
             response = client.post("https://api.anthropic.com/v1/messages", headers=headers, json=body)
-            response.raise_for_status(); data = response.json()
+            response.raise_for_status()
+            data = response.json()
         text = "".join(x.get("text", "") for x in data.get("content") or [] if x.get("type") == "text").strip()
         a, b = text.find("{"), text.rfind("}")
-        if a >= 0 and b >= a: text = text[a:b+1]
+        if a >= 0 and b >= a:
+            text = text[a : b + 1]
         output = json.loads(text)
         usage = data.get("usage") or {}
         inp, out = usage.get("input_tokens"), usage.get("output_tokens")
-        return {"output": output, "response_id": data.get("id"), "provider_model_id": data.get("model") or body["model"], "input_tokens": inp, "output_tokens": out, "total_tokens": (inp + out) if isinstance(inp, int) and isinstance(out, int) else None}
+        return {
+            "output": output,
+            "response_id": data.get("id"),
+            "provider_model_id": data.get("model") or body["model"],
+            "input_tokens": inp,
+            "output_tokens": out,
+            "total_tokens": (inp + out) if isinstance(inp, int) and isinstance(out, int) else None,
+        }
 
-    def self_test(self, tenant_id: str = "local", principal_id: str = "local:developer", actor: str = "system:model-gateway-self-test") -> dict[str, Any]:
+    def self_test(
+        self,
+        tenant_id: str = "local",
+        principal_id: str = "local:developer",
+        actor: str = "system:model-gateway-self-test",
+    ) -> dict[str, Any]:
         """Exercise provenance/audit/schema plumbing without calling an external model."""
         purpose = "case_copilot"
         model = "internal-self-test"
         payload = {"purpose": purpose, "fixture": "v0.16-model-gateway"}
-        rec = self._base_record(purpose=purpose, provider="internal-self-test", model=model, tenant_id=tenant_id, principal_id=principal_id, actor=actor, input_hash=canonical_hash(payload))
+        rec = self._base_record(
+            purpose=purpose,
+            provider="internal-self-test",
+            model=model,
+            tenant_id=tenant_id,
+            principal_id=principal_id,
+            actor=actor,
+            input_hash=canonical_hash(payload),
+        )
         output = {
             "answer": "Self-test verifies model provenance plumbing only.",
             "case_state": "TEST",
@@ -526,12 +705,19 @@ class ModelGateway:
             "advisory_only": True,
         }
         errors = _validate_schema(output, SCHEMAS[purpose])
-        rec.update({
-            "provider_model_id": model, "output": output, "output_hash": canonical_hash(output),
-            "status": "completed" if not errors else "failed", "completed_at": utcnow(), "latency_ms": 0,
-            "validation_status": "PASS" if not errors else "FAIL", "validation_errors": errors,
-            "metadata": {"binding": False, "authority": "advisory", "external_call": False},
-        })
+        rec.update(
+            {
+                "provider_model_id": model,
+                "output": output,
+                "output_hash": canonical_hash(output),
+                "status": "completed" if not errors else "failed",
+                "completed_at": utcnow(),
+                "latency_ms": 0,
+                "validation_status": "PASS" if not errors else "FAIL",
+                "validation_errors": errors,
+                "metadata": {"binding": False, "authority": "advisory", "external_call": False},
+            }
+        )
         self._record(rec)
         return self._envelope(rec)
 
@@ -543,10 +729,19 @@ class ModelGateway:
             "purpose": rec["purpose"],
             "output": rec.get("output"),
             "provenance": {
-                "provider": rec["provider"], "configured_model_id": rec["configured_model_id"],
-                "provider_model_id": rec.get("provider_model_id"), "prompt_id": rec["prompt_id"],
-                "prompt_version": rec["prompt_version"], "input_hash": rec["input_hash"], "output_hash": rec.get("output_hash"),
-                "latency_ms": rec.get("latency_ms"), "usage": {"input_tokens": rec.get("input_tokens"), "output_tokens": rec.get("output_tokens"), "total_tokens": rec.get("total_tokens")},
+                "provider": rec["provider"],
+                "configured_model_id": rec["configured_model_id"],
+                "provider_model_id": rec.get("provider_model_id"),
+                "prompt_id": rec["prompt_id"],
+                "prompt_version": rec["prompt_version"],
+                "input_hash": rec["input_hash"],
+                "output_hash": rec.get("output_hash"),
+                "latency_ms": rec.get("latency_ms"),
+                "usage": {
+                    "input_tokens": rec.get("input_tokens"),
+                    "output_tokens": rec.get("output_tokens"),
+                    "total_tokens": rec.get("total_tokens"),
+                },
                 "validation_status": rec["validation_status"],
             },
             "authority": {"binding": False, "role": "ADVISORY", "settlement_authority": False},

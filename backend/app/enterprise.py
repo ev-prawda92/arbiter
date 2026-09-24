@@ -3,6 +3,7 @@
 This module is deliberately small and dependency-light so local development stays easy,
 while production deployments can fail closed on unsafe configuration.
 """
+
 from __future__ import annotations
 
 import os
@@ -47,17 +48,53 @@ def configuration_findings() -> list[dict]:
     cfg = load_runtime_config()
     findings: list[dict] = []
     if cfg.production and not cfg.require_auth:
-        findings.append({"severity": "BLOCK", "code": "AUTH_DISABLED_IN_PRODUCTION", "detail": "Production must require authentication."})
+        findings.append(
+            {
+                "severity": "BLOCK",
+                "code": "AUTH_DISABLED_IN_PRODUCTION",
+                "detail": "Production must require authentication.",
+            }
+        )
     if cfg.production and "*" in cfg.cors_origins:
-        findings.append({"severity": "BLOCK", "code": "WILDCARD_CORS_IN_PRODUCTION", "detail": "Production CORS origins must be explicitly allow-listed."})
+        findings.append(
+            {
+                "severity": "BLOCK",
+                "code": "WILDCARD_CORS_IN_PRODUCTION",
+                "detail": "Production CORS origins must be explicitly allow-listed.",
+            }
+        )
     if cfg.production and cfg.allow_legacy_keys:
-        findings.append({"severity": "WARN", "code": "LEGACY_KEYS_ENABLED", "detail": "Raw legacy API keys should be disabled in production; prefer hashed key records."})
+        findings.append(
+            {
+                "severity": "WARN",
+                "code": "LEGACY_KEYS_ENABLED",
+                "detail": "Raw legacy API keys should be disabled in production; prefer hashed key records.",
+            }
+        )
     if cfg.production and cfg.database_backend != "postgresql":
-        findings.append({"severity": "BLOCK", "code": "PRODUCTION_DATABASE_NOT_POSTGRESQL", "detail": "Production deployments must set ARBITER_DATABASE_BACKEND=postgresql and use the production data adapter."})
+        findings.append(
+            {
+                "severity": "BLOCK",
+                "code": "PRODUCTION_DATABASE_NOT_POSTGRESQL",
+                "detail": "Production deployments must set ARBITER_DATABASE_BACKEND=postgresql and use the production data adapter.",
+            }
+        )
     if cfg.production and not os.environ.get("ARBITER_SETTLEMENT_SIGNING_SECRET"):
-        findings.append({"severity": "BLOCK", "code": "SETTLEMENT_SIGNING_KEY_MISSING", "detail": "Production settlement authorization requires ARBITER_SETTLEMENT_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement)."})
+        findings.append(
+            {
+                "severity": "BLOCK",
+                "code": "SETTLEMENT_SIGNING_KEY_MISSING",
+                "detail": "Production settlement authorization requires ARBITER_SETTLEMENT_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement).",
+            }
+        )
     if cfg.production and not os.environ.get("ARBITER_WEBHOOK_SIGNING_SECRET"):
-        findings.append({"severity": "BLOCK", "code": "WEBHOOK_SIGNING_KEY_MISSING", "detail": "Production outbound webhook envelopes require ARBITER_WEBHOOK_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement)."})
+        findings.append(
+            {
+                "severity": "BLOCK",
+                "code": "WEBHOOK_SIGNING_KEY_MISSING",
+                "detail": "Production outbound webhook envelopes require ARBITER_WEBHOOK_SIGNING_SECRET (replace with KMS/HSM-backed asymmetric signing before live settlement).",
+            }
+        )
     return findings
 
 

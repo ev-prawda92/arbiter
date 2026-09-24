@@ -1,5 +1,6 @@
 """Tests for seed-driven targeted collection. Fetchers are injected, so no
 network I/O runs here."""
+
 from __future__ import annotations
 
 import sys
@@ -34,10 +35,14 @@ def test_seed_requires_id():
 
 
 def test_disagreement_seed_is_flagged():
-    seeds = [{
-        "seed_event_id": "cpi-may-2026", "label": "CPI May 2026 > 0.2%",
-        "kalshi": ["KX1"], "polymarket": ["poly-1"],
-    }]
+    seeds = [
+        {
+            "seed_event_id": "cpi-may-2026",
+            "label": "CPI May 2026 > 0.2%",
+            "kalshi": ["KX1"],
+            "polymarket": ["poly-1"],
+        }
+    ]
     store = {"KX1": _mk("kalshi", "KX1", "YES"), "poly-1": _mk("polymarket", "poly-1", "NO")}
     res = collect_targeted(
         seeds,
@@ -72,6 +77,7 @@ def test_missing_side_is_not_dual_and_records_miss():
 def test_fetch_error_is_recorded_not_raised():
     def boom(_i):
         raise RuntimeError("HTTP 503")
+
     seeds = [{"seed_event_id": "s", "label": "x", "kalshi": ["KX1"], "polymarket": ["poly-1"]}]
     res = collect_targeted(seeds, fetch_kalshi=boom, fetch_polymarket=lambda i: _mk("polymarket", i, "NO"))
     cov = res["coverage"][0]
@@ -81,12 +87,16 @@ def test_fetch_error_is_recorded_not_raised():
 
 if __name__ == "__main__":
     import traceback
+
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
     for fn in fns:
         try:
-            fn(); print(f"PASS {fn.__name__}"); passed += 1
+            fn()
+            print(f"PASS {fn.__name__}")
+            passed += 1
         except Exception:
-            print(f"FAIL {fn.__name__}"); traceback.print_exc()
+            print(f"FAIL {fn.__name__}")
+            traceback.print_exc()
     print(f"\n{passed}/{len(fns)} passed")
     sys.exit(0 if passed == len(fns) else 1)

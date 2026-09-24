@@ -25,6 +25,7 @@ Primary signals:
 - late_or_void: settled materially after close, or voided.
 - control_easy: a clean price/number threshold with no hard signal.
 """
+
 from __future__ import annotations
 
 import re
@@ -33,9 +34,20 @@ from typing import Any, Iterable
 
 # Qualitative terms whose meaning the rules rarely pin down operationally.
 INTERPRETIVE_TERMS = (
-    "permanent", "permanently", "credible", "substantial", "substantially",
-    "meaningful", "genuine", "consensus", "de facto", "effectively",
-    "resolve amicably", "in good faith", "at the discretion", "good-faith",
+    "permanent",
+    "permanently",
+    "credible",
+    "substantial",
+    "substantially",
+    "meaningful",
+    "genuine",
+    "consensus",
+    "de facto",
+    "effectively",
+    "resolve amicably",
+    "in good faith",
+    "at the discretion",
+    "good-faith",
 )
 # Deliberately excludes common template words (announce/official/major/widely/
 # generally/successful): they ride on venue rules templates and do not
@@ -45,27 +57,60 @@ INTERPRETIVE_TERMS = (
 
 # Phrases that hand resolution to judgment rather than a named authority.
 VAGUE_SOURCE_MARKERS = (
-    "consensus of credible reporting", "credible reporting", "credible sources",
-    "credible media", "at the discretion", "sole discretion", "reasonably determine",
-    "generally accepted", "a consensus of", "widely reported", "as determined by the market",
+    "consensus of credible reporting",
+    "credible reporting",
+    "credible sources",
+    "credible media",
+    "at the discretion",
+    "sole discretion",
+    "reasonably determine",
+    "generally accepted",
+    "a consensus of",
+    "widely reported",
+    "as determined by the market",
 )
 
 # Venue clarifications/disclaimers signal a contested interpretation.
 DISCLAIMER_MARKERS = (
-    "does not count", "will not count", "not count as", "for the avoidance of doubt",
-    "clarification", "to clarify", "this does not include", "for clarity", "disclaimer",
+    "does not count",
+    "will not count",
+    "not count as",
+    "for the avoidance of doubt",
+    "clarification",
+    "to clarify",
+    "this does not include",
+    "for clarity",
+    "disclaimer",
 )
 
 # Revision-prone economic series.
 REVISION_SERIES = (
-    "cpi", "inflation", "ppi", "pce", "nonfarm", "non-farm", "payroll", "payrolls",
-    "unemployment", "jobless", "gdp", "jobs report", "retail sales", "initial claims",
+    "cpi",
+    "inflation",
+    "ppi",
+    "pce",
+    "nonfarm",
+    "non-farm",
+    "payroll",
+    "payrolls",
+    "unemployment",
+    "jobless",
+    "gdp",
+    "jobs report",
+    "retail sales",
+    "initial claims",
 )
 
 # Election domain, where an "official" result is commonly contested.
 ELECTION_MARKERS = (
-    "election", "presidential", "parliamentary", "won the", "win the", "winner of",
-    "prime minister", "president of",
+    "election",
+    "presidential",
+    "parliamentary",
+    "won the",
+    "win the",
+    "winner of",
+    "prime minister",
+    "president of",
 )
 
 VOID_MARKERS = ("void", "voided", "canceled", "cancelled", "invalid", "no contest")
@@ -280,10 +325,7 @@ def _compute_boilerplate(rows: list[dict[str, Any]]) -> dict[str, frozenset[str]
 def classify_pool(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     rows = list(rows)
     boilerplate_by_venue = _compute_boilerplate(rows)
-    classified = [
-        classify_candidate(r, boilerplate_by_venue.get(str(r.get("venue") or ""), frozenset()))
-        for r in rows
-    ]
+    classified = [classify_candidate(r, boilerplate_by_venue.get(str(r.get("venue") or ""), frozenset())) for r in rows]
     dist: dict[str, int] = {}
     by_class: dict[str, list[str]] = {}
     review = 0
@@ -306,8 +348,8 @@ def classify_pool(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "interpretive_hints": hints,
             "boilerplate_terms_ignored": {v: sorted(t) for v, t in boilerplate_by_venue.items()},
             "note": "cross_venue_disagreement is not assigned here (needs the join). "
-                    "unclassified rows are neither easy nor clearly hard -> human triage. "
-                    "Terms in boilerplate_terms_ignored were templated across the pool and "
-                    "carried no interpretive weight.",
+            "unclassified rows are neither easy nor clearly hard -> human triage. "
+            "Terms in boilerplate_terms_ignored were templated across the pool and "
+            "carried no interpretive weight.",
         },
     }

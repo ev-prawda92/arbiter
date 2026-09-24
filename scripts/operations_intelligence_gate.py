@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Deterministic gate for Arbiter Operations Intelligence v0.32."""
+
 from pathlib import Path
 import sys
 
@@ -20,47 +21,82 @@ def main():
     queue = {
         "items": [
             {
-                "id": "w1", "kind": "evidence_conflict", "title": "Conflicting governed evidence: AUTH-X-a1",
+                "id": "w1",
+                "kind": "evidence_conflict",
+                "title": "Conflicting governed evidence: AUTH-X-a1",
                 "detail": "AUTH-X-a1 produced a value that differs from another governed authority.",
-                "severity": "critical", "status": "open", "owner_role": "Resolution Ops",
-                "recommended_action": "Review source precedence before settlement.", "notional": 4_000_000,
+                "severity": "critical",
+                "status": "open",
+                "owner_role": "Resolution Ops",
+                "recommended_action": "Review source precedence before settlement.",
+                "notional": 4_000_000,
             },
             {
-                "id": "w2", "kind": "evidence_conflict", "title": "Conflicting governed evidence: AUTH-X-b2",
+                "id": "w2",
+                "kind": "evidence_conflict",
+                "title": "Conflicting governed evidence: AUTH-X-b2",
                 "detail": "AUTH-X-b2 produced a value that differs from another governed authority.",
-                "severity": "high", "status": "open", "owner_role": "Resolution Ops",
-                "recommended_action": "Review source precedence before settlement.", "notional": 2_000_000,
+                "severity": "high",
+                "status": "open",
+                "owner_role": "Resolution Ops",
+                "recommended_action": "Review source precedence before settlement.",
+                "notional": 2_000_000,
             },
             {
-                "id": "w3", "kind": "evidence_gap", "title": "Official report not yet available",
+                "id": "w3",
+                "kind": "evidence_gap",
+                "title": "Official report not yet available",
                 "detail": "Waiting on external data from the approved source publication.",
-                "severity": "high", "status": "open", "owner_role": "Data Ops",
-                "recommended_action": "Wait for authoritative evidence before settlement.", "notional": 1_000_000,
+                "severity": "high",
+                "status": "open",
+                "owner_role": "Data Ops",
+                "recommended_action": "Wait for authoritative evidence before settlement.",
+                "notional": 1_000_000,
             },
             {
-                "id": "w4", "kind": "policy_review", "title": "Definition ambiguity requires policy review",
+                "id": "w4",
+                "kind": "policy_review",
+                "title": "Definition ambiguity requires policy review",
                 "detail": "Contract definition is ambiguous and requires policy interpretation.",
-                "severity": "high", "status": "open", "owner_role": "Compliance",
-                "recommended_action": "Review governing definition.", "notional": 0,
+                "severity": "high",
+                "status": "open",
+                "owner_role": "Compliance",
+                "recommended_action": "Review governing definition.",
+                "notional": 0,
             },
             {
-                "id": "w5", "kind": "monitoring", "title": "Monitor source risk",
+                "id": "w5",
+                "kind": "monitoring",
+                "title": "Monitor source risk",
                 "detail": "Monitor source publication before resolution window closes.",
-                "severity": "medium", "status": "resolved", "owner_role": "Market Ops",
-                "recommended_action": "Continue monitoring.", "notional": 0,
+                "severity": "medium",
+                "status": "resolved",
+                "owner_role": "Market Ops",
+                "recommended_action": "Continue monitoring.",
+                "notional": 0,
             },
             {
-                "id": "w6", "kind": "operator_review", "title": "Routine governed review",
+                "id": "w6",
+                "kind": "operator_review",
+                "title": "Routine governed review",
                 "detail": "Evidence and authority checks are complete; operator review remains.",
-                "severity": "medium", "status": "open", "owner_role": "Resolution Ops",
-                "recommended_action": "Confirm governed record before settlement.", "notional": 500_000,
+                "severity": "medium",
+                "status": "open",
+                "owner_role": "Resolution Ops",
+                "recommended_action": "Confirm governed record before settlement.",
+                "notional": 500_000,
                 "ready_for_review": True,
             },
             {
-                "id": "w7", "kind": "resolution_hold", "title": "Resolution HOLD",
+                "id": "w7",
+                "kind": "resolution_hold",
+                "title": "Resolution HOLD",
                 "detail": "HOLD remains while conflicting evidence is investigated.",
-                "severity": "high", "status": "open", "owner_role": "Resolution Ops",
-                "recommended_action": "Investigate before review.", "notional": 750_000,
+                "severity": "high",
+                "status": "open",
+                "owner_role": "Resolution Ops",
+                "recommended_action": "Investigate before review.",
+                "notional": 750_000,
                 "resolution": "HOLD",
             },
         ]
@@ -87,7 +123,9 @@ def main():
     check(len(result["ready_cases"]) == 1, "only truly ready case surfaced")
     check(len(result["policy_cases"]) == 1, "policy-review cases are surfaced explicitly")
     check(any(i["id"] == "w7" for i in result["investigating_cases"]), "HOLD is not mislabeled ready")
-    check(summary["estimated_human_decisions"] < summary["active_cases"], "cluster-first human decision load is reduced")
+    check(
+        summary["estimated_human_decisions"] < summary["active_cases"], "cluster-first human decision load is reduced"
+    )
     check(summary["human_decisions_avoided"] > 0, "friction-reduction metric is produced")
 
     print("OPERATIONS INTELLIGENCE GATE: PASS")

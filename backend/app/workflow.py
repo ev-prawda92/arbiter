@@ -4,6 +4,7 @@ The workflow layer turns Arbiter's governed state into a prioritized human work
 queue and a concise executive brief. It is deliberately non-binding: it may
 triage, summarize, and recommend, but it never changes settlement outcomes.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -19,7 +20,7 @@ def _stable_id(kind: str, subject: str) -> str:
 
 
 def _money(v: float) -> str:
-    return f"${v/1e6:.1f}M"
+    return f"${v / 1e6:.1f}M"
 
 
 def build_work_queue(
@@ -32,8 +33,17 @@ def build_work_queue(
     work_states = work_states or {}
     items: list[dict[str, Any]] = []
 
-    def add(kind: str, subject: str, title: str, detail: str, severity: str,
-            owner_role: str, action: str, notional: float = 0, href: str = ""):
+    def add(
+        kind: str,
+        subject: str,
+        title: str,
+        detail: str,
+        severity: str,
+        owner_role: str,
+        action: str,
+        notional: float = 0,
+        href: str = "",
+    ):
         item_id = _stable_id(kind, subject)
         persisted = work_states.get(item_id, {})
         status = persisted.get("status", "open")
@@ -41,22 +51,24 @@ def build_work_queue(
             # Keep resolved work discoverable in the payload, but later sorting
             # ensures active work remains the operational focus.
             pass
-        items.append({
-            "id": item_id,
-            "kind": kind,
-            "subject": subject,
-            "title": title,
-            "detail": detail,
-            "severity": severity,
-            "owner_role": owner_role,
-            "recommended_action": action,
-            "notional": float(notional or 0),
-            "href": href,
-            "status": status,
-            "owner": persisted.get("owner", ""),
-            "note": persisted.get("note", ""),
-            "updated_at": persisted.get("updated_at"),
-        })
+        items.append(
+            {
+                "id": item_id,
+                "kind": kind,
+                "subject": subject,
+                "title": title,
+                "detail": detail,
+                "severity": severity,
+                "owner_role": owner_role,
+                "recommended_action": action,
+                "notional": float(notional or 0),
+                "href": href,
+                "status": status,
+                "owner": persisted.get("owner", ""),
+                "note": persisted.get("note", ""),
+                "updated_at": persisted.get("updated_at"),
+            }
+        )
 
     for r in reports:
         verdict = r.get("verdict", {}).get("key")
@@ -65,25 +77,29 @@ def build_work_queue(
         levers = r.get("levers", {})
         if verdict == "review":
             add(
-                "resolution_hold", ticker,
+                "resolution_hold",
+                ticker,
                 f"Resolve HOLD: {ticker}",
                 r.get("title", "Contract is held for review."),
                 "critical" if oi >= 5_000_000 else "high",
                 "Compliance / Resolution Ops",
                 "Review the governing terms, approved authority, and evidence before payout authorization.",
-                oi, f"/resolution/{ticker}",
+                oi,
+                f"/resolution/{ticker}",
             )
         elif verdict == "monitored":
             dominant = max(("source", "timing", "definition"), key=lambda k: levers.get(k, {}).get("score", 0))
             flags = levers.get(dominant, {}).get("flags", [])
             add(
-                "monitored_contract", ticker,
+                "monitored_contract",
+                ticker,
                 f"Monitor {ticker}: {dominant} risk",
                 flags[0] if flags else r.get("title", "Contract requires monitoring."),
                 "medium",
                 "Market Ops",
                 f"Confirm {dominant} semantics before the resolution window closes.",
-                oi, f"/resolution/{ticker}",
+                oi,
+                f"/resolution/{ticker}",
             )
 
     # Governed source health / status creates operational work independent of a
@@ -93,7 +109,8 @@ def build_work_queue(
         if status in {"monitored", "suspended"}:
             aid = authority.get("authority_id", "unknown")
             add(
-                "authority_status", aid,
+                "authority_status",
+                aid,
                 f"Authority {status}: {aid}",
                 f"{authority.get('name', aid)} is currently {status}.",
                 "critical" if status == "suspended" else "high",
@@ -104,20 +121,24 @@ def build_work_queue(
     audit_chain = infrastructure.get("audit_chain") or {}
     if audit_chain.get("ok") is False:
         add(
-            "audit_integrity", "audit_chain",
+            "audit_integrity",
+            "audit_chain",
             "Audit-chain integrity requires review",
             audit_chain.get("reason", "The control-plane audit chain did not verify."),
-            "critical", "Compliance / Engineering",
+            "critical",
+            "Compliance / Engineering",
             "Stop automated payout authorization until audit integrity is restored and the break is explained.",
         )
 
     # Data-plane gaps from the persistent control store.
     if infrastructure.get("contracts", 0) and infrastructure.get("evidence_records", 0) == 0:
         add(
-            "evidence_gap", "persistent_registry",
+            "evidence_gap",
+            "persistent_registry",
             "Registered contracts have no captured evidence",
             "The persistent contract registry contains contracts but the evidence ledger is empty.",
-            "high", "Resolution Ops",
+            "high",
+            "Resolution Ops",
             "Connect or ingest authoritative evidence before those contracts enter settlement.",
         )
 
@@ -134,6 +155,11 @@ def build_work_queue(
             exc.get("recommended_action", "Review the governed evidence before settlement authorization."),
             href="/work-queue",
         )
+        meta = exc.get("metadata") or {}
+        items[-1]["contract_id"] = exc.get("contract_id")
+        items[-1]["source"] = meta.get("source")
+        items[-1]["review_class"] = meta.get("review_class")
+        items[-1]["precedent"] = (meta.get("precedent_matches") or [None])[0]
 
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     status_order = {"open": 0, "in_progress": 1, "resolved": 2}
@@ -195,10 +221,16 @@ def build_agent_brief(queue: dict, executive: dict) -> dict[str, Any]:
         "mode": "advisory_non_binding",
         "headline": headline,
         "brief": narrative,
-        "top_actions": [{
-            "id": i["id"], "title": i["title"], "severity": i["severity"],
-            "recommended_action": i["recommended_action"], "notional": i["notional"],
-        } for i in top],
+        "top_actions": [
+            {
+                "id": i["id"],
+                "title": i["title"],
+                "severity": i["severity"],
+                "recommended_action": i["recommended_action"],
+                "notional": i["notional"],
+            }
+            for i in top
+        ],
         "operations_intelligence": ops,
         "learning_signal": "Operator ownership, status changes, notes, overrides, and final dispositions are retained as feedback for future triage/evaluation improvements.",
         "boundary": "The agent summarizes and prioritizes. It cannot alter contract terms, evidence, policy, resolution outcomes, or payout authorization.",

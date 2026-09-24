@@ -18,6 +18,7 @@ A settled market closes its own intake work item with the venue's outcome.
 Network access is injected (``fetcher``) so the whole pipeline runs offline
 against fixtures in CI; the default fetcher calls the public venue APIs.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -29,7 +30,15 @@ from typing import Any, Callable, Iterable
 
 from .active_evidence import get_service as get_evidence_service
 from .real_benchmark.collectors import KALSHI_HOSTS, _fetch_json, _parse_jsonish, _uma_dispute_count
-from .real_benchmark.hardness import BOILERPLATE_DF, DISCLAIMER_MARKERS, PRIORITY, _compute_boilerplate, classify_candidate
+from .real_benchmark.hardness import (
+    DISCLAIMER_MARKERS,
+    INTERPRETIVE_TERMS,
+    PRIORITY,
+    REVISION_SERIES,
+    VAGUE_SOURCE_MARKERS,
+    _compute_boilerplate,
+    classify_candidate,
+)
 from .resolution_infra import (
     Authority,
     EvidenceRecord,
@@ -40,7 +49,7 @@ from .resolution_infra import (
     utcnow,
 )
 
-VERSION = "0.36.0"
+VERSION = "0.39.0"
 ACTOR = "system:venue-intake"
 PARSER_VERSION = f"venue-intake-{VERSION}"
 
@@ -56,7 +65,11 @@ ROUTING = {
     "disputed": ("policy_review", "high", "Record the governing interpretation for: {label}"),
     "interpretive_criteria": ("policy_review", "high", "Record the governing interpretation for: {label}"),
     "multi_source_conflict": ("authority_conflict", "high", "Record which source controls for: {label}"),
-    "revised_source": ("timing_revision", "medium", "Confirm whether the initial or revised release controls for: {label}"),
+    "revised_source": (
+        "timing_revision",
+        "medium",
+        "Confirm whether the initial or revised release controls for: {label}",
+    ),
     "late_or_void": ("operator_review", "medium", "Review the late or void settlement for: {label}"),
 }
 CROSS_VENUE_KIND = "evidence_conflict"
@@ -65,9 +78,43 @@ CROSS_VENUE_KIND = "evidence_conflict"
 # which is right for its election-heavy corpus but flags every sports market
 # ("Will Seattle win the 4th quarter?") in a live scan. For live intake a
 # contested-official-source flag needs genuinely electoral wording.
+# "Prime minister" / "president of" are not enough: "the next Prime Minister
+# of Romania" or "will the President of Kenya leave office first" is a
+# succession question, not a contested vote count (Sep 24 2026 scan).
 STRICT_ELECTION_MARKERS = (
-    "election", "presidential", "parliamentary", "prime minister", "president of",
-    "referendum", "electoral", "ballot",
+    "election",
+    "presidential",
+    "parliamentary",
+    "referendum",
+    "electoral",
+    "ballot",
+    "caucus",
+)
+
+# Rules that already say which release counts leave no revision question for a
+# human ("Later revisions will not affect the outcome", "The initially reported
+# value ... will be used").
+PINNED_RELEASE_MARKERS = (
+    "later revisions will not",
+    "revisions will not",
+    "revisions published after",
+    "subsequent revisions",
+    "initially reported",
+    "initial release",
+    "first-published",
+    "first published",
+    "first release",
+    "advance estimate",
+    "first non-preliminary",
+    "as first reported",
+    "as initially",
+    "without regard to revisions",
+)
+
+# Wording whose presence in a sentence can raise a flag; used to learn which
+# such sentences are standing fine print (see boilerplate_for).
+FLAG_MARKERS = (
+    tuple(DISCLAIMER_MARKERS) + tuple(INTERPRETIVE_TERMS) + tuple(VAGUE_SOURCE_MARKERS) + STRICT_ELECTION_MARKERS
 )
 
 Fetcher = Callable[[str, str], tuple[dict[str, Any], str]]
@@ -76,8 +123,9 @@ Fetcher = Callable[[str, str], tuple[dict[str, Any], str]]
 # from (watchlist mode). Wording on a venue's standard template says nothing
 # about how hard a particular market is.
 TEMPLATE_FLOOR: dict[str, frozenset[str]] = {
-    "polymarket": frozenset({"consensus of credible reporting", "credible reporting", "a consensus of",
-                             "consensus", "credible"}),
+    "polymarket": frozenset(
+        {"consensus of credible reporting", "credible reporting", "a consensus of", "consensus", "credible"}
+    ),
     "kalshi": frozenset(),
 }
 
@@ -85,6 +133,7 @@ TEMPLATE_FLOOR: dict[str, frozenset[str]] = {
 # --------------------------------------------------------------------------
 # fetch + normalize
 # --------------------------------------------------------------------------
+
 
 def fetch_live(venue: str, market_id: str) -> tuple[dict[str, Any], str]:
     """Fetch one market's raw JSON from the public venue API."""
@@ -121,18 +170,25 @@ def normalize(venue: str, raw: dict[str, Any], url: str) -> dict[str, Any]:
     """Normalize an open OR settled market into one row shape."""
     if venue == "kalshi":
         market_id = str(raw.get("ticker") or "").strip()
-        rules = "\n\n".join(x for x in (str(raw.get("rules_primary") or "").strip(),
-                                        str(raw.get("rules_secondary") or "").strip()) if x)
+        rules = "\n\n".join(
+            x for x in (str(raw.get("rules_primary") or "").strip(), str(raw.get("rules_secondary") or "").strip()) if x
+        )
         result = str(raw.get("result") or "").strip().upper()
         status = str(raw.get("status") or "").strip().lower()
         outcome = result if result in {"YES", "NO"} else None
         settled = outcome is not None or status in {"settled", "finalized"}
         return {
-            "venue": "kalshi", "market_id": market_id, "event_id": raw.get("event_ticker"),
-            "title": str(raw.get("title") or raw.get("subtitle") or "").strip(), "rules": rules,
+            "venue": "kalshi",
+            "market_id": market_id,
+            "event_id": raw.get("event_ticker") or (market_id.rsplit("-", 1)[0] if "-" in market_id else market_id),
+            "title": str(raw.get("title") or raw.get("subtitle") or "").strip(),
+            "rules": rules,
             "status": "settled" if settled else ("closed" if status in {"closed", "determined"} else "open"),
-            "outcome": outcome, "closed_at": raw.get("close_time"), "settled_at": raw.get("settlement_ts"),
-            "dispute_count": 0, "source_url": url,
+            "outcome": outcome,
+            "closed_at": raw.get("close_time"),
+            "settled_at": raw.get("settlement_ts"),
+            "dispute_count": 0,
+            "source_url": url,
         }
     if venue == "polymarket":
         market_id = str(raw.get("id") or raw.get("slug") or "").strip()
@@ -155,23 +211,30 @@ def normalize(venue: str, raw: dict[str, Any], url: str) -> dict[str, Any]:
                     outcome = winners[0].strip().upper()
         settled = outcome is not None
         return {
-            "venue": "polymarket", "market_id": market_id,
+            "venue": "polymarket",
+            "market_id": market_id,
             "event_id": raw.get("eventId") or ((raw.get("events") or [{}])[0] or {}).get("id"),
-            "title": str(raw.get("question") or "").strip(), "rules": rules,
+            "title": str(raw.get("question") or "").strip(),
+            "rules": rules,
             "status": "settled" if settled else ("closed" if raw.get("closed") is True else "open"),
-            "outcome": outcome, "closed_at": raw.get("closedTime") or raw.get("endDate"),
+            "outcome": outcome,
+            "closed_at": raw.get("closedTime") or raw.get("endDate"),
             "settled_at": raw.get("umaEndDate") or raw.get("closedTime"),
-            "dispute_count": _uma_dispute_count(raw), "source_url": url,
+            "dispute_count": _uma_dispute_count(raw),
+            "source_url": url,
         }
     raise ValueError(f"unsupported venue: {venue}")
 
 
 def _classifier_row(row: dict[str, Any]) -> dict[str, Any]:
     return {
-        "case_id": f"{row['venue']}-{row['market_id']}", "venue": row["venue"],
-        "title": row["title"], "rules": row["rules"],
+        "case_id": f"{row['venue']}-{row['market_id']}",
+        "venue": row["venue"],
+        "title": row["title"],
+        "rules": row["rules"],
         "known_outcome": row.get("outcome") or "",
-        "closed_at": row.get("closed_at"), "settled_at": row.get("settled_at"),
+        "closed_at": row.get("closed_at"),
+        "settled_at": row.get("settled_at"),
         "metadata": {"uma_dispute_count": row.get("dispute_count") or 0},
     }
 
@@ -184,22 +247,42 @@ def _disclaimer_hits(row: dict[str, Any]) -> set[str]:
 def _normalize_sentence(sentence: str) -> str:
     """Strip what varies between markets (names, numbers) so templated fine
     print compares equal: 'If Merrill Kelly ... 2+' == 'If Mason Adams ... 1+'."""
-    s = re.sub(r"\b[A-Z][\w'&.-]*(?:\s+[A-Z][\w'&.-]*)*", "<x>", sentence)
+    # A proper name is one unit even with small connectors inside it:
+    # "Chair of the Democratic National Committee" == "Secretary General of NATO".
+    s = re.sub(
+        r"\b[A-Z][\w'&.-]*(?:\s+(?:(?:of|the|and|for|de|la|du|von|der|van|den)\s+)*[A-Z][\w'&.-]*)*", "<x>", sentence
+    )
     s = re.sub(r"\d+(?:\.\d+)?", "<n>", s)
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
-def _disclaimer_sentences(row: dict[str, Any]) -> set[str]:
-    """Normalized sentences of a market's rules that carry a disclaimer marker."""
+def _marked_sentences(row: dict[str, Any], markers: Iterable[str]) -> set[str]:
+    """Normalized sentences of a market's rules that contain any of ``markers``."""
+    markers = tuple(markers)
     out = set()
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(row.get("rules") or "")):
-        if sentence.strip() and any(m in sentence.lower() for m in DISCLAIMER_MARKERS):
+        if sentence.strip() and any(m in sentence.lower() for m in markers):
             out.add(_normalize_sentence(sentence))
     return out
 
 
+def _disclaimer_sentences(row: dict[str, Any]) -> set[str]:
+    return _marked_sentences(row, DISCLAIMER_MARKERS)
+
+
+def _revision_series_hits(row: dict[str, Any]) -> set[str]:
+    """Revision-prone series named as whole words ("ppi", not the "ppi" in "Zuppi")."""
+    text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
+    return {t for t in REVISION_SERIES if re.search(r"(?<![a-z])" + re.escape(t) + r"(?![a-z])", text)}
+
+
+def _release_pinned(row: dict[str, Any]) -> bool:
+    text = str(row.get("rules") or "").lower()
+    return any(m in text for m in PINNED_RELEASE_MARKERS)
+
+
 SENTENCE_KEY = "sentences:{venue}"
-TEMPLATE_MIN_EVENTS = 2   # fine print recurring across 2+ distinct events is a standing template
+TEMPLATE_MIN_EVENTS = 2  # fine print recurring across 2+ distinct events is a standing template
 TEMPLATE_MIN_MARKETS = 3
 
 
@@ -220,7 +303,7 @@ def boilerplate_for(rows: list[dict[str, Any]]) -> dict[str, frozenset[str]]:
     markets: dict[tuple[str, str], int] = {}
     for r in rows:
         event = str(r.get("event_id") or r.get("market_id"))
-        for sentence in _disclaimer_sentences(r):
+        for sentence in _marked_sentences(r, FLAG_MARKERS):
             key = (r["venue"], sentence)
             events.setdefault(key, set()).add(event)
             markets[key] = markets.get(key, 0) + 1
@@ -236,11 +319,25 @@ def classify(row: dict[str, Any], boilerplate: dict[str, frozenset[str]] | None 
     return classify_candidate(_classifier_row(row), (boilerplate or {}).get(row["venue"], frozenset()))
 
 
-def _strict_election(row: dict[str, Any] | None) -> bool:
+def _strict_election(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None = None) -> bool:
+    """Electoral wording in the question or rules, ignoring standing fine print.
+
+    Kalshi's shared definition of "formally holds" a role lists "appointment,
+    election, succession..."; that sentence recurs across events (DNC chair,
+    NATO Secretary General) and says nothing about a contested vote.
+    """
     if row is None:
         return True
-    text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
-    return any(m in text for m in STRICT_ELECTION_MARKERS)
+    if any(m in str(row.get("title") or "").lower() for m in STRICT_ELECTION_MARKERS):
+        return True
+    template = (boilerplate or {}).get(SENTENCE_KEY.format(venue=row.get("venue")), frozenset())
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(row.get("rules") or "")):
+        if (
+            any(m in sentence.lower() for m in STRICT_ELECTION_MARKERS)
+            and _normalize_sentence(sentence) not in template
+        ):
+            return True
+    return False
 
 
 def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
@@ -254,21 +351,36 @@ def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, fro
     return bool(sentences) and sentences <= template
 
 
-def review_class(verdict: dict[str, Any], override: str | None = None,
-                 row: dict[str, Any] | None = None,
-                 boilerplate: dict[str, frozenset[str]] | None = None) -> str | None:
+def _templated_interpretive(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
+    """Vague wording that only appears in standing fine print (e.g. Kalshi's
+    leader-out death clause, "sole discretion") is template, not ambiguity."""
+    if row is None:
+        return False
+    sentences = _marked_sentences(row, tuple(INTERPRETIVE_TERMS) + tuple(VAGUE_SOURCE_MARKERS))
+    template = (boilerplate or {}).get(SENTENCE_KEY.format(venue=row["venue"]), frozenset())
+    return bool(sentences) and sentences <= template
+
+
+def review_class(
+    verdict: dict[str, Any],
+    override: str | None = None,
+    row: dict[str, Any] | None = None,
+    boilerplate: dict[str, frozenset[str]] | None = None,
+) -> str | None:
     """The hardness class that should put this market in front of a human, if any."""
     if override:
         return override
     fired = [c for c in PRIORITY if c in (verdict.get("fired_classes") or [])]
     for klass in fired:
-        if klass == "multi_source_conflict" and not _strict_election(row):
+        if klass == "multi_source_conflict" and not _strict_election(row, boilerplate):
             continue  # sports "win the ..." is not a contested official source
         if klass == "disputed" and _templated_disclaimer(row, boilerplate):
             continue  # series fine print, not a dispute
+        if klass == "revised_source" and row is not None and (not _revision_series_hits(row) or _release_pinned(row)):
+            continue  # substring match ("Zuppi"), or the rules already name the release
         if klass in ROUTING:
             return klass
-    if verdict.get("interpretive_hint"):
+    if verdict.get("interpretive_hint") and not _templated_interpretive(row, boilerplate):
         return "interpretive_criteria"
     return None
 
@@ -276,6 +388,7 @@ def review_class(verdict: dict[str, Any], override: str | None = None,
 # --------------------------------------------------------------------------
 # watchlist
 # --------------------------------------------------------------------------
+
 
 @dataclass
 class WatchedEvent:
@@ -297,14 +410,21 @@ def load_watchlist(path: str) -> list[WatchedEvent]:
             markets = [("kalshi", str(t)) for t in row.get("kalshi") or [] if "TO-VERIFY" not in str(t)]
             markets += [("polymarket", str(t)) for t in row.get("polymarket") or [] if "TO-VERIFY" not in str(t)]
             if markets:
-                events.append(WatchedEvent(event_id=row["seed_event_id"], label=row.get("label") or row["seed_event_id"],
-                                           markets=markets, review_class=row.get("review_class")))
+                events.append(
+                    WatchedEvent(
+                        event_id=row["seed_event_id"],
+                        label=row.get("label") or row["seed_event_id"],
+                        markets=markets,
+                        review_class=row.get("review_class"),
+                    )
+                )
     return events
 
 
 # --------------------------------------------------------------------------
 # intake
 # --------------------------------------------------------------------------
+
 
 def _subject(venue: str, market_id: str) -> str:
     return f"{venue.upper()}-{market_id}"
@@ -313,50 +433,78 @@ def _subject(venue: str, market_id: str) -> str:
 def _ensure_authority(store: ResolutionStore, venue: str) -> str:
     aid, name, org = VENUE_AUTHORITIES[venue]
     if not store.get_authority(aid):
-        store.save_authority(Authority(authority_id=aid, version=1, name=name, organization=org,
-                                       source_type="venue_rules"), actor=ACTOR)
+        store.save_authority(
+            Authority(authority_id=aid, version=1, name=name, organization=org, source_type="venue_rules"), actor=ACTOR
+        )
     return aid
 
 
-def _ensure_contract(store: ResolutionStore, row: dict[str, Any], event: WatchedEvent, auth_id: str) -> tuple[str, int, bool]:
+def _ensure_contract(
+    store: ResolutionStore, row: dict[str, Any], event: WatchedEvent, auth_id: str
+) -> tuple[str, int, bool]:
     contract_id = f"{row['venue']}:{row['market_id']}"
     latest = store.latest_contract(contract_id)
     definition = {"yes_if": row["rules"], "rules_sha256": canonical_hash(row["rules"])}
     if latest and latest.get("definition", {}).get("rules_sha256") == definition["rules_sha256"]:
         return contract_id, int(latest["contract_version"]), False
     version = int(latest["contract_version"]) + 1 if latest else 1
-    store.save_contract(ResolutionSpecification(
-        contract_id=contract_id, contract_version=version, title=row["title"] or contract_id,
-        definition=definition, timing={"closed_at": row.get("closed_at"), "settled_at": row.get("settled_at")},
-        authority_ids=[auth_id],
-        metadata={"venue": row["venue"], "market_id": row["market_id"], "watched_event": event.event_id,
-                  "event_id": row.get("event_id"),
-                  "source_url": row["source_url"]},
-    ), actor=ACTOR, status="active")
+    store.save_contract(
+        ResolutionSpecification(
+            contract_id=contract_id,
+            contract_version=version,
+            title=row["title"] or contract_id,
+            definition=definition,
+            timing={"closed_at": row.get("closed_at"), "settled_at": row.get("settled_at")},
+            authority_ids=[auth_id],
+            metadata={
+                "venue": row["venue"],
+                "market_id": row["market_id"],
+                "watched_event": event.event_id,
+                "event_id": row.get("event_id"),
+                "source_url": row["source_url"],
+            },
+        ),
+        actor=ACTOR,
+        status="active",
+    )
     return contract_id, version, True
 
 
 def _observed_value(row: dict[str, Any]) -> dict[str, Any]:
     """The part of a market that matters for resolution (not prices/volume)."""
-    return {"venue": row["venue"], "market_id": row["market_id"], "status": row["status"],
-            "outcome": row.get("outcome"), "rules_sha256": canonical_hash(row["rules"]),
-            "dispute_count": row.get("dispute_count") or 0,
-            "closed_at": row.get("closed_at"), "settled_at": row.get("settled_at")}
+    return {
+        "venue": row["venue"],
+        "market_id": row["market_id"],
+        "status": row["status"],
+        "outcome": row.get("outcome"),
+        "rules_sha256": canonical_hash(row["rules"]),
+        "dispute_count": row.get("dispute_count") or 0,
+        "closed_at": row.get("closed_at"),
+        "settled_at": row.get("settled_at"),
+    }
 
 
-def _append_evidence_if_changed(store: ResolutionStore, contract_id: str, auth_id: str,
-                                row: dict[str, Any], raw: dict[str, Any]) -> dict[str, Any] | None:
+def _append_evidence_if_changed(
+    store: ResolutionStore, contract_id: str, auth_id: str, row: dict[str, Any], raw: dict[str, Any]
+) -> dict[str, Any] | None:
     value = _observed_value(row)
     prior = [e for e in store.list_evidence(contract_id, limit=500) if e.get("authority_id") == auth_id]
     latest = max(prior, key=lambda e: int(e.get("revision_number") or 1), default=None)
     if latest and canonical_hash(latest.get("normalized_value")) == canonical_hash(value):
         return None
     rec = EvidenceRecord(
-        evidence_id=gen_id("evid"), authority_id=auth_id, authority_version=1,
-        observed_at=utcnow(), retrieved_at=utcnow(), normalized_value=value,
-        raw_payload_hash=canonical_hash(raw), parser_version=PARSER_VERSION, contract_id=contract_id,
+        evidence_id=gen_id("evid"),
+        authority_id=auth_id,
+        authority_version=1,
+        observed_at=utcnow(),
+        retrieved_at=utcnow(),
+        normalized_value=value,
+        raw_payload_hash=canonical_hash(raw),
+        parser_version=PARSER_VERSION,
+        contract_id=contract_id,
         revision_number=(int(latest.get("revision_number") or 1) + 1) if latest else 1,
-        supersedes=latest["evidence_id"] if latest else None, source_locator=row["source_url"],
+        supersedes=latest["evidence_id"] if latest else None,
+        source_locator=row["source_url"],
     )
     return store.append_evidence(rec, actor=ACTOR)
 
@@ -366,24 +514,51 @@ def _exception_id(kind: str, subject: str) -> str:
     return "exc_" + hashlib.sha256(f"{kind}|{subject}".encode()).hexdigest()[:16]
 
 
-def _open_exception_once(store: ResolutionStore, *, kind: str, subject: str, contract_id: str | None,
-                         authority_id: str | None, severity: str, title: str, detail: str, action: str,
-                         metadata: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+def _open_exception_once(
+    store: ResolutionStore,
+    *,
+    kind: str,
+    subject: str,
+    contract_id: str | None,
+    authority_id: str | None,
+    severity: str,
+    title: str,
+    detail: str,
+    action: str,
+    metadata: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
     evsvc = get_evidence_service(store)
     existing = evsvc.get_exception(_exception_id(kind, subject))
     if existing:
         state = store.list_work_states().get(existing["work_item_id"]) or {}
-        closed_by_retriage = (existing.get("status") == "resolved" and state.get("updated_by") == ACTOR
-                              and str(state.get("note") or "").startswith("Closed by re-triage"))
+        closed_by_retriage = (
+            existing.get("status") == "resolved"
+            and state.get("updated_by") == ACTOR
+            and str(state.get("note") or "").startswith("Closed by re-triage")
+        )
         if not closed_by_retriage:
             return existing, False  # never reopen or reset work an operator/decision owns
         # Re-triage is the classifier correcting itself; if a later classifier
         # flags the market again, the item comes back.
-        store._audit(ACTOR, "evidence.exception.reopened", "evidence_exception", existing["exception_id"],
-                     {"subject": subject, "reason": "flagged again after re-triage"})
-    exc = evsvc._upsert_exception(kind=kind, subject=subject, contract_id=contract_id, authority_id=authority_id,
-                                  severity=severity, title=title, detail=detail, action=action,
-                                  metadata=metadata, actor=ACTOR)
+        store._audit(
+            ACTOR,
+            "evidence.exception.reopened",
+            "evidence_exception",
+            existing["exception_id"],
+            {"subject": subject, "reason": "flagged again after re-triage"},
+        )
+    exc = evsvc._upsert_exception(
+        kind=kind,
+        subject=subject,
+        contract_id=contract_id,
+        authority_id=authority_id,
+        severity=severity,
+        title=title,
+        detail=detail,
+        action=action,
+        metadata=metadata,
+        actor=ACTOR,
+    )
     return exc, True
 
 
@@ -394,16 +569,60 @@ def _close_exception_for_settlement(store: ResolutionStore, kind: str, subject: 
         return False
     note = f"Venue settled {row['outcome']} ({row['venue']} {row['market_id']})."
     with store.connect() as db:
-        db.execute("UPDATE evidence_exceptions SET status='resolved', updated_at=? WHERE exception_id=?",
-                   (utcnow(), exc["exception_id"]))
+        db.execute(
+            "UPDATE evidence_exceptions SET status='resolved', updated_at=? WHERE exception_id=?",
+            (utcnow(), exc["exception_id"]),
+        )
     store.set_work_state(exc["work_item_id"], "resolved", "Resolution Ops", note, ACTOR)
-    store._audit(ACTOR, "evidence.exception.resolved", "evidence_exception", exc["exception_id"],
-                 {"subject": subject, "reason": "venue_settled", "outcome": row["outcome"]})
+    store._audit(
+        ACTOR,
+        "evidence.exception.resolved",
+        "evidence_exception",
+        exc["exception_id"],
+        {"subject": subject, "reason": "venue_settled", "outcome": row["outcome"]},
+    )
     return True
 
 
-def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetcher = fetch_live,
-         dry_run: bool = False, boilerplate: dict[str, frozenset[str]] | None = None) -> dict[str, Any]:
+PRECEDENT_PULL_LIMIT = 50  # per venue per scan: a precedent never floods the queue
+
+
+def _precedent_context(store: ResolutionStore | None):
+    """(engine, live precedents, corpus) when there is any precedent to check against."""
+    if store is None:
+        return None
+    from .precedents import get_engine
+
+    engine = get_engine(store)
+    engine.refresh()
+    live = engine.list()
+    if not live:
+        return None
+    return engine, live, engine.corpus()
+
+
+def _templates(boilerplate: dict[str, frozenset[str]] | None, venue: str) -> frozenset[str]:
+    return (boilerplate or {}).get(SENTENCE_KEY.format(venue=venue), frozenset())
+
+
+def _precedent_summary(m: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "precedent_id": m["precedent_id"],
+        "tier": m["tier"],
+        "score": m["score"],
+        "relation": m["relation"],
+        "selection": m["ruling"].get("selection"),
+        "review_class": m["ruling"].get("review_class"),
+    }
+
+
+def sync(
+    store: ResolutionStore,
+    events: Iterable[WatchedEvent],
+    fetcher: Fetcher = fetch_live,
+    dry_run: bool = False,
+    boilerplate: dict[str, frozenset[str]] | None = None,
+) -> dict[str, Any]:
     """Pull every watched market and bring governed state up to date.
 
     ``boilerplate`` is per-venue templated wording (see boilerplate_for); pass
@@ -411,8 +630,15 @@ def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetche
     discovery did. Without it, a floor of known venue templates is used.
     """
     boilerplate = boilerplate if boilerplate is not None else dict(TEMPLATE_FLOOR)
-    report: dict[str, Any] = {"version": VERSION, "started_at": utcnow(), "dry_run": dry_run,
-                              "markets": [], "errors": [], "events": []}
+    pctx = _precedent_context(store)
+    report: dict[str, Any] = {
+        "version": VERSION,
+        "started_at": utcnow(),
+        "dry_run": dry_run,
+        "markets": [],
+        "errors": [],
+        "events": [],
+    }
     for event in events:
         rows: list[dict[str, Any]] = []
         for venue, market_id in event.markets:
@@ -426,9 +652,38 @@ def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetche
                 continue
             verdict = classify(row, boilerplate)
             klass = review_class(verdict, event.review_class, row, boilerplate)
-            entry.update({"title": row["title"], "status": row["status"], "outcome": row.get("outcome"),
-                          "hardness": verdict["primary_class"], "review_class": klass,
-                          "reasons": verdict.get("reasons", {}), "raw_sha256": canonical_hash(raw)})
+            matches: list[dict[str, Any]] = []
+            if pctx:
+                engine, live, corpus = pctx
+                probe = dict(row, contract_id=f"{row['venue']}:{row['market_id']}")
+                matches = [
+                    m
+                    for m in engine.match(
+                        probe, precedents=live, corpus=corpus, template_sentences=_templates(boilerplate, venue)
+                    )
+                    if m["relation"] != "decided"
+                ]
+            applicable = [m for m in matches if m["applies"]]
+            routed_by = None
+            if klass is None and applicable and applicable[0]["tier"] == "same_clause":
+                # A clause a human already ruled on: the ruling is the reason to look.
+                klass = applicable[0]["ruling"].get("review_class") or "interpretive_criteria"
+                routed_by = "precedent"
+            if applicable:
+                entry["precedent"] = _precedent_summary(applicable[0])
+            if routed_by:
+                entry["routed_by"] = routed_by
+            entry.update(
+                {
+                    "title": row["title"],
+                    "status": row["status"],
+                    "outcome": row.get("outcome"),
+                    "hardness": verdict["primary_class"],
+                    "review_class": klass,
+                    "reasons": verdict.get("reasons", {}),
+                    "raw_sha256": canonical_hash(raw),
+                }
+            )
             rows.append(row)
             if dry_run:
                 report["markets"].append(entry)
@@ -437,24 +692,52 @@ def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetche
             auth_id = _ensure_authority(store, venue)
             contract_id, version, new_version = _ensure_contract(store, row, event, auth_id)
             evidence = _append_evidence_if_changed(store, contract_id, auth_id, row, raw)
-            entry.update({"contract_id": contract_id, "contract_version": version,
-                          "contract_version_created": new_version,
-                          "evidence_id": evidence["evidence_id"] if evidence else None})
+            if pctx and applicable:
+                pctx[0].check_arrival(row, contract_id, matches=matches)
+            entry.update(
+                {
+                    "contract_id": contract_id,
+                    "contract_version": version,
+                    "contract_version_created": new_version,
+                    "evidence_id": evidence["evidence_id"] if evidence else None,
+                }
+            )
 
             subject = _subject(venue, market_id)
             if klass:
                 kind, severity, action = ROUTING[klass]
                 if row["status"] == "settled":
-                    entry["work_item"] = "closed" if _close_exception_for_settlement(store, kind, subject, row) else "none (settled)"
+                    entry["work_item"] = (
+                        "closed" if _close_exception_for_settlement(store, kind, subject, row) else "none (settled)"
+                    )
                 else:
                     reasons = "; ".join(r for rs in verdict.get("reasons", {}).values() for r in rs) or klass
+                    if applicable:
+                        top = applicable[0]
+                        reasons += (
+                            f". Precedent {top['precedent_id']} {'applies' if top['tier'] == 'same_clause' else 'likely applies'}"
+                            f" ({top['tier'].replace('_', ' ')}): ruled \u201c{top['ruling'].get('selection')}\u201d"
+                        )
                     exc, created = _open_exception_once(
-                        store, kind=kind, subject=subject, contract_id=contract_id, authority_id=auth_id,
-                        severity=severity, title=f"{row['title']} ({venue} {market_id})",
+                        store,
+                        kind=kind,
+                        subject=subject,
+                        contract_id=contract_id,
+                        authority_id=auth_id,
+                        severity=severity,
+                        title=f"{row['title']} ({venue} {market_id})",
                         detail=f"Needs a human judgment ({klass.replace('_', ' ')}): {reasons}",
                         action=action.format(label=event.label),
-                        metadata={"watched_event": event.event_id, "hardness": verdict, "source": "venue_intake",
-                                  "review_class_override": event.review_class})
+                        metadata={
+                            "watched_event": event.event_id,
+                            "hardness": verdict,
+                            "source": "venue_intake",
+                            "review_class": klass,
+                            "review_class_override": event.review_class,
+                            "routed_by": routed_by,
+                            "precedent_matches": [_precedent_summary(m) for m in applicable[:3]],
+                        },
+                    )
                     entry["work_item"] = "opened" if created else "exists"
                     entry["work_item_id"] = exc.get("work_item_id")
             else:
@@ -470,24 +753,33 @@ def sync(store: ResolutionStore, events: Iterable[WatchedEvent], fetcher: Fetche
             summary["cross_venue"] = "disagree"
             if not dry_run:
                 _open_exception_once(
-                    store, kind=CROSS_VENUE_KIND, subject=f"EVENT-{event.event_id}", contract_id=None,
-                    authority_id=None, severity="critical",
+                    store,
+                    kind=CROSS_VENUE_KIND,
+                    subject=f"EVENT-{event.event_id}",
+                    contract_id=None,
+                    authority_id=None,
+                    severity="critical",
                     title=f"Venues disagree: {event.label}",
-                    detail="Settled outcomes differ across venues: " + ", ".join(f"{k}={v}" for k, v in summary["settled"].items()),
+                    detail="Settled outcomes differ across venues: "
+                    + ", ".join(f"{k}={v}" for k, v in summary["settled"].items()),
                     action=f"Record which outcome the governing evidence supports for: {event.label}",
-                    metadata={"watched_event": event.event_id, "settled": summary["settled"], "source": "venue_intake"})
+                    metadata={"watched_event": event.event_id, "settled": summary["settled"], "source": "venue_intake"},
+                )
         elif len(venues) >= 2:
             summary["cross_venue"] = "agree"
         report["events"].append(summary)
 
     report["finished_at"] = utcnow()
     report["totals"] = {
-        "markets": len(report["markets"]), "errors": len(report["errors"]),
+        "markets": len(report["markets"]),
+        "errors": len(report["errors"]),
         "work_items_opened": sum(m.get("work_item") == "opened" for m in report["markets"]),
         "work_items_closed": sum(m.get("work_item") == "closed" for m in report["markets"]),
         "evidence_appended": sum(bool(m.get("evidence_id")) for m in report["markets"]),
         "contract_versions_created": sum(bool(m.get("contract_version_created")) for m in report["markets"]),
         "cross_venue_disagreements": sum(e.get("cross_venue") == "disagree" for e in report["events"]),
+        "precedent_applies": sum(bool(m.get("precedent")) for m in report["markets"]),
+        "routed_by_precedent": sum(m.get("routed_by") == "precedent" for m in report["markets"]),
     }
     return report
 
@@ -504,9 +796,98 @@ def _is_kalshi_parlay(raw: dict[str, Any]) -> bool:
     return bool(raw.get("mve_collection_ticker")) or ticker.startswith("KXMVE")
 
 
-def list_open_live(venue: str, limit: int) -> list[tuple[dict[str, Any], str]]:
-    """Open markets from the public venue APIs (Kalshi: both hosts, no parlays)."""
-    out: list[tuple[dict[str, Any], str]] = []
+# Kalshi's flat open-market list leads with sports: 1,000 markets on Sep 23 2026
+# were all sports props. Its events list carries a category per event, so
+# discovery walks events and filters by category instead.
+KALSHI_DEFAULT_EXCLUDE = frozenset({"Sports"})
+KALSHI_EVENT_PAGE = 200
+KALSHI_MAX_PAGES = 100
+
+
+def list_kalshi_events(
+    limit: int,
+    categories: Iterable[str] | None = None,
+    exclude: Iterable[str] = KALSHI_DEFAULT_EXCLUDE,
+    get_json: Callable[[str], Any] = _fetch_json,
+) -> list[tuple[dict[str, Any], str, dict[str, Any]]]:
+    """Open Kalshi markets gathered through open events, filtered by event category.
+
+    Returns (raw market, url, meta) with meta = {"category", "event_ticker",
+    "event_title"}. Walks both Kalshi hosts with cursor paging, de-duplicates by
+    ticker, and skips parlays and markets without rules. Stops once ``limit``
+    markets are collected. ``categories`` (if given) is an allow-list;
+    ``exclude`` a deny-list (Sports by default). Category names match Kalshi's,
+    case-insensitively.
+    """
+    allow = {c.strip().lower() for c in categories or [] if c.strip()}
+    deny = {c.strip().lower() for c in exclude or [] if c.strip()}
+    out: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
+    seen: set[str] = set()
+    for host in KALSHI_HOSTS:
+        cursor, pages = "", 0
+        while len(out) < limit and pages < KALSHI_MAX_PAGES:
+            params = {"status": "open", "with_nested_markets": "true", "limit": KALSHI_EVENT_PAGE}
+            if cursor:
+                params["cursor"] = cursor
+            url = f"{host}/trade-api/v2/events?" + urllib.parse.urlencode(params)
+            try:
+                payload = get_json(url)
+            except RuntimeError:
+                break
+            pages += 1
+            events = (payload.get("events") or []) if isinstance(payload, dict) else []
+            for ev in events:
+                category = str(ev.get("category") or "Uncategorized")
+                if category.lower() in deny or (allow and category.lower() not in allow):
+                    continue
+                for m in ev.get("markets") or []:
+                    t = str(m.get("ticker") or "")
+                    if (
+                        not t
+                        or t in seen
+                        or _is_kalshi_parlay(m)
+                        or not str(m.get("rules_primary") or "").strip()
+                        or str(m.get("status") or "").lower() not in {"active", "open", "initialized", ""}
+                    ):
+                        continue
+                    seen.add(t)
+                    out.append(
+                        (
+                            m,
+                            f"{host}/trade-api/v2/markets/{urllib.parse.quote(t)}",
+                            {
+                                "category": category,
+                                "event_ticker": ev.get("event_ticker"),
+                                "event_title": ev.get("title"),
+                            },
+                        )
+                    )
+                    if len(out) >= limit:
+                        break
+                if len(out) >= limit:
+                    break
+            cursor = (payload.get("cursor") or "") if isinstance(payload, dict) else ""
+            if not cursor or not events:
+                break
+    return out
+
+
+def list_open_live(
+    venue: str,
+    limit: int,
+    kalshi_source: str = "events",
+    categories: Iterable[str] | None = None,
+    exclude: Iterable[str] = KALSHI_DEFAULT_EXCLUDE,
+) -> list[tuple[Any, ...]]:
+    """Open markets from the public venue APIs.
+
+    Kalshi: by default through events filtered by category (see
+    list_kalshi_events); ``kalshi_source="markets"`` uses the flat market list
+    (both hosts, no parlays), which in practice is mostly sports.
+    """
+    out: list[tuple[Any, ...]] = []
+    if venue == "kalshi" and kalshi_source == "events":
+        return list_kalshi_events(limit, categories=categories, exclude=exclude)
     if venue == "kalshi":
         seen: set[str] = set()
         for host in KALSHI_HOSTS:
@@ -533,7 +914,8 @@ def list_open_live(venue: str, limit: int) -> list[tuple[dict[str, Any], str]]:
         return out
     if venue == "polymarket":
         url = "https://gamma-api.polymarket.com/markets?" + urllib.parse.urlencode(
-            {"closed": "false", "active": "true", "limit": limit, "order": "volume", "ascending": "false"})
+            {"closed": "false", "active": "true", "limit": limit, "order": "volume", "ascending": "false"}
+        )
         payload = _fetch_json(url)
         rows = payload if isinstance(payload, list) else (payload or {}).get("markets", [])
         for m in rows:
@@ -546,7 +928,8 @@ def list_open_live(venue: str, limit: int) -> list[tuple[dict[str, Any], str]]:
 def _event_key(venue: str, raw: dict[str, Any]) -> tuple[str, str]:
     """(event id, label) used to group a venue's markets on one real-world event."""
     if venue == "kalshi":
-        ev = str(raw.get("event_ticker") or raw.get("ticker"))
+        ticker = str(raw.get("ticker") or "")
+        ev = str(raw.get("event_ticker") or (ticker.rsplit("-", 1)[0] if "-" in ticker else ticker))
         return f"kalshi-{ev}", str(raw.get("title") or ev)
     events = raw.get("events") if isinstance(raw.get("events"), list) else []
     first = events[0] if events and isinstance(events[0], dict) else {}
@@ -554,17 +937,33 @@ def _event_key(venue: str, raw: dict[str, Any]) -> tuple[str, str]:
     return f"polymarket-{ev}", str(first.get("title") or raw.get("question") or ev)
 
 
-def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
-             venues: Iterable[str] = ("kalshi", "polymarket"), include_all: bool = False,
-             ) -> tuple[list[WatchedEvent], Fetcher, dict[str, Any]]:
+def discover(
+    list_fetcher: ListFetcher = list_open_live,
+    limit: int = 200,
+    venues: Iterable[str] = ("kalshi", "polymarket"),
+    include_all: bool = False,
+    store: ResolutionStore | None = None,
+) -> tuple[list[WatchedEvent], Fetcher, dict[str, Any]]:
     """Scan open markets; return watched events for the ones needing a human.
 
     Returns (events, fetcher, stats). The fetcher serves the already-downloaded
     raw payloads so ``sync`` does not fetch every market twice.
+
+    With ``store``, every scanned market is also checked against governed
+    precedent: a market the classifier passes over but that contains a clause
+    a human has already ruled on is brought in too (``stats["precedent"]``).
     """
+    pctx = _precedent_context(store)
     cache: dict[tuple[str, str], tuple[dict[str, Any], str]] = {}
     grouped: dict[str, WatchedEvent] = {}
-    stats: dict[str, Any] = {"scanned": {}, "flagged": {}, "errors": {}, "boilerplate": {}}
+    stats: dict[str, Any] = {
+        "scanned": {},
+        "flagged": {},
+        "errors": {},
+        "boilerplate": {},
+        "by_category": {},
+        "precedent": {},
+    }
     for venue in venues:
         try:
             listed = list_fetcher(venue, limit)
@@ -573,27 +972,55 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
             continue
         stats["scanned"][venue] = len(listed)
         pool: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
-        for raw, url in listed:
+        meta_of: dict[str, dict[str, Any]] = {}
+        for item in listed:
+            raw, url = item[0], item[1]
+            meta = item[2] if len(item) > 2 else {}
             if venue == "kalshi" and _is_kalshi_parlay(raw):
                 continue  # auto-generated parlays have no rules of their own
             row = normalize(venue, raw, url)
             if row["market_id"] and row["rules"] and row["status"] != "settled":
                 pool.append((raw, url, row))
+                meta_of[row["market_id"]] = meta
+            cat = (meta or {}).get("category")
+            if cat:
+                bucket = stats["by_category"].setdefault(venue, {}).setdefault(cat, {"scanned": 0, "flagged": 0})
+                bucket["scanned"] += 1
         learned = boilerplate_for([r for _, _, r in pool])
         sentence_key = SENTENCE_KEY.format(venue=venue)
         if sentence_key in learned:
             stats["boilerplate"][sentence_key] = learned[sentence_key]
         stats["boilerplate"][venue] = learned.get(venue, frozenset()) | TEMPLATE_FLOOR.get(venue, frozenset())
         flagged = 0
+        pulled = 0
         for raw, url, row in pool:
             klass = review_class(classify(row, stats["boilerplate"]), None, row, stats["boilerplate"])
+            if klass is None and pctx and pulled < PRECEDENT_PULL_LIMIT:
+                engine, live, corpus = pctx
+                hit = engine.match(
+                    dict(row, contract_id=f"{venue}:{row['market_id']}"),
+                    precedents=live,
+                    corpus=corpus,
+                    template_sentences=_templates(stats["boilerplate"], venue),
+                    min_tier="same_clause",
+                    limit=1,
+                )
+                if hit and hit[0]["relation"] != "decided":
+                    klass = "precedent"
+                    pulled += 1
             if not include_all and klass is None:
                 continue
             flagged += 1
             cache[(venue, row["market_id"])] = (raw, url)
             key, label = _event_key(venue, raw)
+            meta = meta_of.get(row["market_id"]) or {}
+            if meta.get("event_title"):
+                label = str(meta["event_title"])
+            if meta.get("category"):
+                stats["by_category"][venue][meta["category"]]["flagged"] += 1
             grouped.setdefault(key, WatchedEvent(event_id=key, label=label)).markets.append((venue, row["market_id"]))
         stats["flagged"][venue] = flagged
+        stats["precedent"][venue] = pulled
 
     def cached(venue: str, market_id: str) -> tuple[dict[str, Any], str]:
         if (venue, market_id) in cache:
@@ -607,26 +1034,37 @@ def discover(list_fetcher: ListFetcher = list_open_live, limit: int = 200,
 # re-triage: close intake work the current classifier no longer flags
 # --------------------------------------------------------------------------
 
+
 def _row_from_store(store: ResolutionStore, contract_id: str) -> dict[str, Any] | None:
     spec = store.latest_contract(contract_id)
     if not spec:
         return None
     venue, _, market_id = contract_id.partition(":")
-    evidence = [e for e in store.list_evidence(contract_id, limit=500)
-                if e.get("authority_id") == VENUE_AUTHORITIES.get(venue, ("",))[0]]
+    evidence = [
+        e
+        for e in store.list_evidence(contract_id, limit=500)
+        if e.get("authority_id") == VENUE_AUTHORITIES.get(venue, ("",))[0]
+    ]
     latest = max(evidence, key=lambda e: int(e.get("revision_number") or 1), default={})
     observed = latest.get("normalized_value") or {}
     meta = spec.get("metadata") or {}
-    return {"venue": venue, "market_id": market_id, "title": spec.get("title") or "",
-            "event_id": meta.get("event_id") or meta.get("watched_event"),
-            "rules": (spec.get("definition") or {}).get("yes_if") or "",
-            "status": observed.get("status") or "open", "outcome": observed.get("outcome"),
-            "closed_at": observed.get("closed_at"), "settled_at": observed.get("settled_at"),
-            "dispute_count": observed.get("dispute_count") or 0}
+    return {
+        "venue": venue,
+        "market_id": market_id,
+        "title": spec.get("title") or "",
+        "event_id": meta.get("event_id") or meta.get("watched_event"),
+        "rules": (spec.get("definition") or {}).get("yes_if") or "",
+        "status": observed.get("status") or "open",
+        "outcome": observed.get("outcome"),
+        "closed_at": observed.get("closed_at"),
+        "settled_at": observed.get("settled_at"),
+        "dispute_count": observed.get("dispute_count") or 0,
+    }
 
 
-def retriage(store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | None = None,
-             dry_run: bool = False) -> dict[str, Any]:
+def retriage(
+    store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | None = None, dry_run: bool = False
+) -> dict[str, Any]:
     """Close open intake work items the current classifier no longer flags.
 
     Only touches items that are exactly as intake left them: still open, last
@@ -638,8 +1076,11 @@ def retriage(store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | No
     from .decision_records import DecisionRecordService
 
     evsvc = get_evidence_service(store)
-    intake = [x for x in evsvc.list_exceptions(active_only=True)
-              if (x.get("metadata") or {}).get("source") == "venue_intake" and x.get("kind") != CROSS_VENUE_KIND]
+    intake = [
+        x
+        for x in evsvc.list_exceptions(active_only=True)
+        if (x.get("metadata") or {}).get("source") == "venue_intake" and x.get("kind") != CROSS_VENUE_KIND
+    ]
     rows = {x["exception_id"]: _row_from_store(store, x.get("contract_id") or "") for x in intake}
     if boilerplate is None:
         boilerplate = boilerplate_for([r for r in rows.values() if r])
@@ -647,9 +1088,16 @@ def retriage(store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | No
             boilerplate[v] = boilerplate.get(v, frozenset()) | TEMPLATE_FLOOR.get(v, frozenset())
 
     decided = {str(c) for d in DecisionRecordService(store).list(limit=500) for c in d.get("affected_case_ids") or []}
+    from .precedents import get_engine
+
+    engine = get_engine(store)
+    engine.refresh()
+    live_precedents = {p["precedent_id"] for p in engine.list()}
     with store.connect() as db:
-        touched_by = {r["work_item_id"]: (r["status"], r["updated_by"])
-                      for r in db.execute("SELECT work_item_id,status,updated_by FROM work_item_state").fetchall()}
+        touched_by = {
+            r["work_item_id"]: (r["status"], r["updated_by"])
+            for r in db.execute("SELECT work_item_id,status,updated_by FROM work_item_state").fetchall()
+        }
 
     report = {"version": VERSION, "dry_run": dry_run, "checked": len(intake), "closed": [], "kept": [], "skipped": []}
     for exc in intake:
@@ -659,6 +1107,11 @@ def retriage(store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | No
         label = {"subject": exc["subject"], "kind": exc["kind"], "title": (row or {}).get("title")}
         if (exc.get("metadata") or {}).get("review_class_override"):
             report["skipped"].append({**label, "why": "review class set deliberately on the watchlist"})
+            continue
+        meta = exc.get("metadata") or {}
+        routing = [m.get("precedent_id") for m in meta.get("precedent_matches") or []]
+        if meta.get("routed_by") == "precedent" and any(p in live_precedents for p in routing):
+            report["skipped"].append({**label, "why": "routed by governed precedent, not the classifier"})
             continue
         if row is None or state[0] != "open" or state[1] != ACTOR or wid in decided:
             report["skipped"].append({**label, "why": "touched by an operator or decision" if row else "no contract"})
@@ -671,13 +1124,22 @@ def retriage(store: ResolutionStore, boilerplate: dict[str, frozenset[str]] | No
         report["closed"].append({**label, "now": klass or "no human judgment needed"})
         if dry_run:
             continue
-        note = (f"Closed by re-triage ({VERSION}): the classifier no longer routes this market to "
-                f"{exc['kind'].replace('_', ' ')} ({klass or 'no human judgment needed'}).")
+        note = (
+            f"Closed by re-triage ({VERSION}): the classifier no longer routes this market to "
+            f"{exc['kind'].replace('_', ' ')} ({klass or 'no human judgment needed'})."
+        )
         with store.connect() as db:
-            db.execute("UPDATE evidence_exceptions SET status='resolved', updated_at=? WHERE exception_id=?",
-                       (utcnow(), exc["exception_id"]))
+            db.execute(
+                "UPDATE evidence_exceptions SET status='resolved', updated_at=? WHERE exception_id=?",
+                (utcnow(), exc["exception_id"]),
+            )
         store.set_work_state(wid, "resolved", "Resolution Ops", note, ACTOR)
-        store._audit(ACTOR, "evidence.exception.retriaged", "evidence_exception", exc["exception_id"],
-                     {"subject": exc["subject"], "from_kind": exc["kind"], "now": klass})
+        store._audit(
+            ACTOR,
+            "evidence.exception.retriaged",
+            "evidence_exception",
+            exc["exception_id"],
+            {"subject": exc["subject"], "from_kind": exc["kind"], "now": klass},
+        )
     report["totals"] = {k: len(report[k]) for k in ("closed", "kept", "skipped")}
     return report

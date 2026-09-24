@@ -5,13 +5,13 @@ exchange settlement endpoint or an oracle. Exchange-specific execution remains o
 Arbiter unless/until a dedicated adapter is explicitly configured and independently
 approved.
 """
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timezone
 from typing import Any
 
 from .enterprise import load_runtime_config
@@ -103,9 +103,18 @@ class ApprovalControlService:
             row = db.execute("SELECT run_json FROM resolution_runs WHERE run_id=?", (run_id,)).fetchone()
         return json.loads(row["run_json"]) if row else None
 
-    def request_approval(self, *, object_type: str, object_id: str, action: str,
-                         exchange_profile: str, requested_by: str, rationale: str = "",
-                         required_approvals: int = 1, metadata: dict | None = None) -> dict:
+    def request_approval(
+        self,
+        *,
+        object_type: str,
+        object_id: str,
+        action: str,
+        exchange_profile: str,
+        requested_by: str,
+        rationale: str = "",
+        required_approvals: int = 1,
+        metadata: dict | None = None,
+    ) -> dict:
         if required_approvals < 1 or required_approvals > 5:
             raise ValueError("required_approvals must be between 1 and 5")
         if object_type == "resolution_run":
@@ -121,12 +130,32 @@ class ApprovalControlService:
         with self.store.connect() as db:
             db.execute(
                 "INSERT INTO approval_requests(approval_id,object_type,object_id,action,exchange_profile,requested_by,requested_at,status,required_approvals,rationale,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                (aid, object_type, object_id, action, exchange_profile, requested_by, now, "pending",
-                 required_approvals, rationale, json.dumps(metadata or {}, sort_keys=True)),
+                (
+                    aid,
+                    object_type,
+                    object_id,
+                    action,
+                    exchange_profile,
+                    requested_by,
+                    now,
+                    "pending",
+                    required_approvals,
+                    rationale,
+                    json.dumps(metadata or {}, sort_keys=True),
+                ),
             )
-        self.store._audit(requested_by, "approval.requested", object_type, object_id,
-                          {"approval_id": aid, "action": action, "required_approvals": required_approvals,
-                           "exchange_profile": exchange_profile})
+        self.store._audit(
+            requested_by,
+            "approval.requested",
+            object_type,
+            object_id,
+            {
+                "approval_id": aid,
+                "action": action,
+                "required_approvals": required_approvals,
+                "exchange_profile": exchange_profile,
+            },
+        )
         return self.get_approval(aid)
 
     def get_approval(self, approval_id: str) -> dict | None:
@@ -134,7 +163,9 @@ class ApprovalControlService:
             row = db.execute("SELECT * FROM approval_requests WHERE approval_id=?", (approval_id,)).fetchone()
             if not row:
                 return None
-            decisions = db.execute("SELECT * FROM approval_decisions WHERE approval_id=? ORDER BY decided_at", (approval_id,)).fetchall()
+            decisions = db.execute(
+                "SELECT * FROM approval_decisions WHERE approval_id=? ORDER BY decided_at", (approval_id,)
+            ).fetchall()
         d = self._row(row)
         d["decisions"] = [dict(x) for x in decisions]
         d["approval_count"] = sum(1 for x in d["decisions"] if x["decision"] == "approve")
@@ -144,10 +175,13 @@ class ApprovalControlService:
         sql = "SELECT approval_id FROM approval_requests WHERE 1=1"
         args: list[Any] = []
         if status:
-            sql += " AND status=?"; args.append(status)
+            sql += " AND status=?"
+            args.append(status)
         if object_id:
-            sql += " AND object_id=?"; args.append(object_id)
-        sql += " ORDER BY requested_at DESC LIMIT ?"; args.append(limit)
+            sql += " AND object_id=?"
+            args.append(object_id)
+        sql += " ORDER BY requested_at DESC LIMIT ?"
+        args.append(limit)
         with self.store.connect() as db:
             rows = db.execute(sql, args).fetchall()
         return [self.get_approval(r["approval_id"]) for r in rows]
@@ -183,8 +217,13 @@ class ApprovalControlService:
             status = "pending"
         with self.store.connect() as db:
             db.execute("UPDATE approval_requests SET status=? WHERE approval_id=?", (status, approval_id))
-        self.store._audit(actor, f"approval.{decision}d", req["object_type"], req["object_id"],
-                          {"approval_id": approval_id, "decision_id": did, "status": status, "note": note})
+        self.store._audit(
+            actor,
+            f"approval.{decision}d",
+            req["object_type"],
+            req["object_id"],
+            {"approval_id": approval_id, "decision_id": did, "status": status, "note": note},
+        )
         return self.get_approval(approval_id)
 
     def _sign(self, payload_hash: str) -> tuple[str, str, str, bool]:
@@ -194,6 +233,13 @@ class ApprovalControlService:
         if secret:
             mode = "hmac-sha256"
             production_eligible = cfg.production
+        elif cfg.production:
+            # Fail closed: production never signs with the development key, not even as a
+            # non-eligible packet (enterprise.configuration_findings also BLOCKs readiness).
+            raise ValueError(
+                "ARBITER_SETTLEMENT_SIGNING_SECRET must be set in production; "
+                "refusing to sign a settlement packet with the local development key"
+            )
         else:
             # Explicitly non-production. This makes local integration/testing convenient without
             # pretending the packet is production-grade cryptographic authorization.
@@ -216,7 +262,12 @@ class ApprovalControlService:
             if not run:
                 raise ValueError("resolution run not found")
             # Fail closed again at packetization time.
-            if run.get("state") != "completed" or str(run.get("outcome", "")).upper() in {"HELD", "PENDING", "REVIEW", "BLOCK"}:
+            if run.get("state") != "completed" or str(run.get("outcome", "")).upper() in {
+                "HELD",
+                "PENDING",
+                "REVIEW",
+                "BLOCK",
+            }:
                 raise ValueError("resolution run is not settlement eligible")
             existing = self.packet_for_approval(approval_id)
             if existing:
@@ -249,14 +300,39 @@ class ApprovalControlService:
             with self.store.connect() as db:
                 db.execute(
                     "INSERT INTO settlement_packets(packet_id,approval_id,run_id,contract_id,contract_version,policy_version,exchange_profile,terminal_action,created_at,created_by,payload_json,payload_hash,signature,signing_key_id,signature_mode,production_eligible) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (pid, approval_id, run["run_id"], run["contract_id"], run["contract_version"], run["policy_version"],
-                     profile, payload["terminal_action"], payload["created_at"], actor, json.dumps(payload, sort_keys=True),
-                     payload_hash, signature, key_id, mode, 1 if production_eligible else 0),
+                    (
+                        pid,
+                        approval_id,
+                        run["run_id"],
+                        run["contract_id"],
+                        run["contract_version"],
+                        run["policy_version"],
+                        profile,
+                        payload["terminal_action"],
+                        payload["created_at"],
+                        actor,
+                        json.dumps(payload, sort_keys=True),
+                        payload_hash,
+                        signature,
+                        key_id,
+                        mode,
+                        1 if production_eligible else 0,
+                    ),
                 )
-            self.store._audit(actor, "settlement.packet.created", "resolution_run", run["run_id"],
-                              {"packet_id": pid, "approval_id": approval_id, "payload_hash": payload_hash,
-                               "exchange_profile": profile, "terminal_action": payload["terminal_action"],
-                               "production_eligible": production_eligible})
+            self.store._audit(
+                actor,
+                "settlement.packet.created",
+                "resolution_run",
+                run["run_id"],
+                {
+                    "packet_id": pid,
+                    "approval_id": approval_id,
+                    "payload_hash": payload_hash,
+                    "exchange_profile": profile,
+                    "terminal_action": payload["terminal_action"],
+                    "production_eligible": production_eligible,
+                },
+            )
             return self.packet_for_approval(approval_id)
 
     def packet_for_approval(self, approval_id: str) -> dict | None:
@@ -268,8 +344,10 @@ class ApprovalControlService:
         sql = "SELECT * FROM settlement_packets"
         args: list[Any] = []
         if run_id:
-            sql += " WHERE run_id=?"; args.append(run_id)
-        sql += " ORDER BY created_at DESC LIMIT ?"; args.append(limit)
+            sql += " WHERE run_id=?"
+            args.append(run_id)
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        args.append(limit)
         with self.store.connect() as db:
             rows = db.execute(sql, args).fetchall()
         return [self._row(r) for r in rows]
@@ -278,11 +356,15 @@ class ApprovalControlService:
         with self.store.connect() as db:
             approvals = db.execute("SELECT status,COUNT(*) n FROM approval_requests GROUP BY status").fetchall()
             packets = db.execute("SELECT COUNT(*) n FROM settlement_packets").fetchone()["n"]
-        return {"approvals": {r["status"]: r["n"] for r in approvals}, "settlement_packets": packets,
-                "boundary": "Signed handoff packets only; no exchange settlement or oracle transaction is executed by v0.12."}
+        return {
+            "approvals": {r["status"]: r["n"] for r in approvals},
+            "settlement_packets": packets,
+            "boundary": "Signed handoff packets only; no exchange settlement or oracle transaction is executed by v0.12.",
+        }
 
 
 _SERVICE = None
+
 
 def get_service(store):
     global _SERVICE

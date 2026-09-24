@@ -32,11 +32,18 @@ def main() -> None:
     if not out.is_absolute():
         out = ROOT / out
     manifest = freeze_candidates(
-        read_jsonl(candidates_path), out, name=args.name, target=args.target,
-        seed=args.seed, created_by=args.created_by, min_rules_chars=args.min_rules_chars,
+        read_jsonl(candidates_path),
+        out,
+        name=args.name,
+        target=args.target,
+        seed=args.seed,
+        created_by=args.created_by,
+        min_rules_chars=args.min_rules_chars,
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
-    print("\nIMPORTANT: Do not tune Arbiter against this dataset. Fixes discovered here belong on a future holdout version.")
+    print(
+        "\nIMPORTANT: Do not tune Arbiter against this dataset. Fixes discovered here belong on a future holdout version."
+    )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ Usage:
     python3 scripts/coherence_test.py --base-url http://127.0.0.1:8001
     ARBITER_API_KEY=arb_... python3 scripts/coherence_test.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -99,12 +100,24 @@ class Runner:
 
     @staticmethod
     def authorities(compilation: dict[str, Any]) -> list[str]:
-        spec = compilation.get("proposed_spec") or compilation.get("resolution_specification") or compilation.get("specification") or compilation.get("spec") or {}
+        spec = (
+            compilation.get("proposed_spec")
+            or compilation.get("resolution_specification")
+            or compilation.get("specification")
+            or compilation.get("spec")
+            or {}
+        )
         return list(spec.get("authority_ids") or compilation.get("authority_ids") or [])
 
     @staticmethod
     def definition_type(compilation: dict[str, Any]) -> str | None:
-        spec = compilation.get("proposed_spec") or compilation.get("resolution_specification") or compilation.get("specification") or compilation.get("spec") or {}
+        spec = (
+            compilation.get("proposed_spec")
+            or compilation.get("resolution_specification")
+            or compilation.get("specification")
+            or compilation.get("spec")
+            or {}
+        )
         definition = spec.get("definition") or compilation.get("definition") or {}
         return definition.get("type")
 
@@ -121,8 +134,16 @@ class Runner:
         saved = out.get("case") or {}
         key = case["key"]
 
-        self.check(f"{key}: compiler={case['expected_compiler']}", compilation.get("status") == case["expected_compiler"], str(compilation.get("status")))
-        self.check(f"{key}: resolution={case['expected_resolution']}", resolution.get("outcome") == case["expected_resolution"], str(resolution.get("outcome")))
+        self.check(
+            f"{key}: compiler={case['expected_compiler']}",
+            compilation.get("status") == case["expected_compiler"],
+            str(compilation.get("status")),
+        )
+        self.check(
+            f"{key}: resolution={case['expected_resolution']}",
+            resolution.get("outcome") == case["expected_resolution"],
+            str(resolution.get("outcome")),
+        )
         self.check(f"{key}: case persisted", bool(saved.get("case_id")), str(saved))
 
         exp = case.get("expected") or {}
@@ -132,7 +153,11 @@ class Runner:
         if "authority_id" in exp:
             self.check(f"{key}: authority {exp['authority_id']}", exp["authority_id"] in authorities, str(authorities))
         if "forbidden_authority_id" in exp:
-            self.check(f"{key}: conflicted authority not trusted", exp["forbidden_authority_id"] not in authorities, str(authorities))
+            self.check(
+                f"{key}: conflicted authority not trusted",
+                exp["forbidden_authority_id"] not in authorities,
+                str(authorities),
+            )
         if "definition_type" in exp:
             self.check(f"{key}: definition {exp['definition_type']}", dtype == exp["definition_type"], str(dtype))
         if exp.get("unresolved_fields") == []:
@@ -158,18 +183,37 @@ class Runner:
             "actor": "test:coherence-harness",
         }
         rerun = self.client.post("/api/analyze", payload)
-        self.check("case rerun preserves case_id", (rerun.get("case") or {}).get("case_id") == case_id, str(rerun.get("case")))
-        self.check("case rerun improves Fed contract to READY", (rerun.get("compilation") or {}).get("status") == "READY", str((rerun.get("compilation") or {}).get("status")))
+        self.check(
+            "case rerun preserves case_id", (rerun.get("case") or {}).get("case_id") == case_id, str(rerun.get("case"))
+        )
+        self.check(
+            "case rerun improves Fed contract to READY",
+            (rerun.get("compilation") or {}).get("status") == "READY",
+            str((rerun.get("compilation") or {}).get("status")),
+        )
         detail = self.client.get(f"/api/cases/{case_id}").get("case") or {}
         runs = detail.get("runs") or []
         self.check("case rerun appends run history", len(runs) >= 2, f"runs={len(runs)}")
-        self.check("case retains latest edited criteria", detail.get("criteria") == case["rerun_criteria"], str(detail.get("criteria")))
+        self.check(
+            "case retains latest edited criteria",
+            detail.get("criteria") == case["rerun_criteria"],
+            str(detail.get("criteria")),
+        )
 
         template_name = f"Coherence Fed Template {int(time.time())}"
-        template = self.client.post(f"/api/cases/{case_id}/template", {"name": template_name, "actor": "test:coherence-harness"}).get("template") or {}
+        template = (
+            self.client.post(
+                f"/api/cases/{case_id}/template", {"name": template_name, "actor": "test:coherence-harness"}
+            ).get("template")
+            or {}
+        )
         self.check("template created from saved case", bool(template.get("template_id")), str(template))
         templates = self.client.get("/api/templates").get("templates") or []
-        self.check("template visible in registry", any(t.get("template_id") == template.get("template_id") for t in templates), f"templates={len(templates)}")
+        self.check(
+            "template visible in registry",
+            any(t.get("template_id") == template.get("template_id") for t in templates),
+            f"templates={len(templates)}",
+        )
 
     def test_cross_surface(self) -> None:
         for path, label in [
@@ -197,7 +241,11 @@ class Runner:
         chain = audit.get("chain") or {}
         events = audit.get("events") or []
         self.check("audit chain verifies", chain.get("ok") is True, str(chain))
-        self.check("coherence activity is audited", any(e.get("actor") == "test:coherence-harness" for e in events), f"events={len(events)}")
+        self.check(
+            "coherence activity is audited",
+            any(e.get("actor") == "test:coherence-harness" for e in events),
+            f"events={len(events)}",
+        )
 
     def test_benchmark(self) -> None:
         if self.run_benchmark:
@@ -213,8 +261,16 @@ class Runner:
         }
         for key, value in expected.items():
             self.check(f"benchmark: {key}={value}", metrics.get(key) == value, str(metrics.get(key)))
-        self.check("benchmark: defect detection baseline", metrics.get("defect_detection_rate") == 1.0, str(metrics.get("defect_detection_rate")))
-        self.check("benchmark: clean false-positive baseline", metrics.get("clean_false_positive_rate") == 0.0, str(metrics.get("clean_false_positive_rate")))
+        self.check(
+            "benchmark: defect detection baseline",
+            metrics.get("defect_detection_rate") == 1.0,
+            str(metrics.get("defect_detection_rate")),
+        )
+        self.check(
+            "benchmark: clean false-positive baseline",
+            metrics.get("clean_false_positive_rate") == 0.0,
+            str(metrics.get("clean_false_positive_rate")),
+        )
 
     def run(self) -> int:
         print(f"Arbiter coherence harness → {self.client.base_url}")
@@ -268,7 +324,9 @@ def main() -> int:
     p.add_argument("--base-url", default=os.environ.get("ARBITER_BASE_URL", "http://127.0.0.1:8000"))
     p.add_argument("--api-key", default=os.environ.get("ARBITER_API_KEY"))
     p.add_argument("--fixture", default=str(DEFAULT_FIXTURE))
-    p.add_argument("--skip-benchmark-run", action="store_true", help="Read the latest benchmark result instead of rerunning it")
+    p.add_argument(
+        "--skip-benchmark-run", action="store_true", help="Read the latest benchmark result instead of rerunning it"
+    )
     args = p.parse_args()
 
     fixture = json.loads(Path(args.fixture).read_text())

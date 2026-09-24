@@ -61,7 +61,9 @@ class PublicResolutionStore:
                 )
                 """
             )
-            db.execute("CREATE INDEX IF NOT EXISTS ix_public_resolution_tenant ON public_api_resolutions(tenant_id, created_at)")
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS ix_public_resolution_tenant ON public_api_resolutions(tenant_id, created_at)"
+            )
 
     def save(self, tenant_id: str, request: dict[str, Any], response: dict[str, Any], actor: str) -> dict[str, Any]:
         resolution_id = str(response["resolution_id"])
@@ -71,8 +73,16 @@ class PublicResolutionStore:
         with resolution_store.connect() as db:
             db.execute(
                 "INSERT INTO public_api_resolutions(resolution_id,tenant_id,contract_id,request_sha256,response_sha256,request_json,response_json,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                (resolution_id, tenant_id, request["contract_id"], request_sha, response_sha,
-                 json.dumps(request, sort_keys=True, default=str), json.dumps(response, sort_keys=True, default=str), now),
+                (
+                    resolution_id,
+                    tenant_id,
+                    request["contract_id"],
+                    request_sha,
+                    response_sha,
+                    json.dumps(request, sort_keys=True, default=str),
+                    json.dumps(response, sort_keys=True, default=str),
+                    now,
+                ),
             )
         resolution_store._audit(
             actor,
@@ -122,11 +132,7 @@ def _response_core_for_hash(response: dict[str, Any]) -> dict[str, Any]:
     hash metadata. Verification must reconstruct that same payload rather than
     trusting either the stored JSON or the stored digest.
     """
-    return {
-        key: value
-        for key, value in response.items()
-        if key not in {"request_sha256", "response_sha256"}
-    }
+    return {key: value for key, value in response.items() if key not in {"request_sha256", "response_sha256"}}
 
 
 @router.post("/contracts/compile")
@@ -169,7 +175,9 @@ def resolve_contract_v1(
         "contract_id": inp.contract_id,
         "verdict": resolved.get("predicted_outcome", "HOLD"),
         "governance_status": compiled.get("status", "UNKNOWN"),
-        "evidence_status": "SUFFICIENT" if evidence and resolved.get("predicted_outcome") in {"YES", "NO"} else "INSUFFICIENT",
+        "evidence_status": "SUFFICIENT"
+        if evidence and resolved.get("predicted_outcome") in {"YES", "NO"}
+        else "INSUFFICIENT",
         "requires_human_review": resolved.get("predicted_outcome") == "HOLD" or compiled.get("status") != "READY",
         "resolution_method": resolved.get("resolution_method"),
         "reason": resolved.get("reason"),

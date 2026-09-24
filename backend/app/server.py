@@ -4,13 +4,19 @@ v0.34 mounts the Decision Operations router around the existing main application
 without destabilizing the long-lived main.py surface. New deployments should run
 `uvicorn app.server:app`; legacy `app.main:app` remains available during migration.
 """
+
 from __future__ import annotations
 
 from .main import app, _workflow_payload, resolution_store
-from . import developer, decision_api, decision_records
+from . import audit_api, audit_engagement, audit_trail, developer, decision_api, decision_records, precedents
 
 # Ensure the durable DecisionRecord table exists before the first request.
 decision_records.get_service(resolution_store)
+# Materialize precedent for any decision recorded before v0.39 (or by another
+# process), so read endpoints never need to write.
+precedents.get_engine(resolution_store).refresh()
+audit_trail.get_trail(resolution_store)
+audit_engagement.get_engagements(resolution_store)
 
 app.include_router(
     decision_api.build_router(
@@ -19,6 +25,8 @@ app.include_router(
         require_scope=developer.require_scope,
     )
 )
+
+app.include_router(audit_api.build_router(resolution_store=resolution_store, require_scope=developer.require_scope))
 
 # main.py mounts the built frontend as a catch-all StaticFiles app at "/".
 # Starlette matches routes in registration order, so anything registered after

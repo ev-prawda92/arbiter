@@ -14,10 +14,11 @@ most one venue can be right, so a confirmed disagreement pair is a benchmark
 case whose correct answer can be argued from the contract text and evidence,
 without appealing to Arbiter's own judgment.
 """
+
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
@@ -31,10 +32,30 @@ _STOPWORDS = frozenset(
 )
 
 _MONTHS = {
-    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
-    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8,
-    "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "sept": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 
 # Kalshi strike-ladder titles are comma-joined bundles prefixed with the
@@ -131,6 +152,7 @@ def _settle_gap_days(a: str | None, b: str | None) -> float | None:
             return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
         except ValueError:
             return None
+
     da, db = parse(a), parse(b)
     if da is None or db is None:
         return None
@@ -202,20 +224,32 @@ def join_candidates(
             if scored["confidence"] < min_confidence:
                 continue
             cls = classify_pair(a, b)
-            pairs.append({
-                "pair_class": cls,
-                "match_confidence": scored["confidence"],
-                "requires_human_confirmation": True,
-                "left": {"case_id": a.case_id, "venue": a.venue, "title": a.title, "known_outcome": a.known_outcome},
-                "right": {"case_id": b.case_id, "venue": b.venue, "title": b.title, "known_outcome": b.known_outcome},
-                "evidence": {
-                    "entity_jaccard": scored["entity_jaccard"],
-                    "shared_entities": scored["shared_entities"],
-                    "shared_numbers": scored["shared_numbers"],
-                    "shared_dates": scored["shared_dates"],
-                    "settle_gap_days": scored["settle_gap_days"],
-                },
-            })
+            pairs.append(
+                {
+                    "pair_class": cls,
+                    "match_confidence": scored["confidence"],
+                    "requires_human_confirmation": True,
+                    "left": {
+                        "case_id": a.case_id,
+                        "venue": a.venue,
+                        "title": a.title,
+                        "known_outcome": a.known_outcome,
+                    },
+                    "right": {
+                        "case_id": b.case_id,
+                        "venue": b.venue,
+                        "title": b.title,
+                        "known_outcome": b.known_outcome,
+                    },
+                    "evidence": {
+                        "entity_jaccard": scored["entity_jaccard"],
+                        "shared_entities": scored["shared_entities"],
+                        "shared_numbers": scored["shared_numbers"],
+                        "shared_dates": scored["shared_dates"],
+                        "settle_gap_days": scored["settle_gap_days"],
+                    },
+                }
+            )
 
     class_rank = {"outcome_disagreement": 0, "resolution_asymmetry": 1, "outcome_agreement": 2}
     pairs.sort(key=lambda p: (class_rank.get(p["pair_class"], 9), -p["match_confidence"]))

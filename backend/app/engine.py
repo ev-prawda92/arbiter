@@ -26,23 +26,43 @@ from datetime import datetime, timezone
 
 # Authoritative, named settlement sources. Presence of one lowers source risk.
 AUTHORITATIVE_SOURCES = [
-    r"\bNWS\b", r"national weather service", r"\bNOAA\b",
-    r"\bBLS\b", r"bureau of labor statistics",
-    r"\bOPM\b", r"office of personnel management",
-    r"\bCME\b", r"\bNYMEX\b", r"\bCOMEX\b", r"\bLME\b",
-    r"federal reserve", r"\bFOMC\b", r"\bFed\b",
-    r"\bBEA\b", r"bureau of economic analysis",
-    r"\bNBER\b", r"\bCFTC\b", r"\bSEC\b", r"\bTreasury\b",
-    r"associated press", r"\bAP\b race call", r"\bBinance\b",
+    r"\bNWS\b",
+    r"national weather service",
+    r"\bNOAA\b",
+    r"\bBLS\b",
+    r"bureau of labor statistics",
+    r"\bOPM\b",
+    r"office of personnel management",
+    r"\bCME\b",
+    r"\bNYMEX\b",
+    r"\bCOMEX\b",
+    r"\bLME\b",
+    r"federal reserve",
+    r"\bFOMC\b",
+    r"\bFed\b",
+    r"\bBEA\b",
+    r"bureau of economic analysis",
+    r"\bNBER\b",
+    r"\bCFTC\b",
+    r"\bSEC\b",
+    r"\bTreasury\b",
+    r"associated press",
+    r"\bAP\b race call",
+    r"\bBinance\b",
     r"official Tour de France (website|results|classification)",
     r"official (results|settlement|report|statement|data|source|website|classification)",
 ]
 
 # Vague / non-authoritative source language raises source risk sharply.
 VAGUE_SOURCES = [
-    r"credible (news|reporting|media|sources?)", r"media reports?",
-    r"news reports?", r"widely reported", r"reputable sources?",
-    r"generally recognized", r"consensus of", r"reasonable interpretation",
+    r"credible (news|reporting|media|sources?)",
+    r"media reports?",
+    r"news reports?",
+    r"widely reported",
+    r"reputable sources?",
+    r"generally recognized",
+    r"consensus of",
+    r"reasonable interpretation",
 ]
 
 REVISION_PRONE = [r"\bCPI\b", r"\bGDP\b", r"payrolls?", r"jobs report", r"revised", r"revision"]
@@ -74,11 +94,16 @@ def score_source(text, title):
 
     # multiple sources with no stated hierarchy (e.g. "COMEX or LME", "A and B")
     src_tokens = re.findall(r"\b(NWS|NOAA|BLS|CME|NYMEX|COMEX|LME|OPM|BEA|NBER|FOMC)\b", raw, re.I)
-    if len(set(t.upper() for t in src_tokens)) >= 2 and not re.search(r"primary|secondary|fallback|if .* unavailable|priority|first|governs|takes precedence", blob):
+    if len(set(t.upper() for t in src_tokens)) >= 2 and not re.search(
+        r"primary|secondary|fallback|if .* unavailable|priority|first|governs|takes precedence", blob
+    ):
         score += 26
         flags.append("multiple sources, no stated hierarchy")
 
-    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(r"initial (print|release|estimate)|first (print|release|published release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob):
+    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(
+        r"initial (print|release|estimate)|first (print|release|published release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded",
+        blob,
+    ):
         score += 14
         flags.append("revision-prone source, revision rule unstated")
 
@@ -93,7 +118,11 @@ TIME_PATTERNS = [
     r"\bclose of (business|trading)\b",
     r"\bsettlement (price|time)\b",
 ]
-DATEONLY_HINT = [r"\bas of\b", r"\bby (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|the end)", r"\bend of (the )?(day|month|year|quarter)\b"]
+DATEONLY_HINT = [
+    r"\bas of\b",
+    r"\bby (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|the end)",
+    r"\bend of (the )?(day|month|year|quarter)\b",
+]
 
 
 def score_timing(text, title):
@@ -104,10 +133,20 @@ def score_timing(text, title):
     # Daily-observation markets (weather climate reports, daily totals) are settled on
     # a calendar-day basis. They legitimately have no intraday clock, so a missing
     # time-of-day is not a defect here.
-    daily_obs = bool(re.search(r"calendar day|daily (maximum|minimum|climate|total|high|low)|nws daily|highest temperature.*on|lowest temperature.*on|all times on this day", blob))
+    daily_obs = bool(
+        re.search(
+            r"calendar day|daily (maximum|minimum|climate|total|high|low)|nws daily|highest temperature.*on|lowest temperature.*on|all times on this day",
+            blob,
+        )
+    )
     reversible = bool(re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", title.lower()))
     revision = any(re.search(p, blob) for p in REVISION_PRONE)
-    revision_resolved = bool(re.search(r"initial|first (print|release|published release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded", blob))
+    revision_resolved = bool(
+        re.search(
+            r"initial|first (print|release|published release|available|official)|advance estimate|subsequent revisions|later revisions|revision cutoff|revisions?.{0,70}(not be considered|do not count|excluded|cutoff|until)|after the first release|updates? (are )?excluded",
+            blob,
+        )
+    )
     if daily_obs and not reversible and (not revision or revision_resolved):
         return _clamp(12), flags
 
@@ -115,8 +154,15 @@ def score_timing(text, title):
     # Separate "a clock is mentioned" from "the clock is fully qualified".
     # Release-triggered markets may legitimately resolve on publication, but if their
     # rules include a specific clock time, that time still needs a timezone.
-    clock_mentioned = bool(re.search(r"\b\d{1,2}:\d{2}\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b|\b(?:midnight|noon)\b", blob, re.I))
-    event_triggered = bool(re.search(r"upon release|as soon as .* issued|at the end of|at conclusion|final published|officially classified|first official declaration|first .* release|when .* declared|on publication", blob))
+    clock_mentioned = bool(
+        re.search(r"\b\d{1,2}:\d{2}\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b|\b(?:midnight|noon)\b", blob, re.I)
+    )
+    event_triggered = bool(
+        re.search(
+            r"upon release|as soon as .* issued|at the end of|at conclusion|final published|officially classified|first official declaration|first .* release|when .* declared|on publication",
+            blob,
+        )
+    )
     has_tz = bool(re.search(r"\b(et|est|edt|ct|cst|pt|pst|utc|gmt)\b", blob))
     dateonly = any(re.search(p, blob, re.I) for p in DATEONLY_HINT)
 
@@ -138,7 +184,9 @@ def score_timing(text, title):
 
     # announced-then-reversed style events (ceasefire, shutdown, agreement) need a
     # duration / snapshot rule or the clock is genuinely undefined.
-    if re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", blob) and not re.search(r"remain|for at least|continuous|as of \d", blob):
+    if re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", blob) and not re.search(
+        r"remain|for at least|continuous|as of \d", blob
+    ):
         score += 18
         flags.append("reversible event, no snapshot/duration rule")
 
@@ -152,15 +200,37 @@ def score_timing(text, title):
 # -------------------------------------------------------------- definition lever
 
 INTERPRETIVE_TERMS = [
-    "ceasefire", "recession", "war", "crisis", "significant", "substantial",
-    "meaningful", "major", "credible", "reasonable", "effectively", "de facto",
-    "peace", "truce", "collapse", "success", "failure", "victory", "defeat",
+    "ceasefire",
+    "recession",
+    "war",
+    "crisis",
+    "significant",
+    "substantial",
+    "meaningful",
+    "major",
+    "credible",
+    "reasonable",
+    "effectively",
+    "de facto",
+    "peace",
+    "truce",
+    "collapse",
+    "success",
+    "failure",
+    "victory",
+    "defeat",
 ]
 VERIFIABLE_SIGNALS = [
-    r">=|<=|>|<", r"\bat or (above|below)\b", r"\babove\b", r"\bbelow\b",
-    r"\bat least\b", r"\bexactly\b", r"\bequal to\b",
+    r">=|<=|>|<",
+    r"\bat or (above|below)\b",
+    r"\babove\b",
+    r"\bbelow\b",
+    r"\bat least\b",
+    r"\bexactly\b",
+    r"\bequal to\b",
     r"\d+(\.\d+)?\s*(%|percent|degrees?|inch|inches|bps|basis points|\$)",
-    r"\$\s?\d", r"\b\d{2,}\b",
+    r"\$\s?\d",
+    r"\b\d{2,}\b",
 ]
 
 
@@ -176,7 +246,12 @@ def score_definition(text, title, subtitle=""):
         score += min(60, 22 + 12 * len(interp_hits))
         flags.append(f"interpretive term(s): {', '.join(interp_hits[:3])}")
 
-    objective_event = bool(re.search(r"official declaration|officially classified|final published|declared winner|official results|target federal funds range|listed nationality", blob))
+    objective_event = bool(
+        re.search(
+            r"official declaration|officially classified|final published|declared winner|official results|target federal funds range|listed nationality",
+            blob,
+        )
+    )
     if verifiable or objective_event:
         score -= 16
     else:
@@ -197,6 +272,7 @@ def score_definition(text, title, subtitle=""):
 
 
 # ------------------------------------------------------------------- composition
+
 
 def analyze(market, policy):
     """Score one market dict. Returns the full integrity report."""
@@ -220,12 +296,9 @@ def analyze(market, policy):
         "open_interest": market.get("open_interest", 0),
         "rules_primary": market.get("rules_primary", ""),
         "levers": {
-            "source": {"score": s_src, "flags": f_src,
-                       "question": "is there one authoritative, timely source?"},
-            "timing": {"score": s_tim, "flags": f_tim,
-                       "question": "is the settlement clock exact?"},
-            "definition": {"score": s_def, "flags": f_def,
-                           "question": "does the question map to a verifiable fact?"},
+            "source": {"score": s_src, "flags": f_src, "question": "is there one authoritative, timely source?"},
+            "timing": {"score": s_tim, "flags": f_tim, "question": "is the settlement clock exact?"},
+            "definition": {"score": s_def, "flags": f_def, "question": "does the question map to a verifiable fact?"},
         },
         "composite": composite,
         "verdict": verdict,
@@ -244,6 +317,7 @@ def verdict_of(composite, policy):
 
 # -------------------------------------------------------------------- resolution
 
+
 def resolve(report, source_value):
     """
     Produce an auditable resolution trail. If the market can be evaluated against a
@@ -258,34 +332,41 @@ def resolve(report, source_value):
         sig = hashlib.sha256(payload.encode()).hexdigest()[:10]
         steps.append({"act": act, "ts": ts, "detail": detail, "sig": f"0x{sig}", "hold": hold})
 
-    step("Criteria parsed",
-         f"Levers scored — source {report['levers']['source']['score']}, "
-         f"timing {report['levers']['timing']['score']}, "
-         f"definition {report['levers']['definition']['score']}. Composite {report['composite']}.")
+    step(
+        "Criteria parsed",
+        f"Levers scored — source {report['levers']['source']['score']}, "
+        f"timing {report['levers']['timing']['score']}, "
+        f"definition {report['levers']['definition']['score']}. Composite {report['composite']}.",
+    )
 
     if report["verdict"]["key"] == "review":
-        step("Resolution HELD",
-             "Composite exceeds the review threshold. Not auto-resolvable as written; "
-             "escalated to human review before any payout.", hold=True)
+        step(
+            "Resolution HELD",
+            "Composite exceeds the review threshold. Not auto-resolvable as written; "
+            "escalated to human review before any payout.",
+            hold=True,
+        )
         return {"outcome": "HELD", "trail": steps}
 
     if source_value is None:
-        step("Awaiting source value",
-             "Contract is clean enough to auto-resolve, but no settlement value has "
-             "been observed yet. Monitoring the designated source.")
+        step(
+            "Awaiting source value",
+            "Contract is clean enough to auto-resolve, but no settlement value has "
+            "been observed yet. Monitoring the designated source.",
+        )
         return {"outcome": "PENDING", "trail": steps}
 
     # concrete evaluation (weather threshold markets, price thresholds, etc.)
     outcome = _evaluate(report["title"], source_value)
-    step("Source observed",
-         f"Designated source returned {source_value.get('label', source_value)}.")
+    step("Source observed", f"Designated source returned {source_value.get('label', source_value)}.")
     if outcome is None:
-        step("Evaluation deferred",
-             "Observed value does not map unambiguously to the criterion. Routed to review.",
-             hold=True)
+        step(
+            "Evaluation deferred",
+            "Observed value does not map unambiguously to the criterion. Routed to review.",
+            hold=True,
+        )
         return {"outcome": "HELD", "trail": steps}
-    step(f"Auto-resolved {outcome}",
-         "Condition evaluated against observed value and written to the resolution ledger.")
+    step(f"Auto-resolved {outcome}", "Condition evaluated against observed value and written to the resolution ledger.")
     return {"outcome": outcome, "trail": steps}
 
 
@@ -312,6 +393,7 @@ def _evaluate(title, source_value):
 
 
 # ------------------------------------------------------------------------ helpers
+
 
 def _clamp(n):
     return max(0, min(100, int(round(n))))

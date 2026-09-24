@@ -26,21 +26,41 @@ from datetime import datetime, timezone
 
 # Authoritative, named settlement sources. Presence of one lowers source risk.
 AUTHORITATIVE_SOURCES = [
-    r"\bNWS\b", r"national weather service", r"\bNOAA\b",
-    r"\bBLS\b", r"bureau of labor statistics",
-    r"\bOPM\b", r"office of personnel management",
-    r"\bCME\b", r"\bNYMEX\b", r"\bCOMEX\b", r"\bLME\b",
-    r"federal reserve", r"\bFOMC\b", r"\bFed\b",
-    r"\bBEA\b", r"bureau of economic analysis",
-    r"\bNBER\b", r"\bCFTC\b", r"\bSEC\b", r"\bTreasury\b",
-    r"associated press", r"\bAP\b race call", r"official (results|settlement|report|statement|data|source)",
+    r"\bNWS\b",
+    r"national weather service",
+    r"\bNOAA\b",
+    r"\bBLS\b",
+    r"bureau of labor statistics",
+    r"\bOPM\b",
+    r"office of personnel management",
+    r"\bCME\b",
+    r"\bNYMEX\b",
+    r"\bCOMEX\b",
+    r"\bLME\b",
+    r"federal reserve",
+    r"\bFOMC\b",
+    r"\bFed\b",
+    r"\bBEA\b",
+    r"bureau of economic analysis",
+    r"\bNBER\b",
+    r"\bCFTC\b",
+    r"\bSEC\b",
+    r"\bTreasury\b",
+    r"associated press",
+    r"\bAP\b race call",
+    r"official (results|settlement|report|statement|data|source)",
 ]
 
 # Vague / non-authoritative source language raises source risk sharply.
 VAGUE_SOURCES = [
-    r"credible (news|reporting|media|sources?)", r"media reports?",
-    r"news reports?", r"widely reported", r"reputable sources?",
-    r"generally recognized", r"consensus of", r"reasonable interpretation",
+    r"credible (news|reporting|media|sources?)",
+    r"media reports?",
+    r"news reports?",
+    r"widely reported",
+    r"reputable sources?",
+    r"generally recognized",
+    r"consensus of",
+    r"reasonable interpretation",
 ]
 
 REVISION_PRONE = [r"\bCPI\b", r"\bGDP\b", r"payrolls?", r"jobs report", r"revised", r"revision"]
@@ -72,11 +92,15 @@ def score_source(text, title):
 
     # multiple sources with no stated hierarchy (e.g. "COMEX or LME", "A and B")
     src_tokens = re.findall(r"\b(NWS|NOAA|BLS|CME|NYMEX|COMEX|LME|OPM|BEA|NBER|FOMC)\b", raw, re.I)
-    if len(set(t.upper() for t in src_tokens)) >= 2 and not re.search(r"primary|priority|first|governs|takes precedence", blob):
+    if len(set(t.upper() for t in src_tokens)) >= 2 and not re.search(
+        r"primary|priority|first|governs|takes precedence", blob
+    ):
         score += 26
         flags.append("multiple sources, no stated hierarchy")
 
-    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(r"initial (print|release|estimate)|first (print|release)|as first (published|reported)", blob):
+    if any(re.search(p, raw, re.I) for p in REVISION_PRONE) and not re.search(
+        r"initial (print|release|estimate)|first (print|release)|as first (published|reported)", blob
+    ):
         score += 14
         flags.append("revision-prone source, revision rule unstated")
 
@@ -91,7 +115,11 @@ TIME_PATTERNS = [
     r"\bclose of (business|trading)\b",
     r"\bsettlement (price|time)\b",
 ]
-DATEONLY_HINT = [r"\bas of\b", r"\bby (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|the end)", r"\bend of (the )?(day|month|year|quarter)\b"]
+DATEONLY_HINT = [
+    r"\bas of\b",
+    r"\bby (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|the end)",
+    r"\bend of (the )?(day|month|year|quarter)\b",
+]
 
 
 def score_timing(text, title):
@@ -128,7 +156,9 @@ def score_timing(text, title):
 
     # announced-then-reversed style events (ceasefire, shutdown, agreement) need a
     # duration / snapshot rule or the clock is genuinely undefined.
-    if re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", blob) and not re.search(r"remain|for at least|continuous|as of \d", blob):
+    if re.search(r"ceasefire|shutdown|agreement|truce|deal|resign|step down", blob) and not re.search(
+        r"remain|for at least|continuous|as of \d", blob
+    ):
         score += 18
         flags.append("reversible event, no snapshot/duration rule")
 
@@ -142,15 +172,37 @@ def score_timing(text, title):
 # -------------------------------------------------------------- definition lever
 
 INTERPRETIVE_TERMS = [
-    "ceasefire", "recession", "war", "crisis", "significant", "substantial",
-    "meaningful", "major", "credible", "reasonable", "effectively", "de facto",
-    "peace", "truce", "collapse", "success", "failure", "victory", "defeat",
+    "ceasefire",
+    "recession",
+    "war",
+    "crisis",
+    "significant",
+    "substantial",
+    "meaningful",
+    "major",
+    "credible",
+    "reasonable",
+    "effectively",
+    "de facto",
+    "peace",
+    "truce",
+    "collapse",
+    "success",
+    "failure",
+    "victory",
+    "defeat",
 ]
 VERIFIABLE_SIGNALS = [
-    r">=|<=|>|<", r"\bat or (above|below)\b", r"\babove\b", r"\bbelow\b",
-    r"\bat least\b", r"\bexactly\b", r"\bequal to\b",
+    r">=|<=|>|<",
+    r"\bat or (above|below)\b",
+    r"\babove\b",
+    r"\bbelow\b",
+    r"\bat least\b",
+    r"\bexactly\b",
+    r"\bequal to\b",
     r"\d+(\.\d+)?\s*(%|percent|degrees?|inch|inches|bps|basis points|\$)",
-    r"\$\s?\d", r"\b\d{2,}\b",
+    r"\$\s?\d",
+    r"\b\d{2,}\b",
 ]
 
 
@@ -192,6 +244,7 @@ def score_definition(text, title, subtitle=""):
 
 # ------------------------------------------------------------------- composition
 
+
 def analyze(market, policy):
     """Score one market dict. Returns the full integrity report."""
     text = " ".join(str(market.get(k, "")) for k in ("rules_primary", "rules_secondary"))
@@ -214,12 +267,9 @@ def analyze(market, policy):
         "open_interest": market.get("open_interest", 0),
         "rules_primary": market.get("rules_primary", ""),
         "levers": {
-            "source": {"score": s_src, "flags": f_src,
-                       "question": "is there one authoritative, timely source?"},
-            "timing": {"score": s_tim, "flags": f_tim,
-                       "question": "is the settlement clock exact?"},
-            "definition": {"score": s_def, "flags": f_def,
-                           "question": "does the question map to a verifiable fact?"},
+            "source": {"score": s_src, "flags": f_src, "question": "is there one authoritative, timely source?"},
+            "timing": {"score": s_tim, "flags": f_tim, "question": "is the settlement clock exact?"},
+            "definition": {"score": s_def, "flags": f_def, "question": "does the question map to a verifiable fact?"},
         },
         "composite": composite,
         "verdict": verdict,
@@ -238,6 +288,7 @@ def verdict_of(composite, policy):
 
 # -------------------------------------------------------------------- resolution
 
+
 def resolve(report, source_value):
     """
     Produce an auditable resolution trail. If the market can be evaluated against a
@@ -252,34 +303,41 @@ def resolve(report, source_value):
         sig = hashlib.sha256(payload.encode()).hexdigest()[:10]
         steps.append({"act": act, "ts": ts, "detail": detail, "sig": f"0x{sig}", "hold": hold})
 
-    step("Criteria parsed",
-         f"Levers scored — source {report['levers']['source']['score']}, "
-         f"timing {report['levers']['timing']['score']}, "
-         f"definition {report['levers']['definition']['score']}. Composite {report['composite']}.")
+    step(
+        "Criteria parsed",
+        f"Levers scored — source {report['levers']['source']['score']}, "
+        f"timing {report['levers']['timing']['score']}, "
+        f"definition {report['levers']['definition']['score']}. Composite {report['composite']}.",
+    )
 
     if report["verdict"]["key"] == "review":
-        step("Resolution HELD",
-             "Composite exceeds the review threshold. Not auto-resolvable as written; "
-             "escalated to human review before any payout.", hold=True)
+        step(
+            "Resolution HELD",
+            "Composite exceeds the review threshold. Not auto-resolvable as written; "
+            "escalated to human review before any payout.",
+            hold=True,
+        )
         return {"outcome": "HELD", "trail": steps}
 
     if source_value is None:
-        step("Awaiting source value",
-             "Contract is clean enough to auto-resolve, but no settlement value has "
-             "been observed yet. Monitoring the designated source.")
+        step(
+            "Awaiting source value",
+            "Contract is clean enough to auto-resolve, but no settlement value has "
+            "been observed yet. Monitoring the designated source.",
+        )
         return {"outcome": "PENDING", "trail": steps}
 
     # concrete evaluation (weather threshold markets, price thresholds, etc.)
     outcome = _evaluate(report["title"], source_value)
-    step("Source observed",
-         f"Designated source returned {source_value.get('label', source_value)}.")
+    step("Source observed", f"Designated source returned {source_value.get('label', source_value)}.")
     if outcome is None:
-        step("Evaluation deferred",
-             "Observed value does not map unambiguously to the criterion. Routed to review.",
-             hold=True)
+        step(
+            "Evaluation deferred",
+            "Observed value does not map unambiguously to the criterion. Routed to review.",
+            hold=True,
+        )
         return {"outcome": "HELD", "trail": steps}
-    step(f"Auto-resolved {outcome}",
-         "Condition evaluated against observed value and written to the resolution ledger.")
+    step(f"Auto-resolved {outcome}", "Condition evaluated against observed value and written to the resolution ledger.")
     return {"outcome": outcome, "trail": steps}
 
 
@@ -306,6 +364,7 @@ def _evaluate(title, source_value):
 
 
 # ------------------------------------------------------------------------ helpers
+
 
 def _clamp(n):
     return max(0, min(100, int(round(n))))

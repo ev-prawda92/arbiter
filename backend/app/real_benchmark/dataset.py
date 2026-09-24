@@ -11,8 +11,12 @@ from typing import Any, Iterable
 from . import DATASET_SCHEMA, BENCHMARK_VERSION
 from .hashing import canonical_json, read_jsonl, sha256_file, sha256_text, write_jsonl
 from .schema import (
-    contract_input_from_candidate, detect_label_leakage, evidence_from_candidate,
-    label_from_candidate, provenance_from_candidate, validate_candidate,
+    contract_input_from_candidate,
+    detect_label_leakage,
+    evidence_from_candidate,
+    label_from_candidate,
+    provenance_from_candidate,
+    validate_candidate,
 )
 
 
@@ -67,7 +71,9 @@ def freeze_candidates(
     root = Path(dataset_dir)
     marker = root / "FROZEN.sha256"
     if marker.exists() or (root / "manifest.json").exists():
-        raise FileExistsError(f"dataset already frozen at {root}; create a new dataset version rather than overwriting it")
+        raise FileExistsError(
+            f"dataset already frozen at {root}; create a new dataset version rather than overwriting it"
+        )
 
     valid: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -117,15 +123,19 @@ def freeze_candidates(
     provenance_hash = sha256_file(provenance_path)
     evidence_hash = sha256_file(evidence_path)
     selected_ids_hash = sha256_text(canonical_json([r["case_id"] for r in contracts]))
-    dataset_hash = sha256_text(canonical_json({
-        "schema": DATASET_SCHEMA,
-        "name": name,
-        "contracts_sha256": contracts_hash,
-        "labels_sha256": labels_hash,
-        "provenance_sha256": provenance_hash,
-        "evidence_sha256": evidence_hash,
-        "selected_case_ids_sha256": selected_ids_hash,
-    }))
+    dataset_hash = sha256_text(
+        canonical_json(
+            {
+                "schema": DATASET_SCHEMA,
+                "name": name,
+                "contracts_sha256": contracts_hash,
+                "labels_sha256": labels_hash,
+                "provenance_sha256": provenance_hash,
+                "evidence_sha256": evidence_hash,
+                "selected_case_ids_sha256": selected_ids_hash,
+            }
+        )
+    )
     venue_counts: dict[str, int] = defaultdict(int)
     category_counts: dict[str, int] = defaultdict(int)
     for row in contracts:
@@ -190,7 +200,12 @@ def verify_dataset(dataset_dir: str | Path, *, require_frozen: bool = True) -> d
     files = manifest.get("files") or {}
     expected_hashes = manifest.get("hashes") or {}
     resolved: dict[str, str] = {}
-    for logical, hash_key in (("contracts", "contracts_sha256"), ("labels", "labels_sha256"), ("provenance", "provenance_sha256"), ("evidence", "evidence_sha256")):
+    for logical, hash_key in (
+        ("contracts", "contracts_sha256"),
+        ("labels", "labels_sha256"),
+        ("provenance", "provenance_sha256"),
+        ("evidence", "evidence_sha256"),
+    ):
         name = files.get(logical)
         if not name:
             errors.append(f"manifest missing files.{logical}")
@@ -203,25 +218,50 @@ def verify_dataset(dataset_dir: str | Path, *, require_frozen: bool = True) -> d
         resolved[hash_key] = actual
         if actual != expected_hashes.get(hash_key):
             errors.append(f"hash mismatch for {name}")
-    if resolved.get("contracts_sha256") and resolved.get("labels_sha256") and resolved.get("provenance_sha256") and resolved.get("evidence_sha256"):
-        dataset_hash = sha256_text(canonical_json({
-            "schema": manifest.get("schema"),
-            "name": manifest.get("name"),
-            "contracts_sha256": resolved["contracts_sha256"],
-            "labels_sha256": resolved["labels_sha256"],
-            "provenance_sha256": resolved["provenance_sha256"],
-            "evidence_sha256": resolved["evidence_sha256"],
-            "selected_case_ids_sha256": (manifest.get("selection") or {}).get("selected_case_ids_sha256"),
-        }))
+    if (
+        resolved.get("contracts_sha256")
+        and resolved.get("labels_sha256")
+        and resolved.get("provenance_sha256")
+        and resolved.get("evidence_sha256")
+    ):
+        dataset_hash = sha256_text(
+            canonical_json(
+                {
+                    "schema": manifest.get("schema"),
+                    "name": manifest.get("name"),
+                    "contracts_sha256": resolved["contracts_sha256"],
+                    "labels_sha256": resolved["labels_sha256"],
+                    "provenance_sha256": resolved["provenance_sha256"],
+                    "evidence_sha256": resolved["evidence_sha256"],
+                    "selected_case_ids_sha256": (manifest.get("selection") or {}).get("selected_case_ids_sha256"),
+                }
+            )
+        )
         if dataset_hash != expected_hashes.get("dataset_sha256"):
             errors.append("dataset aggregate hash mismatch")
         marker = root / "FROZEN.sha256"
         if not marker.exists() or marker.read_text(encoding="utf-8").strip() != dataset_hash:
             errors.append("FROZEN.sha256 marker missing or mismatched")
-    contracts = read_jsonl(root / str(files.get("contracts") or "contracts.jsonl")) if (root / str(files.get("contracts") or "contracts.jsonl")).exists() else []
-    labels = read_jsonl(root / str(files.get("labels") or "labels.jsonl")) if (root / str(files.get("labels") or "labels.jsonl")).exists() else []
-    provenance = read_jsonl(root / str(files.get("provenance") or "provenance.jsonl")) if (root / str(files.get("provenance") or "provenance.jsonl")).exists() else []
-    evidence = read_jsonl(root / str(files.get("evidence") or "evidence.jsonl")) if (root / str(files.get("evidence") or "evidence.jsonl")).exists() else []
+    contracts = (
+        read_jsonl(root / str(files.get("contracts") or "contracts.jsonl"))
+        if (root / str(files.get("contracts") or "contracts.jsonl")).exists()
+        else []
+    )
+    labels = (
+        read_jsonl(root / str(files.get("labels") or "labels.jsonl"))
+        if (root / str(files.get("labels") or "labels.jsonl")).exists()
+        else []
+    )
+    provenance = (
+        read_jsonl(root / str(files.get("provenance") or "provenance.jsonl"))
+        if (root / str(files.get("provenance") or "provenance.jsonl")).exists()
+        else []
+    )
+    evidence = (
+        read_jsonl(root / str(files.get("evidence") or "evidence.jsonl"))
+        if (root / str(files.get("evidence") or "evidence.jsonl")).exists()
+        else []
+    )
     contract_ids = [str(x.get("case_id")) for x in contracts]
     label_ids = [str(x.get("case_id")) for x in labels]
     provenance_ids = [str(x.get("case_id")) for x in provenance]
@@ -236,7 +276,7 @@ def verify_dataset(dataset_dir: str | Path, *, require_frozen: bool = True) -> d
         errors.append("duplicate case_id in evidence")
     if not set(evidence_ids).issubset(set(contract_ids)):
         errors.append("evidence contains unknown case_id")
-    declared_evidence_count = ((manifest.get("benchmark_controls") or {}).get("evidence_case_count"))
+    declared_evidence_count = (manifest.get("benchmark_controls") or {}).get("evidence_case_count")
     if declared_evidence_count is not None and int(declared_evidence_count) != len(evidence):
         errors.append("evidence_case_count does not match evidence.jsonl")
     for ev in evidence:
@@ -284,5 +324,7 @@ def copy_blind_inputs(dataset_dir: str | Path, destination: str | Path) -> dict[
         "evidence_sha256": manifest["hashes"]["evidence_sha256"],
         "labels_included": False,
     }
-    (dst / "blind_manifest.json").write_text(json.dumps(blind_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (dst / "blind_manifest.json").write_text(
+        json.dumps(blind_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return blind_manifest

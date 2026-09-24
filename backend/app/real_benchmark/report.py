@@ -51,11 +51,16 @@ def score_run(dataset_dir: str | Path, run_dir: str | Path, report_dir: str | Pa
     json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     md_path = out / "BENCHMARK_REPORT.md"
     md_path.write_text(render_markdown(report, manifest), encoding="utf-8")
-    return {"report": report, "json_path": str(json_path), "markdown_path": str(md_path), "markdown_sha256": sha256_file(md_path)}
+    return {
+        "report": report,
+        "json_path": str(json_path),
+        "markdown_path": str(md_path),
+        "markdown_sha256": sha256_file(md_path),
+    }
 
 
 def _fmt_rate(value: Any) -> str:
-    return "not yet scored" if value is None else f"{float(value)*100:.1f}%"
+    return "not yet scored" if value is None else f"{float(value) * 100:.1f}%"
 
 
 def render_markdown(report: dict[str, Any], dataset_manifest: dict[str, Any]) -> str:
@@ -67,11 +72,11 @@ def render_markdown(report: dict[str, Any], dataset_manifest: dict[str, Any]) ->
     return f"""# Arbiter Resolution Benchmark v0.1
 
 **Software:** Arbiter v{BENCHMARK_VERSION}  
-**Dataset:** {report['dataset']}  
-**Cases:** {report['case_count']}  
-**Dataset SHA-256:** `{report['dataset_sha256']}`  
-**Blind run SHA-256:** `{report['prediction_run_sha256']}`  
-**Report SHA-256:** `{report['report_sha256']}`
+**Dataset:** {report["dataset"]}  
+**Cases:** {report["case_count"]}  
+**Dataset SHA-256:** `{report["dataset_sha256"]}`  
+**Blind run SHA-256:** `{report["prediction_run_sha256"]}`  
+**Report SHA-256:** `{report["report_sha256"]}`
 
 ## Benchmark control
 
@@ -83,27 +88,27 @@ This is **not** independent certification and does **not** claim production sett
 
 {venue_rows}
 
-Compiler status distribution: `{json.dumps(m.get('compiler_statuses', {}), sort_keys=True)}`  
-Engine verdict distribution: `{json.dumps(m.get('engine_verdicts', {}), sort_keys=True)}`
+Compiler status distribution: `{json.dumps(m.get("compiler_statuses", {}), sort_keys=True)}`  
+Engine verdict distribution: `{json.dumps(m.get("engine_verdicts", {}), sort_keys=True)}`
 
 ## Outcome resolution
 
-- Frozen evidence coverage: **{_fmt_rate(oq.get('evidence_coverage'))}** ({oq.get('evidence_cases', 0)} cases)
-- Deterministic YES/NO resolution coverage: **{_fmt_rate(oq.get('resolution_coverage'))}** ({oq.get('scored_cases', 0)} cases)
-- Governed HOLD rate: **{_fmt_rate(oq.get('hold_rate'))}** ({oq.get('held_cases', 0)} cases)
-- Outcome agreement where deterministically resolved: **{_fmt_rate(oq.get('agreement'))}**
+- Frozen evidence coverage: **{_fmt_rate(oq.get("evidence_coverage"))}** ({oq.get("evidence_cases", 0)} cases)
+- Deterministic YES/NO resolution coverage: **{_fmt_rate(oq.get("resolution_coverage"))}** ({oq.get("scored_cases", 0)} cases)
+- Governed HOLD rate: **{_fmt_rate(oq.get("hold_rate"))}** ({oq.get("held_cases", 0)} cases)
+- Outcome agreement where deterministically resolved: **{_fmt_rate(oq.get("agreement"))}**
 
 Arbiter does not guess a market outcome when a benchmark evidence pack is absent. A venue's settled outcome is retained as the label, but it is not leaked into the blind prediction phase.
 
 ## Contract-quality gold labels
 
-- Gold status coverage: **{g.get('gold_status_coverage', 0)} cases**
-- READY / REVIEW / BLOCK accuracy: **{_fmt_rate(g.get('gold_status_accuracy'))}**
-- False-hold rate on gold READY: **{_fmt_rate(g.get('false_hold_rate_on_gold_ready'))}**
-- Ambiguity recall: **{_fmt_rate(g.get('ambiguity_recall'))}**
-- Source agreement: **{_fmt_rate(g.get('source_agreement'))}**
-- Timing agreement: **{_fmt_rate(g.get('timing_agreement'))}**
-- Definition agreement: **{_fmt_rate(g.get('definition_agreement'))}**
+- Gold status coverage: **{g.get("gold_status_coverage", 0)} cases**
+- READY / REVIEW / BLOCK accuracy: **{_fmt_rate(g.get("gold_status_accuracy"))}**
+- False-hold rate on gold READY: **{_fmt_rate(g.get("false_hold_rate_on_gold_ready"))}**
+- Ambiguity recall: **{_fmt_rate(g.get("ambiguity_recall"))}**
+- Source agreement: **{_fmt_rate(g.get("source_agreement"))}**
+- Timing agreement: **{_fmt_rate(g.get("timing_agreement"))}**
+- Definition agreement: **{_fmt_rate(g.get("definition_agreement"))}**
 
 Metrics without frozen gold coverage remain explicitly unscored rather than being manufactured from Arbiter's own output.
 
@@ -113,11 +118,11 @@ Metrics without frozen gold coverage remain explicitly unscored rather than bein
 
 ## Dataset immutability
 
-- Contracts SHA-256: `{dataset_manifest['hashes']['contracts_sha256']}`
-- Labels SHA-256: `{dataset_manifest['hashes']['labels_sha256']}`
-- Provenance SHA-256: `{dataset_manifest['hashes']['provenance_sha256']}`
-- Evidence SHA-256: `{dataset_manifest['hashes']['evidence_sha256']}`
-- Aggregate dataset SHA-256: `{dataset_manifest['hashes']['dataset_sha256']}`
+- Contracts SHA-256: `{dataset_manifest["hashes"]["contracts_sha256"]}`
+- Labels SHA-256: `{dataset_manifest["hashes"]["labels_sha256"]}`
+- Provenance SHA-256: `{dataset_manifest["hashes"]["provenance_sha256"]}`
+- Evidence SHA-256: `{dataset_manifest["hashes"]["evidence_sha256"]}`
+- Aggregate dataset SHA-256: `{dataset_manifest["hashes"]["dataset_sha256"]}`
 
 ## Interpretation
 

@@ -18,6 +18,7 @@ Properties asserted (fail-closed):
   P8 duplicate application does not create divergent workflow state
   P9 store contract/evidence/resolution counts are unchanged by application
 """
+
 from __future__ import annotations
 
 import os
@@ -48,7 +49,6 @@ def check(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
-
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="arbiter-v034-prop-") as tmp:
         store = ResolutionStore(os.path.join(tmp, "arbiter.db"))
@@ -58,11 +58,13 @@ def main() -> None:
         dep_open = [f"case_dep_open_{i}" for i in range(6)]
         dep_resolved = "case_dep_resolved"
         unrelated = [f"case_unrelated_{i}" for i in range(8)]
-        queue = {"items": (
-            [{"id": c, "status": "open"} for c in dep_open]
-            + [{"id": dep_resolved, "status": "resolved"}]
-            + [{"id": c, "status": "open"} for c in unrelated]
-        )}
+        queue = {
+            "items": (
+                [{"id": c, "status": "open"} for c in dep_open]
+                + [{"id": dep_resolved, "status": "resolved"}]
+                + [{"id": c, "status": "open"} for c in unrelated]
+            )
+        }
 
         before = store.summary()
 
@@ -82,7 +84,10 @@ def main() -> None:
         )
 
         app1 = apply_decision_to_workflow(
-            resolution_store=store, decision=decision, current_queue=queue, actor="operator:resolution-ops",
+            resolution_store=store,
+            decision=decision,
+            current_queue=queue,
+            actor="operator:resolution-ops",
         )
 
         ws = store.list_work_states()
@@ -106,8 +111,14 @@ def main() -> None:
         actions = {e.get("action") for e in audit}
         objects = {e.get("object_type") for e in audit}
         check(actions <= ALLOWED_AUDIT_ACTIONS, f"P4: unexpected audit action(s): {actions - ALLOWED_AUDIT_ACTIONS}")
-        check(not (objects & FORBIDDEN_AUDIT_OBJECTS), f"P4: application touched forbidden object(s): {objects & FORBIDDEN_AUDIT_OBJECTS}")
-        check("boundary" in app1 and "settlement" in app1["boundary"].lower(), "P4: application dropped its boundary statement")
+        check(
+            not (objects & FORBIDDEN_AUDIT_OBJECTS),
+            f"P4: application touched forbidden object(s): {objects & FORBIDDEN_AUDIT_OBJECTS}",
+        )
+        check(
+            "boundary" in app1 and "settlement" in app1["boundary"].lower(),
+            "P4: application dropped its boundary statement",
+        )
 
         # P9 store semantic counts unchanged (only workflow + audit grew)
         after = store.summary()
@@ -125,7 +136,10 @@ def main() -> None:
 
         # P7 / P8 idempotent replay -> no divergent state
         app2 = apply_decision_to_workflow(
-            resolution_store=store, decision=decision, current_queue=queue, actor="operator:resolution-ops",
+            resolution_store=store,
+            decision=decision,
+            current_queue=queue,
+            actor="operator:resolution-ops",
         )
         check(set(app2["updated_case_ids"]) == set(dep_open), "P7: replay changed the updated set")
         check(set(app2["skipped_case_ids"]) == {dep_resolved}, "P7: replay changed the skipped set")
@@ -154,7 +168,10 @@ def main() -> None:
         check(superseding["decision_id"] in auth_ids, "P5: superseding decision not authoritative")
         try:
             apply_decision_to_workflow(
-                resolution_store=store, decision=decision, current_queue=queue, actor="operator:resolution-ops",
+                resolution_store=store,
+                decision=decision,
+                current_queue=queue,
+                actor="operator:resolution-ops",
             )
         except ValueError:
             pass
@@ -162,10 +179,14 @@ def main() -> None:
             raise AssertionError("P5: superseded decision was applied instead of refused at apply time")
 
         print("DECISION PROPAGATION GATE: PASS")
-        print(f"{len(dep_open)} dependent cleared · 1 resolved skipped · {len(unrelated)} unrelated untouched · "
-              f"idempotent replay · workflow-only boundary held · hash-chained audit intact")
-        print("P5 enforced: superseded decisions are excluded from svc.authoritative() AND refused by "
-              "apply_decision_to_workflow() at apply time.")
+        print(
+            f"{len(dep_open)} dependent cleared · 1 resolved skipped · {len(unrelated)} unrelated untouched · "
+            f"idempotent replay · workflow-only boundary held · hash-chained audit intact"
+        )
+        print(
+            "P5 enforced: superseded decisions are excluded from svc.authoritative() AND refused by "
+            "apply_decision_to_workflow() at apply time."
+        )
 
 
 if __name__ == "__main__":

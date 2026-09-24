@@ -3,6 +3,7 @@
 Arbiter owns the resolution-control record. The external platform retains the final
 settlement authority appropriate to its operating model.
 """
+
 from __future__ import annotations
 
 PROFILES = {
