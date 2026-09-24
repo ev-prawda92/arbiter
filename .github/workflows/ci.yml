@@ -63,6 +63,9 @@ jobs:
       - name: Decision Clearing gate
         run: python scripts/decision_clearing_gate.py
 
+      - name: Venue Intake gate
+        run: python scripts/venue_intake_gate.py
+
       - name: Public API gate
         env:
           ARBITER_DATABASE_PATH: /tmp/arbiter-public.db

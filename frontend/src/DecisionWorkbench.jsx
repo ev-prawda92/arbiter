@@ -89,6 +89,8 @@ export default function DecisionWorkbench() {
   }
 
   const prompt = context?.decision_prompt || {}
+  const clear = context?.clearability
+  const clearable = clear ? clear.clearable : true
   const work = outcome?.reevaluation?.workload
   const before = work?.before
   const after = work?.after
@@ -98,7 +100,7 @@ export default function DecisionWorkbench() {
   return <div className="dw-shell">
     <header className="dw-header">
       <div>
-        <span>Arbiter v0.35 · Decision Operations</span>
+        <span>Arbiter v0.36 · Decision Operations</span>
         <h1>Make the smallest human decision. Clear everything else.</h1>
         <p>One governed judgment can apply to an entire repeated work pattern, then Arbiter re-evaluates the affected queue.</p>
       </div>
@@ -160,6 +162,7 @@ export default function DecisionWorkbench() {
 
           <section className="dw-card">
             <div className="dw-card-head"><span>2 · Record decision</span><strong>Audited</strong></div>
+            {!clearable && <div className="dw-notice"><strong>This decision won’t clear cases.</strong><span>{clear.reason}</span></div>}
             <label>
               <span>Decision</span>
               <input value={selection} onChange={e => setSelection(e.target.value)} placeholder="e.g. Initial official release controls" />
@@ -169,7 +172,9 @@ export default function DecisionWorkbench() {
               <textarea value={rationale} onChange={e => setRationale(e.target.value)} placeholder="Explain the rule, authority, evidence, or policy basis for this judgment." />
             </label>
             <button className="dw-primary" disabled={saving || !selection.trim() || !rationale.trim()} onClick={recordDecision}>
-              {saving ? 'Recording + re-evaluating…' : `Record once and re-evaluate ${selected.count} case${selected.count === 1 ? '' : 's'}`}
+              {saving ? 'Recording + re-evaluating…' : clearable
+                ? `Record once and clear ${selected.count} case${selected.count === 1 ? '' : 's'}`
+                : 'Record decision (cases stay open)'}
             </button>
             <p className="dw-boundary">This records operator judgment and requests governed reevaluation. It does not directly mutate YES/NO/HOLD or settlement authorization.</p>
           </section>

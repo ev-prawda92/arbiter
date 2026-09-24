@@ -286,3 +286,30 @@ def apply_authoritative_decisions(
         "cleared_by_decision": len(cleared),
     }
     return {**queue, "items": items, "summary": summary, "cleared_by_decision": cleared}
+
+
+def clearability(cluster: dict[str, Any], queue_items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Whether a governed decision can clear this work pattern, and why not.
+
+    Mirrors apply_authoritative_decisions: judgment blockers can be cleared;
+    live-state work (payout holds, source status, audit breaks, missing
+    evidence) cannot, whatever is recorded.
+    """
+    blocker = str(cluster.get("blocker_type") or "")
+    ids = set(cluster.get("case_ids") or [])
+    kinds = {str(i.get("kind") or "") for i in (queue_items or []) if i.get("id") in ids}
+    blocked_kinds = sorted(kinds & NEVER_CLEARED_KINDS)
+    reasons = {
+        "resolution_hold": "a payout hold stays until its prerequisite is actually cleared and resolution is re-run",
+        "audit_integrity": "an audit-chain break stays until integrity is restored",
+        "evidence_missing": "missing evidence stays until the evidence arrives",
+        "monitoring": "monitoring work tracks live state, not a judgment",
+        "operator_review": "this is a review step, not an open judgment",
+    }
+    if blocker in DECIDABLE_BLOCKERS and not blocked_kinds:
+        return {"clearable": True, "reason": "A recorded decision answers this pattern and clears its cases."}
+    why = reasons.get(blocker) or (f"it includes {', '.join(k.replace('_', ' ') for k in blocked_kinds)} work" if blocked_kinds
+                                   else f"{blocker.replace('_', ' ')} is not a judgment call")
+    return {"clearable": False,
+            "reason": f"A decision is recorded and audited, but it will not clear these cases: {why}."}
+
