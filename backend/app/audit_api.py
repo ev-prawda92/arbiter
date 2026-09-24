@@ -9,15 +9,53 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from . import audit_trail
+from . import audit_engagement, audit_trail
 
 
 class AnchorIn(BaseModel):
     note: str = ""
 
 
+class EngagementIn(BaseModel):
+    name: str
+    period_from: str
+    period_to: str
+    auditor_public_key: str
+
+
+class SampleIn(BaseModel):
+    population: str = "decisions"
+    size: int = 25
+
+
+class TestIn(BaseModel):
+    item_id: str
+    result: str
+    note: str = ""
+
+
+class FindingIn(BaseModel):
+    title: str
+    severity: str = "medium"
+    description: str = ""
+    item_ids: list[str] = []
+
+
+class PrepareIn(BaseModel):
+    opinion: str
+
+
+class SignIn(BaseModel):
+    opinion: str
+    report_hash: str
+    signature: str
+
+
 def _actor(auth: dict[str, Any] | None) -> str:
-    return (auth or {}).get("principal_id") or "auditor"
+    principal = (auth or {}).get("principal_id")
+    if not principal:
+        raise HTTPException(401, "this action needs an identified principal")
+    return principal
 
 
 def build_router(*, resolution_store, require_scope: Callable[[str], Any]) -> APIRouter:
@@ -117,6 +155,94 @@ def build_router(*, resolution_store, require_scope: Callable[[str], Any]) -> AP
                 "X-Arbiter-Manifest-Hash": manifest["manifest_hash"],
                 "X-Arbiter-Head-Hash": manifest["chain"]["head_hash"] or "",
             },
+        )
+
+    engage = Depends(require_scope("audit:engage"))
+
+    def eng():
+        return audit_engagement.get_engagements(resolution_store)
+
+    def act(fn):
+        try:
+            return fn()
+        except KeyError as exc:
+            raise HTTPException(404, "engagement not found") from exc
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from exc
+        except audit_engagement.EngagementError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @router.get("/api/audit/engagements")
+    def engagements(auth=read):
+        return {"engagements": eng().list(), "populations": audit_engagement.POPULATIONS}
+
+    @router.post("/api/audit/engagements")
+    def open_engagement(inp: EngagementIn, auth=engage):
+        return act(
+            lambda: eng().open(
+                actor=_actor(auth),
+                name=inp.name,
+                period_from=inp.period_from,
+                period_to=inp.period_to,
+                auditor_public_key=inp.auditor_public_key,
+            )
+        )
+
+    @router.get("/api/audit/engagements/{engagement_id}")
+    def get_engagement(engagement_id: str, auth=read):
+        s = eng().get(engagement_id)
+        if not s:
+            raise HTTPException(404, "engagement not found")
+        s["log_verified"] = eng().verify_log(engagement_id)
+        s["preview"] = eng().preview(engagement_id)
+        return s
+
+    @router.get("/api/audit/engagements/{engagement_id}/log")
+    def engagement_log(engagement_id: str, auth=read):
+        return {"entries": eng().log(engagement_id), "verified": eng().verify_log(engagement_id)}
+
+    @router.get("/api/audit/checks/{item_id}")
+    def item_checks(item_id: str, auth=read):
+        return {"item_id": item_id, "checks": eng().checks(item_id)}
+
+    @router.post("/api/audit/engagements/{engagement_id}/sample")
+    def sample(engagement_id: str, inp: SampleIn, auth=engage):
+        return act(lambda: eng().sample(engagement_id, actor=_actor(auth), kind=inp.population, size=inp.size))
+
+    @router.post("/api/audit/engagements/{engagement_id}/test")
+    def test(engagement_id: str, inp: TestIn, auth=engage):
+        return act(
+            lambda: eng().test(engagement_id, actor=_actor(auth), item_id=inp.item_id, result=inp.result, note=inp.note)
+        )
+
+    @router.post("/api/audit/engagements/{engagement_id}/findings")
+    def finding(engagement_id: str, inp: FindingIn, auth=engage):
+        return act(
+            lambda: eng().finding(
+                engagement_id,
+                actor=_actor(auth),
+                title=inp.title,
+                severity=inp.severity,
+                description=inp.description,
+                item_ids=inp.item_ids,
+            )
+        )
+
+    @router.post("/api/audit/engagements/{engagement_id}/prepare")
+    def prepare(engagement_id: str, inp: PrepareIn, auth=engage):
+        """The report exactly as it will be signed; sign sign_message with your key."""
+        return act(lambda: eng().draft(engagement_id, actor=_actor(auth), opinion=inp.opinion))
+
+    @router.post("/api/audit/engagements/{engagement_id}/sign")
+    def sign(engagement_id: str, inp: SignIn, auth=engage):
+        return act(
+            lambda: eng().sign(
+                engagement_id,
+                actor=_actor(auth),
+                opinion=inp.opinion,
+                report_hash=inp.report_hash,
+                signature=inp.signature,
+            )
         )
 
     return router

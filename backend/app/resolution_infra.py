@@ -299,44 +299,53 @@ class ResolutionStore:
                 """
             )
 
+    def lock_audit(self, db) -> None:
+        """Serialize audit appends. Reading the head and appending must be one
+        atomic step, or two concurrent writers link to the same previous event and
+        fork the chain (which then fails verification with no tampering at all)."""
+        if self.backend == "sqlite":
+            db.execute("BEGIN IMMEDIATE")
+        else:
+            db.execute("SELECT pg_advisory_xact_lock(7304719)")
+
+    def append_audit(
+        self, db, actor: str, action: str, object_type: str, object_id: str, details: dict[str, Any]
+    ) -> dict:
+        """Append one audit event inside the caller's transaction (lock_audit taken)."""
+        prev = db.execute("SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1").fetchone()
+        previous_hash = prev["event_hash"] if prev else None
+        event = {
+            "event_id": gen_id("evt"),
+            "occurred_at": utcnow(),
+            "actor": actor,
+            "action": action,
+            "object_type": object_type,
+            "object_id": object_id,
+            "details": details,
+            "previous_hash": previous_hash,
+        }
+        event_hash = canonical_hash(event)
+        db.execute(
+            "INSERT INTO audit_events(event_id,occurred_at,actor,action,object_type,object_id,details_json,previous_hash,event_hash) VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                event["event_id"],
+                event["occurred_at"],
+                actor,
+                action,
+                object_type,
+                object_id,
+                json.dumps(details, sort_keys=True),
+                previous_hash,
+                event_hash,
+            ),
+        )
+        event["event_hash"] = event_hash
+        return event
+
     def _audit(self, actor: str, action: str, object_type: str, object_id: str, details: dict[str, Any]) -> dict:
         with self.connect() as db:
-            # Reading the head and appending must be one atomic step, or two
-            # concurrent writers link to the same previous event and fork the
-            # chain (which then fails verification with no tampering at all).
-            if self.backend == "sqlite":
-                db.execute("BEGIN IMMEDIATE")
-            else:
-                db.execute("SELECT pg_advisory_xact_lock(7304719)")
-            prev = db.execute("SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1").fetchone()
-            previous_hash = prev["event_hash"] if prev else None
-            event = {
-                "event_id": gen_id("evt"),
-                "occurred_at": utcnow(),
-                "actor": actor,
-                "action": action,
-                "object_type": object_type,
-                "object_id": object_id,
-                "details": details,
-                "previous_hash": previous_hash,
-            }
-            event_hash = canonical_hash(event)
-            db.execute(
-                "INSERT INTO audit_events(event_id,occurred_at,actor,action,object_type,object_id,details_json,previous_hash,event_hash) VALUES(?,?,?,?,?,?,?,?,?)",
-                (
-                    event["event_id"],
-                    event["occurred_at"],
-                    actor,
-                    action,
-                    object_type,
-                    object_id,
-                    json.dumps(details, sort_keys=True),
-                    previous_hash,
-                    event_hash,
-                ),
-            )
-            event["event_hash"] = event_hash
-            return event
+            self.lock_audit(db)
+            return self.append_audit(db, actor, action, object_type, object_id, details)
 
     def save_contract(
         self, spec: ResolutionSpecification, actor: str = "system", status: str = "draft"

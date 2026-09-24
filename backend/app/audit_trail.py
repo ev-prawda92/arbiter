@@ -65,6 +65,11 @@ ACTIONS: dict[str, tuple[str, str]] = {
     "settlement.packet.created": ("Signed settlement packet created", "settlement"),
     "audit.anchored": ("Audit chain anchored", "audit"),
     "audit.exported": ("Evidence package exported", "audit"),
+    "audit.engagement.opened": ("Audit engagement opened", "audit"),
+    "audit.engagement.sampled": ("Audit sample drawn", "audit"),
+    "audit.engagement.tested": ("Sample item tested", "audit"),
+    "audit.engagement.finding": ("Audit finding recorded", "audit"),
+    "audit.engagement.signed": ("Audit engagement signed off", "audit"),
     "policy.draft.created": ("Policy draft created", "governance"),
     "policy.draft.submitted": ("Policy draft submitted", "governance"),
     "policy.draft.approved": ("Policy draft approved", "governance"),
@@ -541,8 +546,15 @@ class AuditTrail:
 
     def package(self, *, actor: str) -> tuple[bytes, dict[str, Any]]:
         """The whole governed record as a zip the auditor verifies independently."""
-        events = self._events()
         with self.store.connect() as db:
+            # One read transaction: events and records come from the same snapshot,
+            # so nothing written mid-export appears in one without the other.
+            # Known limit: on Postgres this runs at the connection's default isolation
+            # (READ COMMITTED), so a write landing mid-export can still split; export
+            # there from a quiesced replica until REPEATABLE READ is wired in.
+            if self.store.backend == "sqlite":
+                db.execute("BEGIN")
+            events = [_row(r) for r in db.execute("SELECT * FROM audit_events ORDER BY sequence").fetchall()]
             decisions = [
                 json.loads(r["decision_json"])
                 for r in db.execute("SELECT decision_json FROM decision_records ORDER BY created_at")
@@ -562,13 +574,33 @@ class AuditTrail:
                 ]
             except Exception:
                 precedents = []
+            try:
+                engagement_log = [
+                    {
+                        "engagement_id": r["engagement_id"],
+                        "at": r["at"],
+                        "actor": r["actor"],
+                        "kind": r["kind"],
+                        "payload": json.loads(r["payload_json"]),
+                        "previous_hash": r["previous_hash"],
+                        "entry_hash": r["entry_hash"],
+                    }
+                    for r in db.execute("SELECT * FROM engagement_log ORDER BY seq")
+                ]
+            except Exception:
+                engagement_log = []
         files = {
             "events.jsonl": events,
             "decisions.jsonl": decisions,
             "contracts.jsonl": contracts,
             "evidence.jsonl": evidence,
             "precedents.jsonl": precedents,
-            "anchors.jsonl": list(reversed(self.anchors())),
+            "anchors.jsonl": [
+                e["details"]["receipt"]
+                for e in events
+                if e["action"] == "audit.anchored" and isinstance(e["details"].get("receipt"), dict)
+            ],
+            "engagements.jsonl": engagement_log,
         }
         blobs = {
             name: "".join(json.dumps(r, sort_keys=True, default=str) + "\n" for r in rows).encode()

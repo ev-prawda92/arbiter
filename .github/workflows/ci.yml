@@ -82,6 +82,9 @@ jobs:
       - name: Audit trail gate
         run: python scripts/audit_trail_gate.py
 
+      - name: Audit engagement gate
+        run: python scripts/audit_engagement_gate.py
+
       - name: Public API gate
         env:
           ARBITER_DATABASE_PATH: /tmp/arbiter-public.db

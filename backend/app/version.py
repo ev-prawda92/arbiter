@@ -6,4 +6,4 @@ schema-level versions elsewhere (e.g. BENCHMARK_VERSION, operations_intelligence
 VERSION) version their own data formats and are intentionally independent.
 """
 
-__version__ = "0.41.0"
+__version__ = "0.42.0"

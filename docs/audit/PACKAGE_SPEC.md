@@ -22,11 +22,12 @@ not JSON types are written as strings.
 | `decisions.jsonl` | every governed decision (`decision_hash`) |
 | `precedents.jsonl` | every precedent (informational) |
 | `anchors.jsonl` | anchor receipts recorded inside Arbiter (self-reported) |
+| `engagements.jsonl` | auditor engagement logs: each entry `{engagement_id, at, actor, kind, payload, previous_hash, entry_hash}` |
 
 ## Rules a verifier checks
 
 1. **Files:**
-   - The zip holds exactly `manifest.json`, `README.txt` and the six `.jsonl` files, with no
+   - The zip holds exactly `manifest.json`, `README.txt` and the seven `.jsonl` files, with no
      extras and no duplicate names.
    - Each data file's SHA-256 matches `manifest.files`.
    - `manifest_hash` equals `H(manifest without manifest_hash)`.
@@ -53,6 +54,54 @@ not JSON types are written as strings.
    - `receipt_hash` equals `H(receipt without receipt_hash)`.
    - The package's event at `receipt.sequence` has `event_hash == receipt.event_hash`.
 
+5. **Auditor engagements:**
+   - Per engagement, each entry's `entry_hash` equals
+     `H({engagement_id, at, actor, kind, payload, previous_hash})`, and each `previous_hash`
+     equals the prior entry's hash.
+   - The first entry is `opened`. There is at most one `sampled` entry, and nothing
+     follows `signed`.
+   - Each entry is committed to the main chain by an `audit.engagement.<kind>` event, with
+     `object_id` set to the engagement and `details.entry_hash` set to the entry's hash. The
+     entry and its commit are written in one transaction, and commit counts match.
+6. **Signed report** (`arbiter.audit-report.v1`, checked with `--report` and
+   `--auditor-key`):
+   - `report_hash` equals `H(report without report_hash)`.
+   - The report is identical to the `payload.report` of the engagement's `signed` entry.
+   - `payload.signature` is a valid Ed25519 signature, by the auditor's public key, over
+     `"arbiter-audit-report:" + report_hash`. The key must come from the auditor, not from
+     the package. `report.auditor_public_key` must equal it.
+   - `chain.event_hash` is the package's event at `chain.sequence`.
+   - `attestation` recomputes from the events up to `chain.sequence` plus
+     `decisions.jsonl` (the definitions are below).
+   - The sample reproduces:
+     - `seed = hex(SHA-256(engagement_id + "|" + seed_basis.chain_hash))`, where
+       `seed_basis.chain_hash` is the event at `cutoff_sequence`;
+     - the population is recomputed from the events up to `cutoff_sequence`, and its
+       sorted-id hash equals `population_hash`;
+     - the items are the first `size` of that population, ranked by
+       `hex(SHA-256(seed + "|" + item_id))`.
+
+### Populations and attestation
+
+Periods are whole UTC dates, compared against the first 10 characters of an event's
+`occurred_at`.
+
+| Population | Events | Item id |
+|---|---|---|
+| `decisions` | `decision.recorded` | `object_id` (the decision id) |
+| `departures` | `precedent.distinguished`, `precedent.overruled` | `event_id` |
+| `manual_closes` | `work_item.updated` with `details.status == "resolved"` and an actor not starting `system:` | `event_id` |
+
+The attestation fields are:
+- `decisions`: size of the decisions population.
+- `precedent_status`: counts of each decision's `metadata.precedent_consistency.status`,
+  or `unrecorded`.
+- `followed_when_precedent_applied`: (follows + consistent) / (follows + consistent +
+  divergent), rounded to 3 places.
+- `departures` and `overrules`: counts of those events in the period.
+- `manual_closes`: size of that population.
+- `deciders`: the sorted actors of `decision.recorded` events in the period.
+
 ## What each check proves
 
 - **Rules 1–3:** no event or record was edited, removed, inserted, reordered or swapped
@@ -70,7 +119,13 @@ when it is made.
   - `audit:read` reads the trail.
   - `audit:export` anchors and exports (both are POSTs, and both are recorded in the chain
     under the caller's identity).
-  - Neither scope can record decisions or change any record.
+  - `audit:engage` opens and works engagements. Only the principal that opened an
+    engagement can change it, and signing needs the auditor's own key. So an exchange
+    administrator can neither sign nor alter a signed report. Entries before sign-off are
+    protected by the application, not by the signature; the auditor reviews them before
+    signing, and the signature covers `engagement_log_head`. A signed engagement is locked.
+  - Known limit: on Postgres, export runs at READ COMMITTED. Export from a quiesced replica.
+  - None of these scopes can record decisions or change any record.
 - **Tenancy:** a package contains the whole database it was exported from. Arbiter's
   reference deployment is one tenant per database. A multi-tenant deployment must export
   per tenant (not yet implemented).

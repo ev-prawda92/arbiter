@@ -30,6 +30,7 @@ ALL_SCOPES = {
     "ai:read",
     "audit:read",
     "audit:export",
+    "audit:engage",
     "admin:*",
 }
 

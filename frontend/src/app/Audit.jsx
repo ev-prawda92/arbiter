@@ -7,6 +7,7 @@ const TABS = [
   ['lineage', 'Lineage'],
   ['log', 'Audit log'],
   ['exceptions', 'Exceptions'],
+  ['engagements', 'Engagements'],
   ['package', 'Evidence package'],
 ]
 const STAGE_NAME = {
@@ -35,6 +36,7 @@ export default function Audit({ arg }) {
       {tab === 'log' && <Log />}
       {tab === 'exceptions' && <Exceptions />}
       {tab === 'package' && <Package />}
+      {tab === 'engagements' && (sub ? <Engagement id={sub} /> : <EngagementList />)}
     </div>
   )
 }
@@ -269,6 +271,209 @@ function Package() {
         <pre className="cmd">python3 verify.py arbiter-audit-package.zip --anchor receipt.json</pre>
         <p className="muted small">It recomputes every hash, checks each record is committed to by the chain, and checks your receipts. Format: <span className="mono">docs/audit/PACKAGE_SPEC.md</span>. Verifier: <span className="mono">tools/arbiter-verify/verify.py</span>.</p>
       </section>
+    </div>
+  )
+}
+
+const RESULT = { no_exception: ['No exception', 'ok'], exception: ['Exception', 'red'], not_testable: ['Not testable', 'slate'] }
+
+function EngagementList() {
+  const [d, setD] = useState(null)
+  const today = new Date().toISOString().slice(0, 10)
+  const [form, setForm] = useState({ name: '', period_from: `${today.slice(0, 4)}-01-01`, period_to: today, auditor_public_key: '' })
+  const [err, setErr] = useState('')
+  const load = () => api('/api/audit/engagements').then(setD)
+  useEffect(() => { load() }, [])
+  async function open(e) {
+    e.preventDefault()
+    setErr('')
+    try {
+      const s = await post('/api/audit/engagements', form)
+      window.location.hash = `/audit/engagements/${s.engagement_id}`
+    } catch (x) { setErr(x.message) }
+  }
+  return (
+    <div className="today-grid">
+      <section className="panel">
+        <div className="panel-head"><h2>Engagements</h2></div>
+        {!d ? <Loading /> : d.engagements.length === 0 ? <p className="empty">No engagements yet. Open one to sample, test and sign off a period.</p> : d.engagements.map(e => (
+          <a key={e.engagement_id} className="p-card" href={`#/audit/engagements/${e.engagement_id}`}>
+            <div className="pattern-top"><span className={`tag ${e.state === 'signed' ? 'ok' : 'amber'}`}>{e.state}</span><span className="muted small">{e.period_from} → {e.period_to}</span></div>
+            <strong>{e.name}</strong>
+            <small>{e.auditor} · {e.progress.tested}/{e.progress.sampled} tested · {e.findings} finding{e.findings === 1 ? '' : 's'}</small>
+          </a>
+        ))}
+      </section>
+      <section className="panel">
+        <div className="panel-head"><h2>Open an engagement</h2></div>
+        <p className="muted small">Only you can change it. Every step is recorded in its own hash chain, committed to Arbiter’s record.</p>
+        <form onSubmit={open}>
+          <label className="field"><span>Name</span><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Q3 resolution controls review" /></label>
+          <div className="two-col">
+            <label className="field"><span>Period from</span><input type="date" value={form.period_from} onChange={e => setForm({ ...form, period_from: e.target.value })} /></label>
+            <label className="field"><span>Period to</span><input type="date" value={form.period_to} onChange={e => setForm({ ...form, period_to: e.target.value })} /></label>
+          </div>
+          <label className="field"><span>Your public key</span><input className="mono" value={form.auditor_public_key} onChange={e => setForm({ ...form, auditor_public_key: e.target.value.trim() })} placeholder="64 hex characters" /></label>
+          <p className="muted small">Generate a key on your own machine. The secret never leaves it, and sign-off needs its signature, so nobody else (the exchange included) can sign your report.</p>
+          <pre className="cmd">python3 tools/arbiter-verify/sign.py keygen auditor.key</pre>
+          <button className="btn primary" disabled={!form.name.trim() || form.auditor_public_key.length !== 64}>Open engagement</button>
+        </form>
+        {err && <div className="callout bad">{err}</div>}
+      </section>
+    </div>
+  )
+}
+
+function Engagement({ id }) {
+  const [s, setS] = useState(null)
+  const [err, setErr] = useState('')
+  const [pop, setPop] = useState({ population: 'decisions', size: 25 })
+  const [notes, setNotes] = useState({})
+  const [fnd, setFnd] = useState({ title: '', severity: 'medium', description: '', item_ids: [] })
+  const [opinion, setOpinion] = useState('')
+  const [draft, setDraft] = useState(null)
+  const [signature, setSignature] = useState('')
+  async function prepare() {
+    setErr('')
+    try { setDraft(await post(`/api/audit/engagements/${id}/prepare`, { opinion })) } catch (e) { setErr(e.message) }
+  }
+  async function signOff() {
+    await run('sign', { opinion, report_hash: draft.report.report_hash, signature })
+    setDraft(null)
+  }
+  const load = () => api(`/api/audit/engagements/${id}`).then(setS).catch(e => setErr(e.message))
+  useEffect(() => { load() }, [id])
+  async function run(path, body) {
+    setErr('')
+    try { await post(`/api/audit/engagements/${id}/${path}`, body); await load() } catch (e) { setErr(e.message) }
+  }
+  if (!s) return err ? <div className="callout bad">{err}</div> : <Loading />
+  const locked = s.state === 'signed'
+  const items = s.sample?.items || []
+  const pv = s.preview || {}
+  return (
+    <div className="engagement">
+      <section className="panel">
+        <div className="pattern-top">
+          <span className={`tag ${locked ? 'ok' : 'amber'}`}>{s.state}</span>
+          <span className="muted small">{s.auditor} · {s.period_from} → {s.period_to}</span>
+          <span className={`chip ${s.log_verified?.ok ? 'ok' : 'bad'}`}>{s.log_verified?.ok ? `Working papers verified · ${s.log_entries} entries` : 'Working papers do not verify'}</span>
+        </div>
+        <h2 className="lin-title">{s.name}</h2>
+        <div className="outcome-grid">
+          <div><small>Decisions in period</small><strong>{pv.decisions ?? '—'}</strong><span>{(pv.deciders || []).length} decider(s)</span></div>
+          <div><small>Followed precedent</small><strong>{pv.followed_when_precedent_applied == null ? '—' : `${Math.round(pv.followed_when_precedent_applied * 100)}%`}</strong><span>when one applied</span></div>
+          <div><small>Departures · overrules</small><strong>{pv.departures ?? 0} · {pv.overrules ?? 0}</strong><span>each needs a reason</span></div>
+          <div><small>Manual closes</small><strong>{pv.manual_closes ?? 0}</strong><span>without a ruling</span></div>
+        </div>
+      </section>
+      {err && <div className="callout bad">{err}</div>}
+
+      <section className="panel">
+        <div className="panel-head"><h2><span className="step-n">1</span>Sample</h2>
+          {s.sample && <span className="muted small">{s.sample.size} of {s.sample.population_size} · seed <span className="mono">{s.sample.seed.slice(0, 12)}…</span></span>}</div>
+        {!locked && !s.sample && (
+          <div className="filters">
+            <select value={pop.population} onChange={e => setPop({ ...pop, population: e.target.value })}>
+              <option value="decisions">Governed decisions</option>
+              <option value="departures">Departures from precedent</option>
+              <option value="manual_closes">Manual closes</option>
+            </select>
+            <input className="search narrow" type="number" min="1" value={pop.size} onChange={e => setPop({ ...pop, size: Number(e.target.value) })} />
+            <button className="btn" onClick={() => run('sample', pop)}>Draw sample (once)</button>
+          </div>
+        )}
+        <p className="fine">Reproducible: items are ranked by sha256(seed | id), and the seed derives from this engagement and the chain head at the moment of sampling. Anyone with the evidence package can recompute it.</p>
+        {items.map(i => {
+          const t = s.tests[i.item_id]
+          return (
+            <div className="sample-item" key={i.item_id}>
+              <div className="si-head">
+                <span className="mono small">{i.item_id}</span>
+                <strong>{i.label}</strong>
+                <span className="muted small">{i.actor} · {(i.at || '').slice(0, 10)}</span>
+                {t && <span className={`tag ${RESULT[t.result][1]}`}>{RESULT[t.result][0]}</span>}
+              </div>
+              {t?.checks && <ul className="checks">{t.checks.map(c => <li key={c.check} className={c.ok ? 'ok' : 'bad'}>{c.ok ? '✓' : '✗'} {c.check}</li>)}</ul>}
+              {t?.note && <p className="muted small">Note: {t.note}</p>}
+              {!locked && (
+                <div className="si-actions">
+                  <input value={notes[i.item_id] || ''} onChange={e => setNotes({ ...notes, [i.item_id]: e.target.value })} placeholder="Working-paper note" />
+                  {Object.entries(RESULT).map(([k, [label]]) => (
+                    <button key={k} className={`btn ${t?.result === k ? 'primary' : 'ghost'}`} onClick={() => run('test', { item_id: i.item_id, result: k, note: notes[i.item_id] || '' })}>{label}</button>
+                  ))}
+                  <a className="link small" href={`#/audit/log`}>Log</a>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </section>
+
+      <section className="panel">
+        <div className="panel-head"><h2><span className="step-n">2</span>Findings</h2><span className="muted small">{s.findings.length}</span></div>
+        {s.findings.map(f => (
+          <div className="exc" key={f.finding_id}><span className={`tag ${f.severity === 'high' ? 'red' : f.severity === 'medium' ? 'amber' : 'slate'}`}>{f.severity}</span>
+            <div><strong>{f.title}</strong><p>{f.description}</p><small className="muted">{f.item_ids.join(', ')}</small></div></div>
+        ))}
+        {!locked && (
+          <div className="finding-form">
+            <label className="field"><span>Title</span><input value={fnd.title} onChange={e => setFnd({ ...fnd, title: e.target.value })} /></label>
+            <label className="field"><span>Description</span><textarea value={fnd.description} onChange={e => setFnd({ ...fnd, description: e.target.value })} /></label>
+            <div className="filters">
+              <select value={fnd.severity} onChange={e => setFnd({ ...fnd, severity: e.target.value })}><option>high</option><option>medium</option><option>low</option></select>
+              <button className="btn" disabled={!fnd.title.trim()} onClick={() => run('findings', { ...fnd, item_ids: items.filter(i => s.tests[i.item_id]?.result === 'exception').map(i => i.item_id) }).then(() => setFnd({ title: '', severity: 'medium', description: '', item_ids: [] }))}>Record finding (linked to exceptions)</button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="panel-head"><h2><span className="step-n">3</span>Sign off</h2><span className="muted small">{s.progress.tested}/{s.progress.sampled} tested</span></div>
+        {locked ? <Report report={s.report} signedAt={s.signed_at} signature={s.signature} /> : (
+          <>
+            <label className="field"><span>Opinion</span><textarea value={opinion} onChange={e => { setOpinion(e.target.value); setDraft(null) }} placeholder="e.g. Resolution controls operated effectively for the period, except as noted in the findings." /></label>
+            {!draft ? (
+              <button className="btn primary" disabled={!opinion.trim() || s.progress.tested < s.progress.sampled} onClick={prepare}>Prepare report to sign</button>
+            ) : (
+              <div className="receipt">
+                <p className="muted small">Sign this exact report on your machine, then paste the signature.</p>
+                <pre className="cmd">python3 tools/arbiter-verify/sign.py sign auditor.key {draft.report.report_hash}</pre>
+                <label className="field"><span>Signature</span><input className="mono" value={signature} onChange={e => setSignature(e.target.value.trim())} placeholder="128 hex characters" /></label>
+                <button className="btn primary big" disabled={signature.length !== 128} onClick={signOff}>Sign off and lock</button>
+              </div>
+            )}
+            <p className="fine">Signing locks the engagement. The report is checked by the standalone verifier against the evidence package and your public key.</p>
+          </>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function Report({ report, signedAt, signature }) {
+  const text = JSON.stringify(report, null, 2)
+  function save() {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `arbiter-audit-report-${report.engagement_id}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  return (
+    <div className="report">
+      <div className="callout ok"><strong>Signed {(signedAt || '').slice(0, 19).replace('T', ' ')} by {report.auditor}</strong><span>{report.opinion}</span></div>
+      <dl className="facts">
+        <div><dt>Results</dt><dd>{Object.entries(report.results).map(([k, n]) => `${n} ${RESULT[k]?.[0].toLowerCase()}`).join(' · ')}</dd></div>
+        <div><dt>Findings</dt><dd>{report.findings.length}</dd></div>
+        <div><dt>Attests to chain head</dt><dd className="mono small">#{report.chain.sequence} {report.chain.event_hash.slice(7, 19)}</dd></div>
+        <div><dt>Report hash</dt><dd className="mono small">{report.report_hash.slice(0, 26)}…</dd></div>
+        <div><dt>Auditor key</dt><dd className="mono small">{report.auditor_public_key.slice(0, 16)}…</dd></div>
+        <div><dt>Signature</dt><dd className="mono small">{(signature || '').slice(0, 16)}…</dd></div>
+      </dl>
+      <div className="hero-actions"><button className="btn primary" onClick={save}>Download report (.json)</button></div>
+      <pre className="cmd">python3 verify.py arbiter-audit-package.zip --report {`arbiter-audit-report-${report.engagement_id}.json`} --auditor-key {report.auditor_public_key}</pre>
     </div>
   )
 }

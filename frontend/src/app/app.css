@@ -1855,3 +1855,14 @@ pre.cmd { background: var(--side); color: #e2e8f0; padding: 12px 14px; border-ra
 @media (max-width: 860px) { .timeline li { grid-template-columns: 1fr; gap: 2px; } }
 .timeline strong { display: block; }
 .exc .tag { justify-self: start; align-self: start; }
+
+.sample-item { border-top: 1px solid var(--line); padding: 12px 0; }
+.si-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+.si-head strong { font-size: 14px; }
+.checks { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; }
+.checks .ok { color: var(--ok); } .checks .bad { color: var(--red); }
+.si-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.si-actions input { flex: 1; min-width: 200px; border: 1px solid var(--line-2); border-radius: 9px; padding: 8px 10px; }
+.si-actions .btn { padding: 6px 12px; font-size: 13px; }
+.search.narrow { width: 90px; flex: none; min-width: 0; }
+.engagement { display: grid; gap: 16px; }
