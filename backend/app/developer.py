@@ -28,6 +28,8 @@ ALL_SCOPES = {
     "benchmark:run",
     "ai:use",
     "ai:read",
+    "audit:read",
+    "audit:export",
     "admin:*",
 }
 

@@ -79,6 +79,9 @@ jobs:
       - name: Precedent gate
         run: python scripts/precedent_gate.py
 
+      - name: Audit trail gate
+        run: python scripts/audit_trail_gate.py
+
       - name: Public API gate
         env:
           ARBITER_DATABASE_PATH: /tmp/arbiter-public.db

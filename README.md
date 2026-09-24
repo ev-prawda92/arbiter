@@ -29,6 +29,7 @@ Then open `http://localhost:8000`. One console, organized around the operator's 
 | **Decide** | One pattern at a time: the judgment needed, what was ruled before (clause by clause), the ruling with a live consistency check, then straight on to the next pattern |
 | **Precedents** | Every ruling, what it has applied to since, appeal checks, and Ask Arbiter |
 | Markets, Contract review | Per-contract resolution detail and pre-listing design review |
+| **Audit trail** | For compliance and outside auditors: any contract's full lineage, the searchable log, exceptions (departures from precedent, manual closes, self-approval), anchor receipts, and an evidence package verified independently with `tools/arbiter-verify` |
 | Portfolio, Benchmark, Controls & audit, Validation, Policy | Assurance views |
 
 Ask Arbiter is in the top bar on every page (⌘K).
@@ -76,7 +77,7 @@ make check
 ```
 
 `make check` runs lint, format check, unit and consistency tests, then starts the app and the
-public API on throwaway databases and runs all 27 gate scripts, including the full release gate
+public API on throwaway databases and runs all 28 gate scripts, including the full release gate
 (**452 checks across 18 suites**). CI runs the same on every pull request.
 
 ## Status

@@ -6,6 +6,7 @@ changelog files; their work is summarized in the v0.34 notes and git history.
 
 | Version | Release | Notes |
 |---|---|---|
+| v0.41 | Audit Trail for Auditors | [changelog](docs/releases/CHANGELOG_V0_41.md) |
 | v0.40 | Unified Console | [changelog](docs/releases/CHANGELOG_V0_40.md) |
 | v0.39 | Precedent Engine | [changelog](docs/releases/CHANGELOG_V0_39.md) |
 | v0.38 | Repository Hardening | [changelog](docs/releases/CHANGELOG_V0_38.md) |

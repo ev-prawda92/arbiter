@@ -4,6 +4,7 @@ import Today from './Today'
 import Queue from './Queue'
 import Decide from './Decide'
 import Precedents from './Precedents'
+import Audit from './Audit'
 import { LegacyViews } from '../legacy/LegacyViews'
 
 // Hash routes: #/today, #/queue, #/decide/<cluster>, #/precedents/<id>, #/markets ...
@@ -31,6 +32,12 @@ const NAV = [
     items: [
       { page: 'markets', label: 'Markets', legacy: 'markets', icon: 'M4 19V9M10 19V5M16 19v-7M22 19H2' },
       { page: 'cases', label: 'Contract review', legacy: 'cases', icon: 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3' },
+    ],
+  },
+  {
+    group: 'Audit',
+    items: [
+      { page: 'audit', label: 'Audit trail', icon: 'M9 12l2 2 4-4M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z' },
     ],
   },
   {
@@ -101,6 +108,7 @@ export default function App() {
   if (page === 'today') body = <Today {...ctx} />
   else if (page === 'queue') body = <Queue {...ctx} mode={route.arg} />
   else if (page === 'decide') body = <Decide {...ctx} clusterId={route.arg} />
+  else if (page === 'audit') body = <Audit arg={route.arg} />
   else if (page === 'precedents') body = <Precedents {...ctx} precedentId={route.arg} />
   else if (LEGACY[page]) body = <div className="legacy-frame"><LegacyViews view={LEGACY[page]} onNavigate={v => go(Object.keys(LEGACY).find(k => LEGACY[k] === v) || 'today')} /></div>
   else body = <Today {...ctx} />

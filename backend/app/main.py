@@ -151,7 +151,18 @@ async def enterprise_boundary(request: Request, call_next):
                     status_code=403, content={"detail": str(e)}, headers=enterprise.security_headers(request_id)
                 )
         else:
-            auth = developer.authenticate(request.headers.get("X-Arbiter-Key"), request.headers.get("Authorization"))
+            try:
+                auth = developer.authenticate(
+                    request.headers.get("X-Arbiter-Key"), request.headers.get("Authorization")
+                )
+            except HTTPException as e:
+                from fastapi.responses import JSONResponse
+
+                return JSONResponse(
+                    status_code=e.status_code,
+                    content={"detail": e.detail},
+                    headers=enterprise.security_headers(request_id),
+                )
             principal = identity_tenant.principal_from_auth(auth, production=False)
             request.state.principal = principal.to_dict()
             tokens = production_data.bind_context(principal.tenant_id, principal.principal_id, request_id)

@@ -1821,3 +1821,37 @@ q.clause {
 .outcome-grid > * {
   min-width: 0;
 }
+
+/* ---------- audit ---------- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; }
+.tabs a { padding: 10px 14px; font-weight: 600; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs a.on { color: var(--ink); border-bottom-color: var(--ink); }
+.search, .filters select { border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 12px; background: var(--surface); min-width: 0; }
+.filters .search { flex: 1; min-width: 200px; }
+.lin-title { font-size: 21px; margin: 8px 0 12px; line-height: 1.3; }
+.timeline { list-style: none; margin: 18px 0 0; padding: 0 0 0 18px; border-left: 2px solid var(--line); display: grid; gap: 14px; }
+.timeline li { position: relative; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; }
+.timeline li::before { content: ''; position: absolute; left: -25px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--faint); border: 2px solid var(--surface); }
+.timeline .st-intake::before { background: var(--blue); }
+.timeline .st-decision::before { background: var(--violet); }
+.timeline .st-appeal::before, .timeline .st-work::before { background: #d97706; }
+.timeline .st-settlement::before, .timeline .st-resolution::before { background: var(--ok); }
+.tl-stage { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.timeline p { margin: 2px 0; font-size: 13px; color: var(--ink-2); }
+.timeline strong { font-size: 14px; }
+table.log { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.log th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 8px; border-bottom: 1px solid var(--line); }
+table.log td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.log td small { display: block; color: var(--muted); }
+section.panel:has(table.log) { overflow-x: auto; }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 12px; }
+.pager span { margin-right: auto; }
+.exc { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.exc:first-child { border-top: 0; }
+.exc p { margin: 3px 0; color: var(--ink-2); font-size: 13.5px; }
+.receipt { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface-2); }
+.receipt pre, pre.cmd { margin: 0; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+pre.cmd { background: var(--side); color: #e2e8f0; padding: 12px 14px; border-radius: 10px; margin: 8px 0; }
+@media (max-width: 860px) { .timeline li { grid-template-columns: 1fr; gap: 2px; } }
+.timeline strong { display: block; }
+.exc .tag { justify-self: start; align-self: start; }

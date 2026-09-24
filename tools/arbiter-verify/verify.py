@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""Independent verifier for Arbiter audit evidence packages (arbiter.audit-package.v1).
+
+Standard library only. Runs on the auditor's machine, against the auditor's copy,
+without Arbiter installed. Read it: it is short on purpose.
+
+    python3 verify.py arbiter-audit-package.zip
+    python3 verify.py arbiter-audit-package.zip --anchor receipt.json [--anchor older.json]
+    python3 verify.py package.zip --json
+
+Checks
+  1. every file matches the hash in the manifest, and the manifest matches its own hash
+  2. every event's hash recomputes, and each event links to the one before it
+  3. contracts, evidence and decisions recompute to their stored hashes, and each is
+     committed to by an event in the chain (so a record cannot be swapped silently)
+  4. anchors: each external receipt you hold names an event that is in the chain with
+     the same hash. This is what shows the chain was not regenerated after the fact.
+     A hash chain alone proves no single event was edited; only a receipt kept
+     outside the exchange proves the whole chain was not rebuilt.
+
+Exit code 0 when everything verifies, 1 otherwise.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import zipfile
+
+FORMAT = "arbiter.audit-package.v1"
+ANCHOR_FORMAT = "arbiter.audit-anchor.v1"
+
+
+def canonical_hash(value) -> str:
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def without(d: dict, key: str) -> dict:
+    return {k: v for k, v in d.items() if k != key}
+
+
+class Report:
+    def __init__(self):
+        self.checks: list[dict] = []
+
+    def add(self, ok: bool, name: str, detail: str = "") -> bool:
+        self.checks.append({"ok": bool(ok), "check": name, "detail": detail})
+        return ok
+
+    @property
+    def ok(self) -> bool:
+        return all(c["ok"] for c in self.checks)
+
+
+REQUIRED_FILES = {
+    "manifest.json",
+    "events.jsonl",
+    "contracts.jsonl",
+    "evidence.jsonl",
+    "decisions.jsonl",
+    "precedents.jsonl",
+    "anchors.jsonl",
+    "README.txt",
+}
+EVENT_FIELDS = ("event_id", "occurred_at", "actor", "action", "object_type", "object_id", "details", "previous_hash")
+# record file -> (hash field, committing action, how the event names the record)
+BINDINGS = {
+    "contracts.jsonl": (
+        "spec_hash",
+        "contract.version.created",
+        lambda x: (x.get("contract_id"), x.get("contract_version")),
+    ),
+    "evidence.jsonl": ("record_hash", "evidence.appended", lambda x: (x.get("evidence_id"), None)),
+    "decisions.jsonl": ("decision_hash", "decision.recorded", lambda x: (x.get("decision_id"), None)),
+}
+
+
+def event_key(action: str, e: dict):
+    d = e.get("details") or {}
+    return (e.get("object_id"), d.get("version") if action == "contract.version.created" else None)
+
+
+def load(path: str, r: Report) -> tuple[dict, dict[str, bytes]] | None:
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        dupes = sorted({n for n in names if names.count(n) > 1})
+        files = {n: z.read(n) for n in names}
+    extra = sorted(set(files) - REQUIRED_FILES)
+    missing = sorted(REQUIRED_FILES - set(files))
+    r.add(not dupes, "no duplicate files", ", ".join(dupes))
+    r.add(not extra and not missing, "exact file set", f"missing {missing} extra {extra}" if (extra or missing) else "")
+    if "manifest.json" not in files:
+        return None
+    return json.loads(files["manifest.json"]), files
+
+
+def rows(blob: bytes) -> list[dict]:
+    return [json.loads(line) for line in blob.decode().splitlines() if line.strip()]
+
+
+def verify(path: str, anchors: list[dict]) -> Report:
+    r = Report()
+    try:
+        loaded = load(path, r)
+    except (zipfile.BadZipFile, ValueError) as exc:
+        r.add(False, "readable package", str(exc))
+        return r
+    if not loaded:
+        return r
+    manifest, files = loaded
+    try:
+        _verify(r, manifest, files, anchors)
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        r.add(False, "well-formed package", f"{type(exc).__name__}: {exc}")
+    return r
+
+
+def _verify(r: Report, manifest: dict, files: dict[str, bytes], anchors: list[dict]) -> None:
+    r.add(manifest.get("format") == FORMAT, "package format", str(manifest.get("format")))
+    r.add(canonical_hash(without(manifest, "manifest_hash")) == manifest.get("manifest_hash"), "manifest hash")
+
+    # 1 files: every data file is listed and matches
+    listed = manifest.get("files") or {}
+    for name in sorted(REQUIRED_FILES - {"manifest.json", "README.txt"}):
+        blob = files.get(name)
+        got = "sha256:" + hashlib.sha256(blob).hexdigest() if blob is not None else None
+        r.add(
+            got is not None and got == listed.get(name),
+            f"file {name}",
+            "missing or not listed" if got is None or name not in listed else "",
+        )
+
+    events = rows(files.get("events.jsonl", b""))
+    r.add(bool(events), "package has events")
+    # 2 chain: must start at the genesis event, so nothing can be cut off the front
+    prev, seq, bad = None, 0, None
+    if manifest.get("chain", {}).get("first_previous_hash") is not None or (events and events[0]["sequence"] != 1):
+        bad = "the package does not start at the first event of the chain (sequence 1, no previous hash)"
+    for e in [] if bad else events:
+        if e["sequence"] != seq + 1:
+            bad = f"sequence gap after {seq} (next is {e['sequence']})"
+            break
+        if e["previous_hash"] != prev:
+            bad = f"event {e['sequence']} does not link to the event before it"
+            break
+        if canonical_hash({k: e[k] for k in EVENT_FIELDS}) != e["event_hash"]:
+            bad = f"event {e['sequence']} ({e['action']}) was altered: its hash does not recompute"
+            break
+        prev, seq = e["event_hash"], e["sequence"]
+    r.add(bad is None, f"hash chain ({len(events)} events, from genesis)", bad or "")
+    if events:
+        r.add(events[-1]["event_hash"] == manifest.get("chain", {}).get("head_hash"), "chain head matches manifest")
+        rng = manifest.get("range") or {}
+        r.add(
+            rng.get("from_sequence") == 1 and rng.get("to_sequence") == events[-1]["sequence"], "range matches events"
+        )
+
+    # 3 records: each bound to the event that committed it, both ways
+    for fname, (field, action, key) in BINDINGS.items():
+        recs = rows(files.get(fname, b""))
+        label = fname.split(".")[0]
+        altered = [x for x in recs if canonical_hash(without(x, field)) != x.get(field)]
+        r.add(not altered, f"{label}: {len(recs)} recompute", f"{len(altered)} altered" if altered else "")
+        commits = {}
+        for e in events:
+            if e["action"] == action:
+                commits[event_key(action, e)] = (e.get("details") or {}).get(field)
+        by_key = {key(x): x.get(field) for x in recs}
+        unbound = [k for k, h in by_key.items() if commits.get(k) != h]
+        absent = [k for k in commits if k not in by_key]
+        r.add(
+            not unbound,
+            f"{label}: each matches the event that committed it",
+            f"{len(unbound)} do not, e.g. {unbound[:1]}" if unbound else "",
+        )
+        r.add(
+            not absent and len(by_key) == len(recs),
+            f"{label}: none missing or duplicated",
+            f"{len(absent)} committed but absent" if absent else "",
+        )
+
+    # 4 anchors
+    by_seq = {e["sequence"]: e["event_hash"] for e in events}
+    for a in rows(files.get("anchors.jsonl", b"")):
+        r.add(
+            by_seq.get(a.get("sequence")) == a.get("event_hash"),
+            f"internal anchor at {a.get('sequence')}",
+            "self-reported by the package",
+        )
+    for a in anchors:
+        if a.get("format") != ANCHOR_FORMAT or canonical_hash(without(a, "receipt_hash")) != a.get("receipt_hash"):
+            r.add(False, f"receipt {a.get('anchor_id')}", "receipt itself is malformed or altered")
+            continue
+        got = by_seq.get(a["sequence"])
+        r.add(
+            got == a["event_hash"],
+            f"external receipt {a['anchor_id']} (sequence {a['sequence']}, {a['anchored_at'][:19]})",
+            ""
+            if got == a["event_hash"]
+            else ("event missing from package" if got is None else "chain was rewritten since this receipt"),
+        )
+    if not anchors:
+        r.add(
+            True,
+            "external receipts",
+            "none supplied: this run proves internal consistency only, not that the chain was never rebuilt",
+        )
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("package")
+    ap.add_argument("--anchor", action="append", default=[], help="an anchor receipt you hold (JSON file)")
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args()
+    receipts = [json.load(open(p)) for p in args.anchor]
+    rep = verify(args.package, receipts)
+    if args.json:
+        print(json.dumps({"ok": rep.ok, "checks": rep.checks}, indent=2))
+    else:
+        for c in rep.checks:
+            print(f"[{'PASS' if c['ok'] else 'FAIL'}] {c['check']}" + (f" - {c['detail']}" if c["detail"] else ""))
+        print("\nVERIFIED" if rep.ok else "\nNOT VERIFIED")
+    return 0 if rep.ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

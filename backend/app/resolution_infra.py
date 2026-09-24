@@ -301,6 +301,13 @@ class ResolutionStore:
 
     def _audit(self, actor: str, action: str, object_type: str, object_id: str, details: dict[str, Any]) -> dict:
         with self.connect() as db:
+            # Reading the head and appending must be one atomic step, or two
+            # concurrent writers link to the same previous event and fork the
+            # chain (which then fails verification with no tampering at all).
+            if self.backend == "sqlite":
+                db.execute("BEGIN IMMEDIATE")
+            else:
+                db.execute("SELECT pg_advisory_xact_lock(7304719)")
             prev = db.execute("SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1").fetchone()
             previous_hash = prev["event_hash"] if prev else None
             event = {

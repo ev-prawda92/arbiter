@@ -7,7 +7,7 @@ implementation, and what is not done yet.
 
 ```bash
 make install
-make check        # lint, format, pytest, all 27 gates, release gate 452/452
+make check        # lint, format, pytest, all 28 gates, release gate 452/452
 ./start.sh        # then open http://localhost:8000
 ```
 
@@ -20,7 +20,7 @@ Every gate starts from empty temporary state, so no result depends on a pre-seed
 | Live venue intake | `scripts/sync_venues.py` reads Kalshi and Polymarket public APIs. Two recorded scans (300 and 600 markets) are replayed offline in the gates (`tests/fixtures/venue_scan_*.json.gz`). |
 | Hardness triage | On the most recent live scan, 22 of 500 open Kalshi markets (Sports excluded) and 3 of 100 Polymarket markets were flagged for human review. Each flag names the reason: interpretive criteria, multi-source conflict, revised source, or late/void. |
 | Decision clearing | One recorded decision clears every case that shares its root cause. Blockers that must never be cleared automatically stay open. Covered by the decision clearing and propagation gates. |
-| Audit trail | `audit_events` is a hash chain. The public API gate tampers with a row and checks that verification detects it. |
+| Audit trail | `audit_events` is a hash chain, safe under concurrent writers. Auditors get per-contract lineage, a searchable log and an exceptions view. The evidence package ([spec](audit/PACKAGE_SPEC.md)) is checked by a standalone, standard-library verifier (`tools/arbiter-verify`). The audit gate proves it catches edited, deleted, swapped and truncated records, and, with an external anchor receipt, a wholesale rewrite. |
 | Settlement signing | HMAC-signed packets. Production refuses to sign without `ARBITER_SETTLEMENT_SIGNING_SECRET` (tests in `tests/test_repo_consistency.py`). |
 | Precedent engine | Decisions become precedent; new contracts are matched on arrival. On 838 real markets the same-template tier finds the template in another event for 79.6% of markets at 100% precision (`scripts/precedent_eval.py`). The precedent gate proves follow / distinguish / overrule, appeals and Ask Arbiter end to end. |
 | Worked case | `demo/run_iran_case.py` runs a contested geopolitical contract through the real engine and records the output. |
