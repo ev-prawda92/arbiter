@@ -29,7 +29,10 @@ from typing import Any, Callable, Iterable
 
 from .active_evidence import get_service as get_evidence_service
 from .real_benchmark.collectors import KALSHI_HOSTS, _fetch_json, _parse_jsonish, _uma_dispute_count
-from .real_benchmark.hardness import BOILERPLATE_DF, DISCLAIMER_MARKERS, PRIORITY, _compute_boilerplate, classify_candidate
+from .real_benchmark.hardness import (
+    BOILERPLATE_DF, DISCLAIMER_MARKERS, INTERPRETIVE_TERMS, PRIORITY, REVISION_SERIES, VAGUE_SOURCE_MARKERS,
+    _compute_boilerplate, classify_candidate,
+)
 from .resolution_infra import (
     Authority,
     EvidenceRecord,
@@ -65,10 +68,27 @@ CROSS_VENUE_KIND = "evidence_conflict"
 # which is right for its election-heavy corpus but flags every sports market
 # ("Will Seattle win the 4th quarter?") in a live scan. For live intake a
 # contested-official-source flag needs genuinely electoral wording.
+# "Prime minister" / "president of" are not enough: "the next Prime Minister
+# of Romania" or "will the President of Kenya leave office first" is a
+# succession question, not a contested vote count (Sep 24 2026 scan).
 STRICT_ELECTION_MARKERS = (
-    "election", "presidential", "parliamentary", "prime minister", "president of",
-    "referendum", "electoral", "ballot",
+    "election", "presidential", "parliamentary", "referendum", "electoral", "ballot", "caucus",
 )
+
+# Rules that already say which release counts leave no revision question for a
+# human ("Later revisions will not affect the outcome", "The initially reported
+# value ... will be used").
+PINNED_RELEASE_MARKERS = (
+    "later revisions will not", "revisions will not", "revisions published after",
+    "subsequent revisions", "initially reported", "initial release", "first-published",
+    "first published", "first release", "advance estimate", "first non-preliminary",
+    "as first reported", "as initially", "without regard to revisions",
+)
+
+# Wording whose presence in a sentence can raise a flag; used to learn which
+# such sentences are standing fine print (see boilerplate_for).
+FLAG_MARKERS = (tuple(DISCLAIMER_MARKERS) + tuple(INTERPRETIVE_TERMS) + tuple(VAGUE_SOURCE_MARKERS)
+                + STRICT_ELECTION_MARKERS)
 
 Fetcher = Callable[[str, str], tuple[dict[str, Any], str]]
 
@@ -185,18 +205,37 @@ def _disclaimer_hits(row: dict[str, Any]) -> set[str]:
 def _normalize_sentence(sentence: str) -> str:
     """Strip what varies between markets (names, numbers) so templated fine
     print compares equal: 'If Merrill Kelly ... 2+' == 'If Mason Adams ... 1+'."""
-    s = re.sub(r"\b[A-Z][\w'&.-]*(?:\s+[A-Z][\w'&.-]*)*", "<x>", sentence)
+    # A proper name is one unit even with small connectors inside it:
+    # "Chair of the Democratic National Committee" == "Secretary General of NATO".
+    s = re.sub(r"\b[A-Z][\w'&.-]*(?:\s+(?:(?:of|the|and|for|de|la|du|von|der|van|den)\s+)*[A-Z][\w'&.-]*)*",
+               "<x>", sentence)
     s = re.sub(r"\d+(?:\.\d+)?", "<n>", s)
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
-def _disclaimer_sentences(row: dict[str, Any]) -> set[str]:
-    """Normalized sentences of a market's rules that carry a disclaimer marker."""
+def _marked_sentences(row: dict[str, Any], markers: Iterable[str]) -> set[str]:
+    """Normalized sentences of a market's rules that contain any of ``markers``."""
+    markers = tuple(markers)
     out = set()
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(row.get("rules") or "")):
-        if sentence.strip() and any(m in sentence.lower() for m in DISCLAIMER_MARKERS):
+        if sentence.strip() and any(m in sentence.lower() for m in markers):
             out.add(_normalize_sentence(sentence))
     return out
+
+
+def _disclaimer_sentences(row: dict[str, Any]) -> set[str]:
+    return _marked_sentences(row, DISCLAIMER_MARKERS)
+
+
+def _revision_series_hits(row: dict[str, Any]) -> set[str]:
+    """Revision-prone series named as whole words ("ppi", not the "ppi" in "Zuppi")."""
+    text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
+    return {t for t in REVISION_SERIES if re.search(r"(?<![a-z])" + re.escape(t) + r"(?![a-z])", text)}
+
+
+def _release_pinned(row: dict[str, Any]) -> bool:
+    text = str(row.get("rules") or "").lower()
+    return any(m in text for m in PINNED_RELEASE_MARKERS)
 
 
 SENTENCE_KEY = "sentences:{venue}"
@@ -221,7 +260,7 @@ def boilerplate_for(rows: list[dict[str, Any]]) -> dict[str, frozenset[str]]:
     markets: dict[tuple[str, str], int] = {}
     for r in rows:
         event = str(r.get("event_id") or r.get("market_id"))
-        for sentence in _disclaimer_sentences(r):
+        for sentence in _marked_sentences(r, FLAG_MARKERS):
             key = (r["venue"], sentence)
             events.setdefault(key, set()).add(event)
             markets[key] = markets.get(key, 0) + 1
@@ -237,11 +276,22 @@ def classify(row: dict[str, Any], boilerplate: dict[str, frozenset[str]] | None 
     return classify_candidate(_classifier_row(row), (boilerplate or {}).get(row["venue"], frozenset()))
 
 
-def _strict_election(row: dict[str, Any] | None) -> bool:
+def _strict_election(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None = None) -> bool:
+    """Electoral wording in the question or rules, ignoring standing fine print.
+
+    Kalshi's shared definition of "formally holds" a role lists "appointment,
+    election, succession..."; that sentence recurs across events (DNC chair,
+    NATO Secretary General) and says nothing about a contested vote.
+    """
     if row is None:
         return True
-    text = f"{row.get('title') or ''} {row.get('rules') or ''}".lower()
-    return any(m in text for m in STRICT_ELECTION_MARKERS)
+    if any(m in str(row.get("title") or "").lower() for m in STRICT_ELECTION_MARKERS):
+        return True
+    template = (boilerplate or {}).get(SENTENCE_KEY.format(venue=row.get("venue")), frozenset())
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(row.get("rules") or "")):
+        if any(m in sentence.lower() for m in STRICT_ELECTION_MARKERS) and _normalize_sentence(sentence) not in template:
+            return True
+    return False
 
 
 def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
@@ -255,6 +305,16 @@ def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, fro
     return bool(sentences) and sentences <= template
 
 
+def _templated_interpretive(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
+    """Vague wording that only appears in standing fine print (e.g. Kalshi's
+    leader-out death clause, "sole discretion") is template, not ambiguity."""
+    if row is None:
+        return False
+    sentences = _marked_sentences(row, tuple(INTERPRETIVE_TERMS) + tuple(VAGUE_SOURCE_MARKERS))
+    template = (boilerplate or {}).get(SENTENCE_KEY.format(venue=row["venue"]), frozenset())
+    return bool(sentences) and sentences <= template
+
+
 def review_class(verdict: dict[str, Any], override: str | None = None,
                  row: dict[str, Any] | None = None,
                  boilerplate: dict[str, frozenset[str]] | None = None) -> str | None:
@@ -263,13 +323,15 @@ def review_class(verdict: dict[str, Any], override: str | None = None,
         return override
     fired = [c for c in PRIORITY if c in (verdict.get("fired_classes") or [])]
     for klass in fired:
-        if klass == "multi_source_conflict" and not _strict_election(row):
+        if klass == "multi_source_conflict" and not _strict_election(row, boilerplate):
             continue  # sports "win the ..." is not a contested official source
         if klass == "disputed" and _templated_disclaimer(row, boilerplate):
             continue  # series fine print, not a dispute
+        if klass == "revised_source" and row is not None and (not _revision_series_hits(row) or _release_pinned(row)):
+            continue  # substring match ("Zuppi"), or the rules already name the release
         if klass in ROUTING:
             return klass
-    if verdict.get("interpretive_hint"):
+    if verdict.get("interpretive_hint") and not _templated_interpretive(row, boilerplate):
         return "interpretive_criteria"
     return None
 

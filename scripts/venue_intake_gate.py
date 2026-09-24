@@ -28,6 +28,10 @@ the network. Properties asserted (fail-closed):
   V16 Kalshi discovery walks open events across pages and hosts, filters by
       event category (Sports excluded by default; allow-list honoured),
       skips parlays / rule-less / closed markets, and reports per-category counts
+  V17 on the real Sep 24 2026 scan (600 markets, Kalshi via events by
+      category), exactly the known 25 are flagged: long-dated economic markets
+      whose rules pin the release, "next PM/chair" succession markets, "Zuppi"
+      (not PPI) and venue death/role-definition fine print are not
   V14 re-triage closes untouched intake work the classifier no longer flags,
       and never touches operator-moved, decision-covered or watchlist-pinned work
 """
@@ -303,6 +307,26 @@ def main() -> None:
     check(not any("KXMLB" in m for m in got15), "V15 pitcher props sharing fine print across two events are not flagged")
     check(got15 == ["KXIRAN-27-26AUG", "KXIRAN-27-26NOV", "KXIRAN-27-26OCT", "KXIRAN-27-26SEP"],
           "V15 an MOU-style clarification on 4 markets of ONE event stays flagged")
+
+    # V17 real Sep 24 scan (Kalshi by category)
+    with gzip.open(os.path.join(ROOT, "tests", "fixtures", "venue_scan_2026-09-24.json.gz"), "rt") as fh:
+        scan24 = json.load(fh)["markets"]
+    real24 = {"kalshi": [], "polymarket": []}
+    for m in scan24:
+        real24[m["venue"]].append((m["raw"], m["url"]))
+    ev24, _, st24 = venue_intake.discover(lambda venue, limit: real24[venue], limit=5000)
+    by_event = {e.event_id: sorted(m for _, m in e.markets) for e in ev24}
+    check(st24["scanned"] == {"kalshi": 500, "polymarket": 100}, "V17 the Sep 24 scan has 600 open markets")
+    check(sorted(by_event) == sorted(["kalshi-KXBRUVSEAT-35", "kalshi-KXG7LEADEROUT-26JUL20", "kalshi-KXXISUCCESSOR-45JAN01",
+                                      "polymarket-848492", "polymarket-990651", "polymarket-1061890"]),
+          f"V17 exactly the 6 known events are flagged (got {sorted(by_event)})")
+    check(st24["flagged"] == {"kalshi": 22, "polymarket": 3}, f"V17 25 markets flagged (got {st24['flagged']})")
+    flat24 = {m for ms in by_event.values() for m in ms}
+    check(not any(t.startswith(("KXGDPYEAR", "KXUSCPIYEAR", "KXNOMGDPGROWTH", "KXU3EOY")) for t in flat24),
+          "V17 economic markets whose rules pin the release are not flagged as revision-prone")
+    check("KXNEWPOPE-70-MZUP" not in flat24, "V17 'Zuppi' is not the PPI series")
+    check(not any(t.startswith(("KXNEXTDNCCHAIR", "KXNEXTNATOSECGEN", "KXNEXTROMANIAPM", "KXAFRICALEADEROUT")) for t in flat24),
+          "V17 succession markets are not contested elections; shared role-definition fine print is template")
 
     # V16 Kalshi events by category
     def ev(ticker, title, category, markets):

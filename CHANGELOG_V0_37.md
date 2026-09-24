@@ -29,8 +29,34 @@ Elections, Politics, Economics, Science and Technology, Climate and Weather...).
   be the next Secretary General of NATO?") rather than one market's title.
 - Nested markets without `event_ticker` are grouped by ticker prefix.
 
+## Precision on the first category scan (Sep 24)
+
+The first event-based scan flagged 305 of 500 Kalshi markets in 27 events.
+Reading the rules text of each flagged group found four causes, all fixed:
+
+- **Rules that pin the release.** Long-dated GDP / CPI / unemployment markets
+  say "Later revisions will not affect the outcome" or "The initially reported
+  value will be used". No revision question is left, so no flag.
+- **Substring matches.** "Zuppi" contained "ppi" (Producer Price Index).
+  Revision-prone series now match as whole words.
+- **Succession is not an election.** "Next Prime Minister of Romania" or "the
+  President of Kenya leaves office first" needs electoral wording (election,
+  ballot, referendum...) to be flagged as a contested official source, and
+  that wording must be outside standing fine print: Kalshi's shared definition
+  of "formally holds" a role ("appointment, election, succession...") is template.
+- **Fine print learning now covers vague-source wording too**, and a
+  multi-word proper name ("Chair of the Democratic National Committee") is one
+  unit when comparing sentences across events.
+
+Same scan now: 22 Kalshi markets in 3 events (next CCP leader "announced by
+the party or credible sources"; first G7 leader out, with a sole-discretion
+death clause; BRUV winning a Commons seat) and 3 Polymarket markets. The Sep
+23 scan still flags exactly its 11.
+
 ## Validation
 
+- Venue Intake gate V17 replays the real Sep 24 scan
+  (`tests/fixtures/venue_scan_2026-09-24.json.gz`) and pins the 25 flags.
 - Venue Intake gate V16: paging, host de-duplication, category allow/deny,
   parlay/closed/rule-less skipping, one-event clarification flagged as one
   pattern, per-category counts.
