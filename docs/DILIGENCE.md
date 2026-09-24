@@ -7,7 +7,7 @@ implementation, and what is not done yet.
 
 ```bash
 make install
-make check        # lint, format, pytest, all 26 gates, release gate 452/452
+make check        # lint, format, pytest, all 27 gates, release gate 452/452
 ./start.sh        # then open /console.html and /decision-workbench.html
 ```
 
@@ -22,6 +22,7 @@ Every gate starts from empty temporary state, so no result depends on a pre-seed
 | Decision clearing | One recorded decision clears every case that shares its root cause. Blockers that must never be cleared automatically stay open. Covered by the decision clearing and propagation gates. |
 | Audit trail | `audit_events` is a hash chain. The public API gate tampers with a row and checks that verification detects it. |
 | Settlement signing | HMAC-signed packets. Production refuses to sign without `ARBITER_SETTLEMENT_SIGNING_SECRET` (tests in `tests/test_repo_consistency.py`). |
+| Precedent engine | Decisions become precedent; new contracts are matched on arrival. On 838 real markets the same-template tier finds the template in another event for 79.6% of markets at 100% precision (`scripts/precedent_eval.py`). The precedent gate proves follow / distinguish / overrule, appeals and Ask Arbiter end to end. |
 | Worked case | `demo/run_iran_case.py` runs a contested geopolitical contract through the real engine and records the output. |
 
 ## What is production-shaped but not deployed
@@ -50,6 +51,10 @@ Every gate starts from empty temporary state, so no result depends on a pre-seed
   Current evidence is engineering validation, not measured resolution accuracy.
 - **Triage recall is unmeasured.** The hardness classifier was tuned for precision on live
   scans. Markets it misses are not yet estimated.
+- **Precedent thresholds come from two days of scans.** Real cross-event clause
+  repeats in that data number two, both correct. Re-measure as scans accumulate.
+  Ask Arbiter is retrieval over the record with a small declared lexicon, not a
+  language model. It says when nothing covers a question.
 - **Single-node.** No horizontal scaling or HA has been tested.
 - **LLM features are advisory and off by default.** No outcome depends on a model.
 

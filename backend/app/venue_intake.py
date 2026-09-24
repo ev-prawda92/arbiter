@@ -49,7 +49,7 @@ from .resolution_infra import (
     utcnow,
 )
 
-VERSION = "0.37.0"
+VERSION = "0.39.0"
 ACTOR = "system:venue-intake"
 PARSER_VERSION = f"venue-intake-{VERSION}"
 
@@ -584,6 +584,38 @@ def _close_exception_for_settlement(store: ResolutionStore, kind: str, subject: 
     return True
 
 
+PRECEDENT_PULL_LIMIT = 50  # per venue per scan: a precedent never floods the queue
+
+
+def _precedent_context(store: ResolutionStore | None):
+    """(engine, live precedents, corpus) when there is any precedent to check against."""
+    if store is None:
+        return None
+    from .precedents import get_engine
+
+    engine = get_engine(store)
+    engine.refresh()
+    live = engine.list()
+    if not live:
+        return None
+    return engine, live, engine.corpus()
+
+
+def _templates(boilerplate: dict[str, frozenset[str]] | None, venue: str) -> frozenset[str]:
+    return (boilerplate or {}).get(SENTENCE_KEY.format(venue=venue), frozenset())
+
+
+def _precedent_summary(m: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "precedent_id": m["precedent_id"],
+        "tier": m["tier"],
+        "score": m["score"],
+        "relation": m["relation"],
+        "selection": m["ruling"].get("selection"),
+        "review_class": m["ruling"].get("review_class"),
+    }
+
+
 def sync(
     store: ResolutionStore,
     events: Iterable[WatchedEvent],
@@ -598,6 +630,7 @@ def sync(
     discovery did. Without it, a floor of known venue templates is used.
     """
     boilerplate = boilerplate if boilerplate is not None else dict(TEMPLATE_FLOOR)
+    pctx = _precedent_context(store)
     report: dict[str, Any] = {
         "version": VERSION,
         "started_at": utcnow(),
@@ -619,6 +652,27 @@ def sync(
                 continue
             verdict = classify(row, boilerplate)
             klass = review_class(verdict, event.review_class, row, boilerplate)
+            matches: list[dict[str, Any]] = []
+            if pctx:
+                engine, live, corpus = pctx
+                probe = dict(row, contract_id=f"{row['venue']}:{row['market_id']}")
+                matches = [
+                    m
+                    for m in engine.match(
+                        probe, precedents=live, corpus=corpus, template_sentences=_templates(boilerplate, venue)
+                    )
+                    if m["relation"] != "decided"
+                ]
+            applicable = [m for m in matches if m["applies"]]
+            routed_by = None
+            if klass is None and applicable and applicable[0]["tier"] == "same_clause":
+                # A clause a human already ruled on: the ruling is the reason to look.
+                klass = applicable[0]["ruling"].get("review_class") or "interpretive_criteria"
+                routed_by = "precedent"
+            if applicable:
+                entry["precedent"] = _precedent_summary(applicable[0])
+            if routed_by:
+                entry["routed_by"] = routed_by
             entry.update(
                 {
                     "title": row["title"],
@@ -638,6 +692,8 @@ def sync(
             auth_id = _ensure_authority(store, venue)
             contract_id, version, new_version = _ensure_contract(store, row, event, auth_id)
             evidence = _append_evidence_if_changed(store, contract_id, auth_id, row, raw)
+            if pctx and applicable:
+                pctx[0].check_arrival(row, contract_id, matches=matches)
             entry.update(
                 {
                     "contract_id": contract_id,
@@ -656,6 +712,12 @@ def sync(
                     )
                 else:
                     reasons = "; ".join(r for rs in verdict.get("reasons", {}).values() for r in rs) or klass
+                    if applicable:
+                        top = applicable[0]
+                        reasons += (
+                            f". Precedent {top['precedent_id']} {'applies' if top['tier'] == 'same_clause' else 'likely applies'}"
+                            f" ({top['tier'].replace('_', ' ')}): ruled \u201c{top['ruling'].get('selection')}\u201d"
+                        )
                     exc, created = _open_exception_once(
                         store,
                         kind=kind,
@@ -670,7 +732,10 @@ def sync(
                             "watched_event": event.event_id,
                             "hardness": verdict,
                             "source": "venue_intake",
+                            "review_class": klass,
                             "review_class_override": event.review_class,
+                            "routed_by": routed_by,
+                            "precedent_matches": [_precedent_summary(m) for m in applicable[:3]],
                         },
                     )
                     entry["work_item"] = "opened" if created else "exists"
@@ -713,6 +778,8 @@ def sync(
         "evidence_appended": sum(bool(m.get("evidence_id")) for m in report["markets"]),
         "contract_versions_created": sum(bool(m.get("contract_version_created")) for m in report["markets"]),
         "cross_venue_disagreements": sum(e.get("cross_venue") == "disagree" for e in report["events"]),
+        "precedent_applies": sum(bool(m.get("precedent")) for m in report["markets"]),
+        "routed_by_precedent": sum(m.get("routed_by") == "precedent" for m in report["markets"]),
     }
     return report
 
@@ -875,15 +942,28 @@ def discover(
     limit: int = 200,
     venues: Iterable[str] = ("kalshi", "polymarket"),
     include_all: bool = False,
+    store: ResolutionStore | None = None,
 ) -> tuple[list[WatchedEvent], Fetcher, dict[str, Any]]:
     """Scan open markets; return watched events for the ones needing a human.
 
     Returns (events, fetcher, stats). The fetcher serves the already-downloaded
     raw payloads so ``sync`` does not fetch every market twice.
+
+    With ``store``, every scanned market is also checked against governed
+    precedent: a market the classifier passes over but that contains a clause
+    a human has already ruled on is brought in too (``stats["precedent"]``).
     """
+    pctx = _precedent_context(store)
     cache: dict[tuple[str, str], tuple[dict[str, Any], str]] = {}
     grouped: dict[str, WatchedEvent] = {}
-    stats: dict[str, Any] = {"scanned": {}, "flagged": {}, "errors": {}, "boilerplate": {}, "by_category": {}}
+    stats: dict[str, Any] = {
+        "scanned": {},
+        "flagged": {},
+        "errors": {},
+        "boilerplate": {},
+        "by_category": {},
+        "precedent": {},
+    }
     for venue in venues:
         try:
             listed = list_fetcher(venue, limit)
@@ -912,8 +992,22 @@ def discover(
             stats["boilerplate"][sentence_key] = learned[sentence_key]
         stats["boilerplate"][venue] = learned.get(venue, frozenset()) | TEMPLATE_FLOOR.get(venue, frozenset())
         flagged = 0
+        pulled = 0
         for raw, url, row in pool:
             klass = review_class(classify(row, stats["boilerplate"]), None, row, stats["boilerplate"])
+            if klass is None and pctx and pulled < PRECEDENT_PULL_LIMIT:
+                engine, live, corpus = pctx
+                hit = engine.match(
+                    dict(row, contract_id=f"{venue}:{row['market_id']}"),
+                    precedents=live,
+                    corpus=corpus,
+                    template_sentences=_templates(stats["boilerplate"], venue),
+                    min_tier="same_clause",
+                    limit=1,
+                )
+                if hit and hit[0]["relation"] != "decided":
+                    klass = "precedent"
+                    pulled += 1
             if not include_all and klass is None:
                 continue
             flagged += 1
@@ -926,6 +1020,7 @@ def discover(
                 stats["by_category"][venue][meta["category"]]["flagged"] += 1
             grouped.setdefault(key, WatchedEvent(event_id=key, label=label)).markets.append((venue, row["market_id"]))
         stats["flagged"][venue] = flagged
+        stats["precedent"][venue] = pulled
 
     def cached(venue: str, market_id: str) -> tuple[dict[str, Any], str]:
         if (venue, market_id) in cache:
@@ -993,6 +1088,11 @@ def retriage(
             boilerplate[v] = boilerplate.get(v, frozenset()) | TEMPLATE_FLOOR.get(v, frozenset())
 
     decided = {str(c) for d in DecisionRecordService(store).list(limit=500) for c in d.get("affected_case_ids") or []}
+    from .precedents import get_engine
+
+    engine = get_engine(store)
+    engine.refresh()
+    live_precedents = {p["precedent_id"] for p in engine.list()}
     with store.connect() as db:
         touched_by = {
             r["work_item_id"]: (r["status"], r["updated_by"])
@@ -1007,6 +1107,11 @@ def retriage(
         label = {"subject": exc["subject"], "kind": exc["kind"], "title": (row or {}).get("title")}
         if (exc.get("metadata") or {}).get("review_class_override"):
             report["skipped"].append({**label, "why": "review class set deliberately on the watchlist"})
+            continue
+        meta = exc.get("metadata") or {}
+        routing = [m.get("precedent_id") for m in meta.get("precedent_matches") or []]
+        if meta.get("routed_by") == "precedent" and any(p in live_precedents for p in routing):
+            report["skipped"].append({**label, "why": "routed by governed precedent, not the classifier"})
             continue
         if row is None or state[0] != "open" or state[1] != ACTOR or wid in decided:
             report["skipped"].append({**label, "why": "touched by an operator or decision" if row else "no contract"})

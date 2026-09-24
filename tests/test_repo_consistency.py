@@ -15,7 +15,8 @@ def _backend_version() -> str:
 def test_version_single_source():
     version = (ROOT / "VERSION").read_text().strip()
     package = json.loads((ROOT / "frontend" / "package.json").read_text())["version"]
-    assert version == _backend_version() == package
+    lock = json.loads((ROOT / "frontend" / "package-lock.json").read_text())
+    assert version == _backend_version() == package == lock["version"] == lock["packages"][""]["version"]
 
 
 def test_changelog_lists_current_release():

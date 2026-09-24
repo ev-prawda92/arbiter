@@ -100,6 +100,7 @@ def main() -> int:
 
     stats = None
     boilerplate = None
+    store = ResolutionStore(args.db)
     if args.discover:
         cats = [c for c in args.kalshi_categories.split(",") if c.strip()]
         excl = [c for c in args.kalshi_exclude.split(",") if c.strip()]
@@ -109,7 +110,9 @@ def main() -> int:
                 venue, limit, kalshi_source=args.kalshi_source, categories=cats, exclude=excl
             )
 
-        events, fetcher, stats = venue_intake.discover(lister, limit=args.discover, include_all=args.include_all)
+        events, fetcher, stats = venue_intake.discover(
+            lister, limit=args.discover, include_all=args.include_all, store=store
+        )
         boilerplate = stats["boilerplate"]
         if args.save_raw:
             cached = fetcher
@@ -121,7 +124,6 @@ def main() -> int:
                 return raw, url
     else:
         events = venue_intake.load_watchlist(args.watchlist)
-    store = ResolutionStore(args.db)
     report = venue_intake.sync(store, events, fetcher=fetcher, dry_run=args.dry_run, boilerplate=boilerplate)
 
     if args.json:
@@ -134,6 +136,13 @@ def main() -> int:
         scanned = ", ".join(f"{v} {n}" for v, n in stats["scanned"].items()) or "none"
         flagged = ", ".join(f"{v} {n}" for v, n in stats["flagged"].items()) or "none"
         print(f"discover: scanned open markets ({scanned}); need a human judgment ({flagged})")
+        pulled = {v: n for v, n in stats.get("precedent", {}).items() if n}
+        if pulled:
+            print(
+                "precedent: brought in because a governed ruling covers their wording ("
+                + ", ".join(f"{v} {n}" for v, n in pulled.items())
+                + ")"
+            )
         for v, err in stats["errors"].items():
             print(f"discover: {v} unavailable - {err}")
         for v, cats_seen in stats.get("by_category", {}).items():
@@ -147,6 +156,9 @@ def main() -> int:
         outcome = m.get("outcome") or "-"
         needs = m.get("review_class") or "no human judgment needed"
         work = f"  work item: {m['work_item']}" if "work_item" in m else ""
+        if m.get("precedent"):
+            p = m["precedent"]
+            work += f"  precedent {p['precedent_id']} ({p['tier'].replace('_', ' ')} {p['score']:.2f})"
         title = (m.get("title") or "")[:60]
         print(f"  {m['venue']:<10} {m['market_id']:<28} {m['status']:<7} {outcome:<4} {needs:<22} {title}{work}")
     for e in report["errors"]:
@@ -161,7 +173,8 @@ def main() -> int:
     print(
         f"\n{t['markets']} {verb}, {t['errors']} errors · work items opened {t['work_items_opened']}, "
         f"closed {t['work_items_closed']} · evidence appended {t['evidence_appended']} · "
-        f"cross-venue disagreements {t['cross_venue_disagreements']}"
+        f"cross-venue disagreements {t['cross_venue_disagreements']} · "
+        f"precedent applies {t.get('precedent_applies', 0)}"
     )
     return 1 if report["errors"] and not report["markets"] else 0
 

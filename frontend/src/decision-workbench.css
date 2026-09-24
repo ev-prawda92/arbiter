@@ -407,3 +407,241 @@ body {
   font-size: 12.5px;
   color: #92400e;
 }
+
+/* v0.39 precedent + Ask Arbiter */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.dw-ask {
+  padding: 16px 46px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+.dw-ask form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 1100px;
+}
+.dw-ask label {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.dw-ask input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.dw-ask button {
+  border: 0;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+.dw-ask button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dw-answer {
+  max-width: 1100px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border-left: 3px solid #047857;
+}
+.dw-answer.ungrounded {
+  border-left-color: #94a3b8;
+}
+.dw-answer p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  color: #1e293b;
+}
+.dw-answer small {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 11px;
+}
+.dw-cite {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+  color: #475569;
+  padding: 3px 0;
+}
+.dw-cite b {
+  font-size: 11px;
+  color: #0f172a;
+}
+.dw-match {
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #94a3b8;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.dw-match.tier-same_clause {
+  border-left-color: #047857;
+}
+.dw-match.tier-same_template {
+  border-left-color: #0369a1;
+}
+.dw-match-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.dw-tier {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #e2e8f0;
+  color: #334155;
+}
+.tier-same_clause .dw-tier {
+  background: #d1fae5;
+  color: #047857;
+}
+.tier-same_template .dw-tier {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.dw-match-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+.dw-match > strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.dw-match-rule {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.dw-clauses {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.dw-clauses div {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.dw-clauses span {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.dw-clauses q {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #334155;
+}
+.dw-match-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.dw-match-foot small {
+  font-size: 12px;
+  color: #64748b;
+}
+.dw-secondary {
+  border: 1px solid #0f172a;
+  background: white;
+  color: #0f172a;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.dw-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  margin: 0 0 12px;
+  background: #f1f5f9;
+  color: #334155;
+}
+.dw-status b {
+  font-size: 12.5px;
+}
+.dw-status.status-follows,
+.dw-status.status-consistent {
+  background: #ecfdf5;
+  color: #047857;
+}
+.dw-status.status-divergent {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+.dw-split {
+  margin-top: 4px;
+  color: #b91c1c;
+}
+.dw-depart {
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.dw-depart-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.dw-card .dw-depart-choice label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.dw-card .dw-depart-choice input {
+  width: auto;
+}
+@media (max-width: 720px) {
+  .dw-ask {
+    padding: 14px 16px;
+  }
+  .dw-ask form {
+    flex-wrap: wrap;
+  }
+  .dw-clauses {
+    grid-template-columns: 1fr;
+  }
+}

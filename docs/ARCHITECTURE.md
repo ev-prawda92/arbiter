@@ -23,6 +23,7 @@ with its own rate limits (`public_limits.py`) and its own gate.
 | Evidence | `resolution_infra.py`, `active_evidence.py`, `evidence.py` | Append-only evidence with provenance hashes; hashed evidence packets. |
 | Queue | `operations_intelligence.py`, `workflow.py` | Groups cases by shared root cause (blocker + normalized action) so one decision can answer many cases. |
 | Decide | `decision_records.py`, `decision_operations.py`, `decision_api.py` | Governed, versioned decision records. An authoritative decision clears the cases it answers. Some blockers are never auto-cleared. |
+| Remember | `precedents.py` | Each decision becomes a precedent: the ruling, the decided contracts, the clauses ruled on. New contracts are matched on arrival (same clause / same template / related). New decisions are checked for consistency: departing requires a distinction or an overrule, and overrules are prospective. Appeal checks and Ask Arbiter read the same record. See [benchmark/PRECEDENT_MATCHING.md](benchmark/PRECEDENT_MATCHING.md). |
 | Approve | `approval_control.py`, `governed_policy.py` | Approval workflow and signed settlement packets. Production refuses to sign without a real key. |
 | Audit | `resolution_infra.py` | Every state change is written to `audit_events`, a hash chain that can be verified end to end. |
 
@@ -56,12 +57,12 @@ The front end is built with Vite and has three entry pages that compile to `back
 
 - `index.html` → `main.jsx`: home, exposure view, exception workspace, contract design review.
 - `console.html` → `ConsoleShell.jsx`: operations console and case workspace.
-- `decision-workbench.html` → `DecisionWorkbench.jsx`: decision recording and clearing outcome.
+- `decision-workbench.html` → `DecisionWorkbench.jsx`: applicable precedent, decision recording with a live consistency check, clearing outcome, Ask Arbiter.
 
 ## Tests
 
 - `tests/`: pytest unit tests, repository invariants, and recorded venue scans for offline replay.
-- `scripts/*_gate.py`: 26 gate scripts. Each one drives a subsystem through its API and asserts on
+- `scripts/*_gate.py`: 27 gate scripts. Each one drives a subsystem through its API and asserts on
   outcomes, hashes and audit state.
 - `scripts/release_gate.py`: 452 checks across 18 suites.
 - `make check`: runs all of the above. See the [README](../README.md).

@@ -6,6 +6,7 @@ changelog files; their work is summarized in the v0.34 notes and git history.
 
 | Version | Release | Notes |
 |---|---|---|
+| v0.39 | Precedent Engine | [changelog](docs/releases/CHANGELOG_V0_39.md) |
 | v0.38 | Repository Hardening | [changelog](docs/releases/CHANGELOG_V0_38.md) |
 | v0.37 | Kalshi Discovery by Category | [changelog](docs/releases/CHANGELOG_V0_37.md) |
 | v0.36 | Live Venue Intake | [changelog](docs/releases/CHANGELOG_V0_36.md) |

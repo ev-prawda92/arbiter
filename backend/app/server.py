@@ -8,10 +8,13 @@ without destabilizing the long-lived main.py surface. New deployments should run
 from __future__ import annotations
 
 from .main import app, _workflow_payload, resolution_store
-from . import developer, decision_api, decision_records
+from . import developer, decision_api, decision_records, precedents
 
 # Ensure the durable DecisionRecord table exists before the first request.
 decision_records.get_service(resolution_store)
+# Materialize precedent for any decision recorded before v0.39 (or by another
+# process), so read endpoints never need to write.
+precedents.get_engine(resolution_store).refresh()
 
 app.include_router(
     decision_api.build_router(

@@ -5,7 +5,10 @@
 Arbiter reads live markets from Kalshi and Polymarket and finds the few that will need a human
 judgment when they resolve: contested wording, conflicting official sources, data that gets
 revised. It puts them in one work queue. An operator records one governed decision, and that
-decision clears every case it answers. Each step lands in a hash-chained audit trail.
+decision clears every case it answers. Each decision becomes precedent: when the next
+contract with the same clause or template arrives, Arbiter shows the ruling that
+applies, and departing from it requires a stated distinction or an explicit overrule.
+Each step lands in a hash-chained audit trail.
 
 > AI interprets. Policy governs. Evidence proves. Deterministic logic resolves. Humans handle exceptions.
 
@@ -23,7 +26,7 @@ Then open:
 |---|---|
 | `http://localhost:8000/` | Home: exposure overview, exception workspace, contract design review |
 | `http://localhost:8000/console.html` | Operations console: work queue, clusters, case workspace |
-| `http://localhost:8000/decision-workbench.html` | Decision workbench: record a decision, see what it clears |
+| `http://localhost:8000/decision-workbench.html` | Decision workbench: applicable precedent, record a decision, see what it clears, Ask Arbiter |
 
 Pull live venue markets into the queue (run from a machine that can reach the venue APIs):
 
@@ -33,7 +36,12 @@ python3 scripts/sync_venues.py --discover 500
 ```
 
 A typical scan of 500 open Kalshi markets flags about 20 for human review. The rest resolve
-mechanically and stay out of the queue.
+mechanically and stay out of the queue. Every scanned market is also checked against
+precedent, and a market carrying a clause a human already ruled on comes in with that
+ruling attached.
+
+How well precedent matching works on real markets, and how to reproduce it:
+[docs/benchmark/PRECEDENT_MATCHING.md](docs/benchmark/PRECEDENT_MATCHING.md).
 
 ## How it fits together
 
@@ -46,6 +54,10 @@ flowchart LR
   Q --> W[Work queue]
   W --> D[Decision records<br/>governed, versioned]
   D -->|clears answered cases| W
+  D --> P[Precedent engine<br/>clauses + templates]
+  P -->|arrival check| I
+  P -->|consistency: follow / distinguish / overrule| D
+  P --> K[Ask Arbiter<br/>cited answers]
   D --> A[Approvals + settlement handoff<br/>signed packets]
 ```
 
@@ -59,7 +71,7 @@ make check
 ```
 
 `make check` runs lint, format check, unit and consistency tests, then starts the app and the
-public API on throwaway databases and runs all 26 gate scripts, including the full release gate
+public API on throwaway databases and runs all 27 gate scripts, including the full release gate
 (**452 checks across 18 suites**). CI runs the same on every pull request.
 
 ## Status
