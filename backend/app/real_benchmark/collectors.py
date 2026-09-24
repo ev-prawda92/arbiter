@@ -5,6 +5,7 @@ only a *candidate*. A candidate becomes a benchmark case only after the freeze
 step validates, deterministically samples, strips labels from inputs, and hashes
 all benchmark artifacts.
 """
+
 from __future__ import annotations
 
 import json
@@ -53,7 +54,9 @@ def _case_id(venue: str, external_id: str) -> str:
     return f"{venue.lower()}-{safe}"[:160]
 
 
-def normalize_kalshi_market(raw: dict[str, Any], source_url: str, collected_at: str | None = None) -> dict[str, Any] | None:
+def normalize_kalshi_market(
+    raw: dict[str, Any], source_url: str, collected_at: str | None = None
+) -> dict[str, Any] | None:
     result = str(raw.get("result") or "").strip().upper()
     if result not in {"YES", "NO"}:
         return None
@@ -116,7 +119,9 @@ def _uma_dispute_count(raw: dict[str, Any]) -> int:
     return sum(1 for x in _uma_sequence(raw) if x == "disputed")
 
 
-def normalize_polymarket_market(raw: dict[str, Any], source_url: str, collected_at: str | None = None) -> dict[str, Any] | None:
+def normalize_polymarket_market(
+    raw: dict[str, Any], source_url: str, collected_at: str | None = None
+) -> dict[str, Any] | None:
     if raw.get("closed") is not True:
         return None
     status = str(raw.get("umaResolutionStatus") or raw.get("uma_resolution_status") or "").strip().lower()
@@ -176,7 +181,9 @@ def normalize_polymarket_market(raw: dict[str, Any], source_url: str, collected_
     }
 
 
-def collect_kalshi(limit: int = 100, include_historical: bool = True, sleep_seconds: float = 0.0) -> list[dict[str, Any]]:
+def collect_kalshi(
+    limit: int = 100, include_historical: bool = True, sleep_seconds: float = 0.0
+) -> list[dict[str, Any]]:
     """Collect recent and historical settled binary Kalshi markets.
 
     Kalshi documents unauthenticated public market endpoints at
@@ -229,9 +236,13 @@ def collect_polymarket(limit: int = 100, sleep_seconds: float = 0.0) -> list[dic
     max_pages = max(5, (limit // 100 + 1) * 8)
     for _ in range(max_pages):
         page_limit = min(100, max(20, limit - len(out)))
-        url = _query(base, {"closed": "true", "limit": page_limit, "offset": offset, "order": "closedTime", "ascending": "false"})
+        url = _query(
+            base, {"closed": "true", "limit": page_limit, "offset": offset, "order": "closedTime", "ascending": "false"}
+        )
         payload = _fetch_json(url)
-        markets = payload if isinstance(payload, list) else payload.get("markets", []) if isinstance(payload, dict) else []
+        markets = (
+            payload if isinstance(payload, list) else payload.get("markets", []) if isinstance(payload, dict) else []
+        )
         if not markets:
             break
         now = _now()
@@ -266,6 +277,7 @@ def dedupe_candidates(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
 # collected deterministically. They reuse the normalizers above, so their output
 # is the same candidate schema.
 
+
 def fetch_kalshi_market(ticker: str, collected_at: str | None = None) -> dict[str, Any] | None:
     """Fetch one settled Kalshi market by ticker. Returns a normalized candidate
     row, or None if the market is missing or not a resolved binary."""
@@ -297,7 +309,9 @@ def fetch_polymarket_market(identifier: str, collected_at: str | None = None) ->
     else:
         url = _query("https://gamma-api.polymarket.com/markets", {"slug": identifier})
         payload = _fetch_json(url)
-        markets = payload if isinstance(payload, list) else payload.get("markets", []) if isinstance(payload, dict) else []
+        markets = (
+            payload if isinstance(payload, list) else payload.get("markets", []) if isinstance(payload, dict) else []
+        )
         market = markets[0] if markets else None
     if not isinstance(market, dict):
         return None

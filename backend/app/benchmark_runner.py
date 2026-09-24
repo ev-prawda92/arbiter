@@ -23,12 +23,14 @@ def _market_from_clean_case(case: dict) -> dict:
     Future gold datasets should include `rules_verbatim` and this adapter should prefer it.
     """
     rules = case.get("rules_verbatim") or " ".join(
-        part for part in [
+        part
+        for part in [
             case.get("definition", ""),
             case.get("timing", ""),
             f"Source: {case.get('source', '')}" if case.get("source") else "",
             case.get("revision_rule", ""),
-        ] if part
+        ]
+        if part
     )
     return {
         "ticker": case["id"],
@@ -52,23 +54,25 @@ def run(dataset_path: str | Path) -> dict:
         expected = case.get("gold_status", "accepted")
         gold = "clean" if expected == "accepted" else case.get("gold", "unknown")
         passed = report["verdict"]["key"] == "clean" if gold == "clean" else None
-        rows.append({
-            "id": case["id"],
-            "venue": case.get("venue"),
-            "domain": case.get("domain"),
-            "title": case.get("title"),
-            "gold": gold,
-            "verdict": report["verdict"]["key"],
-            "verdict_label": report["verdict"]["label"],
-            "composite": report["composite"],
-            "source_score": report["levers"]["source"]["score"],
-            "timing_score": report["levers"]["timing"]["score"],
-            "definition_score": report["levers"]["definition"]["score"],
-            "source_flags": report["levers"]["source"]["flags"],
-            "timing_flags": report["levers"]["timing"]["flags"],
-            "definition_flags": report["levers"]["definition"]["flags"],
-            "pass": passed,
-        })
+        rows.append(
+            {
+                "id": case["id"],
+                "venue": case.get("venue"),
+                "domain": case.get("domain"),
+                "title": case.get("title"),
+                "gold": gold,
+                "verdict": report["verdict"]["key"],
+                "verdict_label": report["verdict"]["label"],
+                "composite": report["composite"],
+                "source_score": report["levers"]["source"]["score"],
+                "timing_score": report["levers"]["timing"]["score"],
+                "definition_score": report["levers"]["definition"]["score"],
+                "source_flags": report["levers"]["source"]["flags"],
+                "timing_flags": report["levers"]["timing"]["flags"],
+                "definition_flags": report["levers"]["definition"]["flags"],
+                "pass": passed,
+            }
+        )
 
     clean_rows = [r for r in rows if r["gold"] == "clean"]
     n = len(clean_rows)
@@ -102,13 +106,29 @@ def save(result: dict, out_prefix: str | Path) -> tuple[Path, Path]:
     json_path = out_prefix.with_suffix(".json")
     csv_path = out_prefix.with_suffix(".csv")
     json_path.write_text(json.dumps(result, indent=2))
-    fields = ["id","venue","domain","title","gold","verdict","verdict_label","composite","source_score","timing_score","definition_score","source_flags","timing_flags","definition_flags","pass"]
+    fields = [
+        "id",
+        "venue",
+        "domain",
+        "title",
+        "gold",
+        "verdict",
+        "verdict_label",
+        "composite",
+        "source_score",
+        "timing_score",
+        "definition_score",
+        "source_flags",
+        "timing_flags",
+        "definition_flags",
+        "pass",
+    ]
     with csv_path.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         for row in result["cases"]:
             row = row.copy()
-            for k in ("source_flags","timing_flags","definition_flags"):
+            for k in ("source_flags", "timing_flags", "definition_flags"):
                 row[k] = " | ".join(row[k])
             w.writerow({k: row.get(k) for k in fields})
     return json_path, csv_path

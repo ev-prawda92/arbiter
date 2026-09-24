@@ -21,3 +21,5 @@ benchmarks/candidates*.jsonl
 
 # raw venue API captures (sync_venues.py --save-raw)
 .venue-raw/
+# live governed-policy state (seeded from DEFAULT_POLICY in backend/app/policy.py)
+backend/data/policy.json

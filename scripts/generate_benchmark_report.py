@@ -15,7 +15,9 @@ from app.real_benchmark.report import score_run
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Score a hash-pinned blind run after prediction completion and generate Markdown/JSON benchmark reports.")
+    ap = argparse.ArgumentParser(
+        description="Score a hash-pinned blind run after prediction completion and generate Markdown/JSON benchmark reports."
+    )
     ap.add_argument("dataset")
     ap.add_argument("run_dir")
     ap.add_argument("--out")

@@ -52,10 +52,16 @@ def main() -> None:
     chk("deployment self-test has zero settlement authority", self_test.get("settlement_authority") is False)
 
     developer = req(args.base_url, "/api/developer", key=args.api_key)
-    chk("developer manifest exposes deployment readiness", developer.get("deployment_readiness", {}).get("version") == "0.22.0")
+    chk(
+        "developer manifest exposes deployment readiness",
+        developer.get("deployment_readiness", {}).get("version") == "0.22.0",
+    )
 
     infrastructure = req(args.base_url, "/api/infrastructure", key=args.api_key)
-    chk("infrastructure summary exposes deployment readiness", infrastructure.get("deployment_readiness", {}).get("version") == "0.22.0")
+    chk(
+        "infrastructure summary exposes deployment readiness",
+        infrastructure.get("deployment_readiness", {}).get("version") == "0.22.0",
+    )
 
     docker = (root / "Dockerfile").read_text()
     terraform = (root / "deploy/aws/main.tf").read_text()

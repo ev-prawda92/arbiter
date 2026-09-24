@@ -28,7 +28,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(runtime_config.cors_origins),
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Arbiter-Key", "X-Arbiter-Tenant", "Idempotency-Key", "X-Request-ID"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Arbiter-Key",
+        "X-Arbiter-Tenant",
+        "Idempotency-Key",
+        "X-Request-ID",
+    ],
 )
 
 
@@ -41,7 +48,11 @@ async def public_boundary(request: Request, call_next):
         return JSONResponse(
             status_code=429,
             content={"detail": "rate limit exceeded", "retry_after_seconds": retry_after},
-            headers={"Retry-After": str(retry_after), "X-RateLimit-Remaining": "0", **enterprise.security_headers(request_id)},
+            headers={
+                "Retry-After": str(retry_after),
+                "X-RateLimit-Remaining": "0",
+                **enterprise.security_headers(request_id),
+            },
         )
     response = await call_next(request)
     response.headers["X-RateLimit-Remaining"] = str(remaining)

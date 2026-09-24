@@ -81,34 +81,38 @@ def run_blind(
         integrity = engine_module.analyze(_market(contract), policy)
         evidence = evidence_by_case.get(str(contract["case_id"]))
         resolution = resolve_from_compiled_spec(comp, evidence)
-        predictions.append({
-            "case_id": contract["case_id"],
-            "venue": contract.get("venue"),
-            "category": contract.get("category"),
-            "compiler_status": comp.get("status"),
-            "semantic_status": sem.get("status"),
-            "unresolved_fields": comp.get("unresolved_fields", []),
-            "semantic_unresolved_fields": sem.get("unresolved_semantic_fields", []),
-            "engine_verdict": (integrity.get("verdict") or {}).get("key"),
-            "engine_verdict_label": (integrity.get("verdict") or {}).get("label"),
-            "composite": integrity.get("composite"),
-            "source_score": ((integrity.get("levers") or {}).get("source") or {}).get("score"),
-            "timing_score": ((integrity.get("levers") or {}).get("timing") or {}).get("score"),
-            "definition_score": ((integrity.get("levers") or {}).get("definition") or {}).get("score"),
-            "source_flags": ((integrity.get("levers") or {}).get("source") or {}).get("flags", []),
-            "timing_flags": ((integrity.get("levers") or {}).get("timing") or {}).get("flags", []),
-            "definition_flags": ((integrity.get("levers") or {}).get("definition") or {}).get("flags", []),
-            "semantic_hash": sem.get("semantic_hash"),
-            "compilation_hash": comp.get("compilation_hash"),
-            "predicted_outcome": resolution.get("predicted_outcome"),
-            "outcome_prediction_reason": resolution.get("reason"),
-            "resolution_method": resolution.get("resolution_method"),
-            "evidence_present": evidence is not None,
-            "evidence_raw_sha256": evidence.get("raw_sha256") if evidence else None,
-            "evidence_source_url": evidence.get("source_url") if evidence else None,
-            "evidence_authority": evidence.get("authority") if evidence else None,
-            "resolution_trace": {k: v for k, v in resolution.items() if k not in {"predicted_outcome", "reason", "resolution_method"}},
-        })
+        predictions.append(
+            {
+                "case_id": contract["case_id"],
+                "venue": contract.get("venue"),
+                "category": contract.get("category"),
+                "compiler_status": comp.get("status"),
+                "semantic_status": sem.get("status"),
+                "unresolved_fields": comp.get("unresolved_fields", []),
+                "semantic_unresolved_fields": sem.get("unresolved_semantic_fields", []),
+                "engine_verdict": (integrity.get("verdict") or {}).get("key"),
+                "engine_verdict_label": (integrity.get("verdict") or {}).get("label"),
+                "composite": integrity.get("composite"),
+                "source_score": ((integrity.get("levers") or {}).get("source") or {}).get("score"),
+                "timing_score": ((integrity.get("levers") or {}).get("timing") or {}).get("score"),
+                "definition_score": ((integrity.get("levers") or {}).get("definition") or {}).get("score"),
+                "source_flags": ((integrity.get("levers") or {}).get("source") or {}).get("flags", []),
+                "timing_flags": ((integrity.get("levers") or {}).get("timing") or {}).get("flags", []),
+                "definition_flags": ((integrity.get("levers") or {}).get("definition") or {}).get("flags", []),
+                "semantic_hash": sem.get("semantic_hash"),
+                "compilation_hash": comp.get("compilation_hash"),
+                "predicted_outcome": resolution.get("predicted_outcome"),
+                "outcome_prediction_reason": resolution.get("reason"),
+                "resolution_method": resolution.get("resolution_method"),
+                "evidence_present": evidence is not None,
+                "evidence_raw_sha256": evidence.get("raw_sha256") if evidence else None,
+                "evidence_source_url": evidence.get("source_url") if evidence else None,
+                "evidence_authority": evidence.get("authority") if evidence else None,
+                "resolution_trace": {
+                    k: v for k, v in resolution.items() if k not in {"predicted_outcome", "reason", "resolution_method"}
+                },
+            }
+        )
     completed_at = _now()
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -139,7 +143,9 @@ def run_blind(
         "outcome_counts": dict(Counter(str(x.get("predicted_outcome")) for x in predictions)),
         "run_sha256": None,
     }
-    run_manifest["run_sha256"] = sha256_text(canonical_json({k: v for k, v in run_manifest.items() if k != "run_sha256"}))
+    run_manifest["run_sha256"] = sha256_text(
+        canonical_json({k: v for k, v in run_manifest.items() if k != "run_sha256"})
+    )
     (out / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return {"manifest": run_manifest, "predictions": predictions, "output_dir": str(out)}
 

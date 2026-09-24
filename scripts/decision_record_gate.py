@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Release gate for Arbiter v0.34 governed decision records."""
+
 from __future__ import annotations
 
 import os

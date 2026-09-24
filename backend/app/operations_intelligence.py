@@ -5,6 +5,7 @@ explainable work. It is deliberately advisory and deterministic: it may rank,
 cluster, summarize, and recommend an order of operations, but it cannot alter
 contract terms, evidence, policy, resolution outcomes, or payout authorization.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -87,9 +88,16 @@ def _priority(item: dict[str, Any]) -> int:
     else:
         notional_weight = 0
     blocker_weight = {
-        "audit_integrity": 35, "authority_conflict": 25, "evidence_conflict": 20,
-        "policy_interpretation": 18, "timing_revision": 14, "evidence_missing": 8,
-        "resolution_hold": 12, "monitoring": 2, "operator_review": 5, "evidence_review": 8,
+        "audit_integrity": 35,
+        "authority_conflict": 25,
+        "evidence_conflict": 20,
+        "policy_interpretation": 18,
+        "timing_revision": 14,
+        "evidence_missing": 8,
+        "resolution_hold": 12,
+        "monitoring": 2,
+        "operator_review": 5,
+        "evidence_review": 8,
     }.get(_blocker(item), 0)
     return max(0, severity + status + notional_weight + blocker_weight)
 
@@ -105,15 +113,22 @@ def _workflow_state(item: dict[str, Any], blocker: str, waiting_external: bool) 
     status = str(item.get("status") or "open").lower()
     explicit = str(item.get("workflow_state") or "").upper().strip()
     resolution = _explicit_resolution(item)
-    if status == "resolved" or explicit == "RESOLVED": return "RESOLVED"
-    if waiting_external or blocker == "monitoring": return "WAITING"
-    if blocker == "policy_interpretation": return "POLICY_REVIEW"
-    if resolution == "HOLD" or blocker == "resolution_hold": return "INVESTIGATING"
+    if status == "resolved" or explicit == "RESOLVED":
+        return "RESOLVED"
+    if waiting_external or blocker == "monitoring":
+        return "WAITING"
+    if blocker == "policy_interpretation":
+        return "POLICY_REVIEW"
+    if resolution == "HOLD" or blocker == "resolution_hold":
+        return "INVESTIGATING"
     if blocker in {"authority_conflict", "evidence_conflict", "evidence_review", "audit_integrity", "timing_revision"}:
         return "INVESTIGATING"
-    if explicit in {"READY", "READY_FOR_REVIEW"}: return "READY_FOR_REVIEW"
-    if item.get("ready_for_review") is True: return "READY_FOR_REVIEW"
-    if blocker == "operator_review": return "READY_FOR_REVIEW"
+    if explicit in {"READY", "READY_FOR_REVIEW"}:
+        return "READY_FOR_REVIEW"
+    if item.get("ready_for_review") is True:
+        return "READY_FOR_REVIEW"
+    if blocker == "operator_review":
+        return "READY_FOR_REVIEW"
     return "INVESTIGATING"
 
 
@@ -196,7 +211,9 @@ def _decision_context(blocker: str, state: str, count: int) -> dict[str, str]:
     if state == "WAITING":
         out["primary_action"] = "Check dependency"
     if count > 1:
-        out["pattern_summary"] = f"{count} cases share this root cause; resolve the shared decision once where governance permits."
+        out["pattern_summary"] = (
+            f"{count} cases share this root cause; resolve the shared decision once where governance permits."
+        )
     else:
         out["pattern_summary"] = "This is a single-case decision path."
     return out
@@ -205,15 +222,22 @@ def _decision_context(blocker: str, state: str, count: int) -> dict[str, str]:
 def enrich_item(item: dict[str, Any]) -> dict[str, Any]:
     blocker = _blocker(item)
     text = " ".join(str(item.get(k) or "") for k in ("title", "detail", "recommended_action")).lower()
-    waiting_external = blocker == "evidence_missing" or any(token in text for token in ("waiting on", "not yet available", "external data", "source publication"))
+    waiting_external = blocker == "evidence_missing" or any(
+        token in text for token in ("waiting on", "not yet available", "external data", "source publication")
+    )
     workflow_state = _workflow_state(item, blocker, waiting_external)
-    return {**item, "operations": {
-        "priority_score": _priority(item), "blocker_type": blocker, "workflow_state": workflow_state,
-        "waiting_on_external_data": workflow_state == "WAITING",
-        "requires_policy_interpretation": blocker == "policy_interpretation",
-        "ready_for_review": workflow_state == "READY_FOR_REVIEW",
-        "needs_investigation": workflow_state == "INVESTIGATING",
-    }}
+    return {
+        **item,
+        "operations": {
+            "priority_score": _priority(item),
+            "blocker_type": blocker,
+            "workflow_state": workflow_state,
+            "waiting_on_external_data": workflow_state == "WAITING",
+            "requires_policy_interpretation": blocker == "policy_interpretation",
+            "ready_for_review": workflow_state == "READY_FOR_REVIEW",
+            "needs_investigation": workflow_state == "INVESTIGATING",
+        },
+    }
 
 
 def _cluster_signature(item: dict[str, Any]) -> str:
@@ -244,22 +268,32 @@ def analyze_queue(queue: dict[str, Any], executive: dict[str, Any] | None = None
         blocker = items[0]["operations"]["blocker_type"]
         notional = sum(float(i.get("notional") or 0) for i in items)
         states = sorted({i["operations"]["workflow_state"] for i in items})
-        dominant_state = "POLICY_REVIEW" if "POLICY_REVIEW" in states else "INVESTIGATING" if "INVESTIGATING" in states else "READY_FOR_REVIEW" if "READY_FOR_REVIEW" in states else states[0]
+        dominant_state = (
+            "POLICY_REVIEW"
+            if "POLICY_REVIEW" in states
+            else "INVESTIGATING"
+            if "INVESTIGATING" in states
+            else "READY_FOR_REVIEW"
+            if "READY_FOR_REVIEW" in states
+            else states[0]
+        )
         context = _decision_context(blocker, dominant_state, len(items))
-        clusters.append({
-            "cluster_id": _stable_cluster_id(blocker, signature),
-            "blocker_type": blocker,
-            "count": len(items),
-            "notional": notional,
-            "max_priority_score": max((i["operations"]["priority_score"] for i in items), default=0),
-            "case_ids": [i.get("id") for i in items],
-            "example_title": items[0].get("title"),
-            "recommended_action": items[0].get("recommended_action"),
-            "owner_roles": sorted({str(i.get("owner_role") or "Resolution Ops") for i in items}),
-            "workflow_states": states,
-            "dominant_state": dominant_state,
-            **context,
-        })
+        clusters.append(
+            {
+                "cluster_id": _stable_cluster_id(blocker, signature),
+                "blocker_type": blocker,
+                "count": len(items),
+                "notional": notional,
+                "max_priority_score": max((i["operations"]["priority_score"] for i in items), default=0),
+                "case_ids": [i.get("id") for i in items],
+                "example_title": items[0].get("title"),
+                "recommended_action": items[0].get("recommended_action"),
+                "owner_roles": sorted({str(i.get("owner_role") or "Resolution Ops") for i in items}),
+                "workflow_states": states,
+                "dominant_state": dominant_state,
+                **context,
+            }
+        )
     clusters.sort(key=lambda c: (-c["count"], -c["max_priority_score"], -c["notional"], c["cluster_id"]))
 
     ready = [i for i in active if i["operations"]["workflow_state"] == "READY_FOR_REVIEW"]
@@ -275,37 +309,57 @@ def analyze_queue(queue: dict[str, Any], executive: dict[str, Any] | None = None
     recommended_sequence = []
     for cluster in actionable_clusters[:5]:
         if cluster["count"] >= 2:
-            recommended_sequence.append({
-                "type": "cluster", "id": cluster["cluster_id"],
-                "label": cluster["primary_action"], "case_count": cluster["count"],
-                "notional": cluster["notional"], "why_human": cluster["why_human"],
-            })
+            recommended_sequence.append(
+                {
+                    "type": "cluster",
+                    "id": cluster["cluster_id"],
+                    "label": cluster["primary_action"],
+                    "case_count": cluster["count"],
+                    "notional": cluster["notional"],
+                    "why_human": cluster["why_human"],
+                }
+            )
     for item in ready + investigating + policy:
-        if len(recommended_sequence) >= 8: break
-        if any(item.get("id") in (c.get("case_ids") or []) and c["count"] >= 2 for c in actionable_clusters): continue
-        recommended_sequence.append({
-            "type": "case", "id": item.get("id"), "label": item.get("title") or "Review case",
-            "case_count": 1, "notional": float(item.get("notional") or 0),
-            "workflow_state": item["operations"]["workflow_state"],
-        })
+        if len(recommended_sequence) >= 8:
+            break
+        if any(item.get("id") in (c.get("case_ids") or []) and c["count"] >= 2 for c in actionable_clusters):
+            continue
+        recommended_sequence.append(
+            {
+                "type": "case",
+                "id": item.get("id"),
+                "label": item.get("title") or "Review case",
+                "case_count": 1,
+                "notional": float(item.get("notional") or 0),
+                "workflow_state": item["operations"]["workflow_state"],
+            }
+        )
 
     def compact(items: list[dict[str, Any]], limit: int = 12) -> list[dict[str, Any]]:
-        return [{
-            "id": i.get("id"), "title": i.get("title"),
-            "priority_score": i["operations"]["priority_score"],
-            "blocker_type": i["operations"]["blocker_type"],
-            "workflow_state": i["operations"]["workflow_state"],
-            "notional": float(i.get("notional") or 0),
-        } for i in items[:limit]]
+        return [
+            {
+                "id": i.get("id"),
+                "title": i.get("title"),
+                "priority_score": i["operations"]["priority_score"],
+                "blocker_type": i["operations"]["blocker_type"],
+                "workflow_state": i["operations"]["workflow_state"],
+                "notional": float(i.get("notional") or 0),
+            }
+            for i in items[:limit]
+        ]
 
     return {
         "version": VERSION,
         "mode": "advisory_non_binding",
         "summary": {
-            "active_cases": len(active), "ready_for_review": len(ready),
-            "needs_investigation": len(investigating), "waiting_on_external_data": len(waiting),
-            "policy_interpretation": len(policy), "distinct_work_patterns": len(clusters),
-            "repeated_patterns": len(repeated), "compression_ratio": compression_ratio,
+            "active_cases": len(active),
+            "ready_for_review": len(ready),
+            "needs_investigation": len(investigating),
+            "waiting_on_external_data": len(waiting),
+            "policy_interpretation": len(policy),
+            "distinct_work_patterns": len(clusters),
+            "repeated_patterns": len(repeated),
+            "compression_ratio": compression_ratio,
             "estimated_human_decisions": estimated_human_decisions,
             "human_decisions_avoided": max(0, len(active) - estimated_human_decisions),
             "notional_represented": sum(float(i.get("notional") or 0) for i in active),

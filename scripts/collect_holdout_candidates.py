@@ -16,8 +16,12 @@ from app.real_benchmark.hashing import write_jsonl
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Collect resolved real-contract candidates. Collection does not freeze or validate a holdout.")
-    ap.add_argument("--venue", action="append", choices=["kalshi", "polymarket"], required=True, help="repeat for multiple venues")
+    ap = argparse.ArgumentParser(
+        description="Collect resolved real-contract candidates. Collection does not freeze or validate a holdout."
+    )
+    ap.add_argument(
+        "--venue", action="append", choices=["kalshi", "polymarket"], required=True, help="repeat for multiple venues"
+    )
     ap.add_argument("--limit-per-venue", type=int, default=100)
     ap.add_argument("--out", default="benchmarks/candidates_v0_1.jsonl")
     ap.add_argument("--no-kalshi-historical", action="store_true")

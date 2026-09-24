@@ -40,14 +40,16 @@ def by_category(reports):
         review = sum(1 for i in items if i["verdict"]["key"] == "review")
         avg = round(sum(i["composite"] for i in items) / len(items), 1)
         held_notional = sum(i.get("open_interest", 0) for i in items if i["verdict"]["key"] == "review")
-        rows.append({
-            "category": cat,
-            "count": len(items),
-            "avg_composite": avg,
-            "review_count": review,
-            "review_rate": _pct(review, len(items)),
-            "held_notional": held_notional,
-        })
+        rows.append(
+            {
+                "category": cat,
+                "count": len(items),
+                "avg_composite": avg,
+                "review_count": review,
+                "review_rate": _pct(review, len(items)),
+                "held_notional": held_notional,
+            }
+        )
     rows.sort(key=lambda x: x["avg_composite"], reverse=True)
     return rows
 
@@ -69,13 +71,15 @@ def coverage_gaps(reports, threshold=50):
     gaps = []
     for row in by_category(reports):
         if row["review_rate"] >= threshold:
-            gaps.append({
-                "category": row["category"],
-                "review_rate": row["review_rate"],
-                "recommendation": "Tighten the contract template for this category: "
-                                  "designate a source, add an explicit settlement clock, "
-                                  "and define interpretive terms before listing.",
-            })
+            gaps.append(
+                {
+                    "category": row["category"],
+                    "review_rate": row["review_rate"],
+                    "recommendation": "Tighten the contract template for this category: "
+                    "designate a source, add an explicit settlement clock, "
+                    "and define interpretive terms before listing.",
+                }
+            )
     return gaps
 
 

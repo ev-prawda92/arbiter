@@ -1,1 +1,278 @@
-.arbiter-page-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 16px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc}.arbiter-page-actions>div:first-child{display:flex;flex-direction:column;gap:2px}.arbiter-page-actions strong{font-size:12px;color:#1e293b}.arbiter-page-actions span{font-size:11px;color:#64748b}.arbiter-page-action-buttons{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.arbiter-page-action-buttons button,.arbiter-modal-actions button,.arbiter-governed-form button{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:8px 11px;font:inherit;font-size:12px;font-weight:650;color:#1e293b;cursor:pointer}.arbiter-page-action-buttons button:hover,.arbiter-modal-actions button:hover,.arbiter-governed-form button:hover{border-color:#60a5fa;box-shadow:0 2px 8px rgba(30,58,138,.08)}.arbiter-page-action-buttons button.primary,.arbiter-modal-actions button.primary,.arbiter-governed-form button.primary{background:#2563eb;color:#fff;border-color:#2563eb}.arbiter-clickable-row{cursor:pointer}.arbiter-clickable-row:hover{background:#eff6ff!important}.arbiter-governed-modal-backdrop{position:fixed;inset:0;z-index:10030;background:rgba(15,23,42,.46);display:flex;align-items:center;justify-content:center;padding:28px}.arbiter-governed-modal{width:min(880px,96vw);max-height:90vh;overflow:auto;background:#f8fafc;border:1px solid #cbd5e1;border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.24)}.arbiter-governed-modal>header{position:sticky;top:0;z-index:2;background:#f8fafc;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:18px 20px;border-bottom:1px solid #e2e8f0}.arbiter-governed-modal>header span{display:block;text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:800;color:#64748b}.arbiter-governed-modal>header h2{margin:4px 0 0;font-size:21px}.arbiter-governed-modal>header button{border:1px solid #cbd5e1;background:#fff;border-radius:9px;width:36px;height:36px;font-size:22px;cursor:pointer}.arbiter-governed-modal-body{padding:20px}.arbiter-governed-modal pre{white-space:pre-wrap;word-break:break-word;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px;max-height:360px;overflow:auto;font-size:11px;line-height:1.45}.arbiter-governed-modal details{margin:12px 0}.arbiter-governed-modal summary{cursor:pointer;font-weight:700;font-size:12px}.arbiter-governed-form{display:grid;gap:14px}.arbiter-governed-form label,.arbiter-note-label{display:grid;gap:6px}.arbiter-governed-form label>span,.arbiter-note-label>span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.arbiter-governed-form input,.arbiter-governed-form textarea,.arbiter-note-label textarea,.arbiter-inline-filter input{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:10px 11px;background:#fff;font:inherit;color:#1e293b}.arbiter-governed-form input:focus,.arbiter-governed-form textarea:focus,.arbiter-note-label textarea:focus,.arbiter-inline-filter input:focus{outline:2px solid rgba(37,99,235,.15);border-color:#3b82f6}.arbiter-governed-form label.check{display:flex;align-items:center;gap:8px}.arbiter-governed-form label.check input{width:auto}.arbiter-governed-boundary{border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:10px 12px;font-size:11px;line-height:1.45;color:#475569}.arbiter-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.arbiter-detail-grid>div{border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;background:#fff}.arbiter-detail-grid span{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:9px;color:#64748b;font-weight:800;margin-bottom:4px}.arbiter-detail-grid strong{font-size:12px}.arbiter-modal-actions{display:flex;gap:8px;margin-top:14px}.arbiter-inline-filter{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc}.arbiter-inline-filter button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:8px 10px;cursor:pointer}.arbiter-governed-loading{padding:24px;text-align:center;color:#64748b}.arbiter-governed-toast{background:#1e293b;color:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 12px 32px rgba(0,0,0,.18);font-size:12px;max-width:360px}.arbiter-governed-toast.good{background:#047857}.arbiter-governed-toast.bad{background:#b91c1c}#arbiter-governed-toast-host{position:fixed;right:20px;bottom:20px;z-index:10050;display:grid;gap:8px}@media(max-width:900px){.arbiter-page-actions{align-items:flex-start;flex-direction:column}.arbiter-page-action-buttons{justify-content:flex-start}.arbiter-detail-grid{grid-template-columns:1fr}.arbiter-governed-modal-backdrop{padding:12px}}
+.arbiter-page-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.arbiter-page-actions > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.arbiter-page-actions strong {
+  font-size: 12px;
+  color: #1e293b;
+}
+.arbiter-page-actions span {
+  font-size: 11px;
+  color: #64748b;
+}
+.arbiter-page-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.arbiter-page-action-buttons button,
+.arbiter-modal-actions button,
+.arbiter-governed-form button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 9px;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  color: #1e293b;
+  cursor: pointer;
+}
+.arbiter-page-action-buttons button:hover,
+.arbiter-modal-actions button:hover,
+.arbiter-governed-form button:hover {
+  border-color: #60a5fa;
+  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.08);
+}
+.arbiter-page-action-buttons button.primary,
+.arbiter-modal-actions button.primary,
+.arbiter-governed-form button.primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.arbiter-clickable-row {
+  cursor: pointer;
+}
+.arbiter-clickable-row:hover {
+  background: #eff6ff !important;
+}
+.arbiter-governed-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10030;
+  background: rgba(15, 23, 42, 0.46);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+.arbiter-governed-modal {
+  width: min(880px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+}
+.arbiter-governed-modal > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.arbiter-governed-modal > header span {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+}
+.arbiter-governed-modal > header h2 {
+  margin: 4px 0 0;
+  font-size: 21px;
+}
+.arbiter-governed-modal > header button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 9px;
+  width: 36px;
+  height: 36px;
+  font-size: 22px;
+  cursor: pointer;
+}
+.arbiter-governed-modal-body {
+  padding: 20px;
+}
+.arbiter-governed-modal pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.arbiter-governed-modal details {
+  margin: 12px 0;
+}
+.arbiter-governed-modal summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+}
+.arbiter-governed-form {
+  display: grid;
+  gap: 14px;
+}
+.arbiter-governed-form label,
+.arbiter-note-label {
+  display: grid;
+  gap: 6px;
+}
+.arbiter-governed-form label > span,
+.arbiter-note-label > span {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+.arbiter-governed-form input,
+.arbiter-governed-form textarea,
+.arbiter-note-label textarea,
+.arbiter-inline-filter input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  padding: 10px 11px;
+  background: #fff;
+  font: inherit;
+  color: #1e293b;
+}
+.arbiter-governed-form input:focus,
+.arbiter-governed-form textarea:focus,
+.arbiter-note-label textarea:focus,
+.arbiter-inline-filter input:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.15);
+  border-color: #3b82f6;
+}
+.arbiter-governed-form label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.arbiter-governed-form label.check input {
+  width: auto;
+}
+.arbiter-governed-boundary {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475569;
+}
+.arbiter-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.arbiter-detail-grid > div {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.arbiter-detail-grid span {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.arbiter-detail-grid strong {
+  font-size: 12px;
+}
+.arbiter-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.arbiter-inline-filter {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.arbiter-inline-filter button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.arbiter-governed-loading {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+}
+.arbiter-governed-toast {
+  background: #1e293b;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  max-width: 360px;
+}
+.arbiter-governed-toast.good {
+  background: #047857;
+}
+.arbiter-governed-toast.bad {
+  background: #b91c1c;
+}
+#arbiter-governed-toast-host {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10050;
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .arbiter-page-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .arbiter-page-action-buttons {
+    justify-content: flex-start;
+  }
+  .arbiter-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .arbiter-governed-modal-backdrop {
+    padding: 12px;
+  }
+}

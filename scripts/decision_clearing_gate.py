@@ -18,6 +18,7 @@ Properties asserted (fail-closed):
   C8 end to end over HTTP: one decision clears its pattern, the HOLD stays
      open, and contract/authority/evidence/resolution counts are unchanged
 """
+
 from __future__ import annotations
 
 import copy
@@ -49,10 +50,19 @@ def check(condition: bool, message: str) -> None:
 
 def monitored(case_id: str, action: str = TIMING_ACTION) -> dict:
     return {
-        "id": case_id, "kind": "monitored_contract", "subject": case_id.upper(),
-        "title": f"Monitor {case_id.upper()}: timing risk", "detail": "no explicit settlement time",
-        "severity": "medium", "owner_role": "Market Ops", "recommended_action": action,
-        "notional": 1_000_000.0, "status": "open", "owner": "", "note": "", "updated_at": None,
+        "id": case_id,
+        "kind": "monitored_contract",
+        "subject": case_id.upper(),
+        "title": f"Monitor {case_id.upper()}: timing risk",
+        "detail": "no explicit settlement time",
+        "severity": "medium",
+        "owner_role": "Market Ops",
+        "recommended_action": action,
+        "notional": 1_000_000.0,
+        "status": "open",
+        "owner": "",
+        "note": "",
+        "updated_at": None,
     }
 
 
@@ -67,18 +77,34 @@ def by_id(queue: dict) -> dict:
 def unit_properties() -> None:
     timing = [monitored(f"work_timing_{n}") for n in range(4)]
     hold = {
-        "id": "work_hold", "kind": "resolution_hold", "subject": "CEASEFIRE-Q4",
-        "title": "Resolve HOLD: CEASEFIRE-Q4", "detail": "Held for review",
-        "severity": "high", "owner_role": "Compliance", "notional": 1_800_000.0,
+        "id": "work_hold",
+        "kind": "resolution_hold",
+        "subject": "CEASEFIRE-Q4",
+        "title": "Resolve HOLD: CEASEFIRE-Q4",
+        "detail": "Held for review",
+        "severity": "high",
+        "owner_role": "Compliance",
+        "notional": 1_800_000.0,
         "recommended_action": TIMING_ACTION,  # same wording on purpose
-        "status": "open", "owner": "", "note": "", "updated_at": None,
+        "status": "open",
+        "owner": "",
+        "note": "",
+        "updated_at": None,
     }
     authority = {
-        "id": "work_auth", "kind": "authority_status", "subject": "bls",
-        "title": "Authority suspended: bls", "detail": "BLS feed suspended",
-        "severity": "critical", "owner_role": "Data Ops", "notional": 0.0,
+        "id": "work_auth",
+        "kind": "authority_status",
+        "subject": "bls",
+        "title": "Authority suspended: bls",
+        "detail": "BLS feed suspended",
+        "severity": "critical",
+        "owner_role": "Data Ops",
+        "notional": 0.0,
         "recommended_action": "Assess contracts dependent on this authority and confirm fallback/precedence rules.",
-        "status": "open", "owner": "", "note": "", "updated_at": None,
+        "status": "open",
+        "owner": "",
+        "note": "",
+        "updated_at": None,
     }
     other = monitored("work_other", "Confirm definition semantics before the resolution window closes.")
     queue = {"summary": {}, "items": timing + [hold, authority, other], "boundary": "x"}
@@ -86,8 +112,12 @@ def unit_properties() -> None:
 
     cid = cluster_of(timing[0])
     decision = {
-        "decision_id": "dec_unit", "decision_hash": "sha256:unit", "decision_type": "timing_revision",
-        "selection": "Initial official release controls", "cluster_id": cid, "state": "recorded",
+        "decision_id": "dec_unit",
+        "decision_hash": "sha256:unit",
+        "decision_type": "timing_revision",
+        "selection": "Initial official release controls",
+        "cluster_id": cid,
+        "state": "recorded",
         "created_at": "2026-09-23T10:00:00+00:00",
         "affected_case_ids": [t["id"] for t in timing] + ["work_hold", "work_auth"],
     }
@@ -95,14 +125,20 @@ def unit_properties() -> None:
     got = by_id(out)
 
     check(all(got[t["id"]]["status"] == "resolved" for t in timing), "C1 all 4 answered cases cleared")
-    check(all(got[t["id"]]["governed_by"]["decision_id"] == "dec_unit" for t in timing),
-          "C1 each cleared case carries decision provenance")
-    check(out["summary"]["active"] == 3 and out["summary"]["cleared_by_decision"] == 4,
-          "C1 queue summary recomputed (3 active, 4 cleared)")
+    check(
+        all(got[t["id"]]["governed_by"]["decision_id"] == "dec_unit" for t in timing),
+        "C1 each cleared case carries decision provenance",
+    )
+    check(
+        out["summary"]["active"] == 3 and out["summary"]["cleared_by_decision"] == 4,
+        "C1 queue summary recomputed (3 active, 4 cleared)",
+    )
     check(got["work_hold"]["status"] == "open", "C2 payout HOLD not cleared even when listed")
     check(got["work_auth"]["status"] == "open", "C2 suspended-source work not cleared even when listed")
-    check(got["work_other"]["status"] == "open" and "governed_by" not in got["work_other"],
-          "C3 work outside the decision untouched")
+    check(
+        got["work_other"]["status"] == "open" and "governed_by" not in got["work_other"],
+        "C3 work outside the decision untouched",
+    )
     check(queue == pristine, "C7 input queue not mutated")
 
     drifted = copy.deepcopy(queue)
@@ -128,24 +164,36 @@ def supersession_property() -> None:
     queue = {"summary": {}, "items": timing, "boundary": "x"}
 
     first = svc.create(
-        decision_type="timing_revision", question="Which window controls?",
-        selection="Initial official release controls", rationale="Terms pin the initial release.",
-        actor="operator:gate", affected_case_ids=[t["id"] for t in timing], cluster_id=cid,
+        decision_type="timing_revision",
+        question="Which window controls?",
+        selection="Initial official release controls",
+        rationale="Terms pin the initial release.",
+        actor="operator:gate",
+        affected_case_ids=[t["id"] for t in timing],
+        cluster_id=cid,
     )
     got = by_id(apply_authoritative_decisions(queue, svc.authoritative()))
     check(sum(i["status"] == "resolved" for i in got.values()) == 4, "C5 original decision clears 4 cases")
 
     svc.create(
-        decision_type="timing_revision", question="Which window controls?",
-        selection="Latest valid revision controls", rationale="Clarified policy narrows scope.",
-        actor="operator:gate", affected_case_ids=[t["id"] for t in timing[:2]], cluster_id=cid,
+        decision_type="timing_revision",
+        question="Which window controls?",
+        selection="Latest valid revision controls",
+        rationale="Clarified policy narrows scope.",
+        actor="operator:gate",
+        affected_case_ids=[t["id"] for t in timing[:2]],
+        cluster_id=cid,
         supersedes=first["decision_id"],
     )
     got = by_id(apply_authoritative_decisions(queue, svc.authoritative()))
-    check([got[t["id"]]["status"] for t in timing] == ["resolved", "resolved", "open", "open"],
-          "C5 after supersession only the new decision's cases stay cleared; the rest reopen")
-    check(all(got[t["id"]]["governed_by"]["selection"] == "Latest valid revision controls" for t in timing[:2]),
-          "C5 cleared cases now cite the superseding decision")
+    check(
+        [got[t["id"]]["status"] for t in timing] == ["resolved", "resolved", "open", "open"],
+        "C5 after supersession only the new decision's cases stay cleared; the rest reopen",
+    )
+    check(
+        all(got[t["id"]]["governed_by"]["selection"] == "Latest valid revision controls" for t in timing[:2]),
+        "C5 cleared cases now cite the superseding decision",
+    )
 
 
 def http_property() -> None:
@@ -158,24 +206,37 @@ def http_property() -> None:
     check(bool(decidable), "C8 reference data exposes a timing work pattern")
     target = max(decidable, key=lambda c: c["count"])
     hold = next((c for c in clusters if c["blocker_type"] == "resolution_hold"), None)
-    check(client.get(f"/api/decision-context/{target['cluster_id']}").json()["clearability"]["clearable"] is True,
-          "C9 the workbench is told a timing pattern can be cleared")
+    check(
+        client.get(f"/api/decision-context/{target['cluster_id']}").json()["clearability"]["clearable"] is True,
+        "C9 the workbench is told a timing pattern can be cleared",
+    )
     if hold:
         ctx = client.get(f"/api/decision-context/{hold['cluster_id']}").json()["clearability"]
-        check(ctx["clearable"] is False and "payout hold" in ctx["reason"],
-              "C9 the workbench is told a payout-hold pattern cannot be cleared, and why")
-    holds_before = [i["id"] for i in client.get("/api/work-queue").json()["items"]
-                    if i["kind"] == "resolution_hold" and i["status"] != "resolved"]
+        check(
+            ctx["clearable"] is False and "payout hold" in ctx["reason"],
+            "C9 the workbench is told a payout-hold pattern cannot be cleared, and why",
+        )
+    holds_before = [
+        i["id"]
+        for i in client.get("/api/work-queue").json()["items"]
+        if i["kind"] == "resolution_hold" and i["status"] != "resolved"
+    ]
     counts_before = resolution_store.summary()
 
-    r = client.post("/api/decisions", json={
-        "cluster_id": target["cluster_id"], "selection": "Initial official release controls",
-        "rationale": "Governing terms pin the initial official release.",
-    })
+    r = client.post(
+        "/api/decisions",
+        json={
+            "cluster_id": target["cluster_id"],
+            "selection": "Initial official release controls",
+            "rationale": "Governing terms pin the initial official release.",
+        },
+    )
     check(r.status_code == 200, f"C8 POST /api/decisions -> 200 (got {r.status_code})")
     work = r.json()["reevaluation"]["workload"]
-    check(work["cases_cleared"] == target["count"],
-          f"C8 one decision clears its whole pattern ({work['cases_cleared']} of {target['count']})")
+    check(
+        work["cases_cleared"] == target["count"],
+        f"C8 one decision clears its whole pattern ({work['cases_cleared']} of {target['count']})",
+    )
     check(work["human_decisions_removed"] == 1, "C8 exactly one human decision removed")
 
     items = client.get("/api/work-queue").json()["items"]

@@ -31,9 +31,20 @@ BOILERPLATE_MARKERS = (
 )
 
 RESOLUTION_MARKERS = (
-    "resolve", "resolution", "settle", "settlement", "according to", "reported by",
-    "official", "if", "will be", "shall", "determined by", "source"
+    "resolve",
+    "resolution",
+    "settle",
+    "settlement",
+    "according to",
+    "reported by",
+    "official",
+    "if",
+    "will be",
+    "shall",
+    "determined by",
+    "source",
 )
+
 
 @dataclass(frozen=True)
 class CurationResult:
@@ -87,7 +98,10 @@ def score_candidate(row: dict[str, Any]) -> CurationResult:
         definition += 7
     if len(rules) >= 120:
         definition += 5
-    if any(token in norm_rules for token in ("greater than", "less than", "at least", "at most", "before", "after", "between")):
+    if any(
+        token in norm_rules
+        for token in ("greater than", "less than", "at least", "at most", "before", "after", "between")
+    ):
         definition += 5
     definition = min(25, definition)
 
@@ -117,7 +131,10 @@ def score_candidate(row: dict[str, Any]) -> CurationResult:
         timing += 5
     if row.get("settled_at"):
         timing += 5
-    if any(token in norm_rules for token in ("utc", "et", "est", "edt", "pt", "pst", "pdt", "deadline", "before", "after", "by ")):
+    if any(
+        token in norm_rules
+        for token in ("utc", "et", "est", "edt", "pt", "pst", "pdt", "deadline", "before", "after", "by ")
+    ):
         timing += 5
     timing = min(15, timing)
 

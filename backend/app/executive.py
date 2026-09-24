@@ -59,34 +59,80 @@ def build(reports: list[dict], portfolio: dict, infrastructure: dict | None = No
             "question": "Where is settlement risk concentrated and does the control system have it contained?",
             "headline": _headline(shared),
             "priorities": [
-                _priority("Resolution exposure", f"${exposed_notional/1e6:.1f}M of notional is monitored or held", "high" if held_notional else "medium"),
-                _priority("Primary risk driver", f"{primary_driver.title()} is the largest average ambiguity lever across the portfolio", "medium"),
-                _priority("Control integrity", "Audit chain verifies" if shared["audit_chain_ok"] is True else "Audit-chain status should be reviewed", "low" if shared["audit_chain_ok"] is True else "high"),
+                _priority(
+                    "Resolution exposure",
+                    f"${exposed_notional / 1e6:.1f}M of notional is monitored or held",
+                    "high" if held_notional else "medium",
+                ),
+                _priority(
+                    "Primary risk driver",
+                    f"{primary_driver.title()} is the largest average ambiguity lever across the portfolio",
+                    "medium",
+                ),
+                _priority(
+                    "Control integrity",
+                    "Audit chain verifies"
+                    if shared["audit_chain_ok"] is True
+                    else "Audit-chain status should be reviewed",
+                    "low" if shared["audit_chain_ok"] is True else "high",
+                ),
             ],
         },
         "compliance": {
             "question": "Which contracts or controls require intervention before settlement?",
             "headline": f"{len(held)} contract(s) are held for review; {len(monitored)} are under active monitoring.",
             "priorities": [
-                *[_priority(r["ticker"], r.get("primary_flag") or "Held for resolution review", "high") for r in top_risks if r.get("verdict", {}).get("key") == "review"],
-                *[_priority(g.get("category", "Coverage gap"), g.get("recommendation", "Tighten resolution controls"), "medium") for g in gaps[:3]],
+                *[
+                    _priority(r["ticker"], r.get("primary_flag") or "Held for resolution review", "high")
+                    for r in top_risks
+                    if r.get("verdict", {}).get("key") == "review"
+                ],
+                *[
+                    _priority(
+                        g.get("category", "Coverage gap"),
+                        g.get("recommendation", "Tighten resolution controls"),
+                        "medium",
+                    )
+                    for g in gaps[:3]
+                ],
             ][:5],
         },
         "market_ops": {
             "question": "What should we fix in contract design and resolution operations?",
             "headline": f"{primary_driver.title()} is the dominant portfolio weakness; prioritize the highest-risk templates before new listings.",
             "priorities": [
-                *[_priority(r["ticker"], r.get("primary_flag") or "Review contract terms", "high" if r.get("verdict", {}).get("key") == "review" else "medium") for r in top_risks[:4]],
-                _priority("Template guidance", f"{len(gaps)} category-level coverage gap(s) need stronger drafting guidance", "medium"),
+                *[
+                    _priority(
+                        r["ticker"],
+                        r.get("primary_flag") or "Review contract terms",
+                        "high" if r.get("verdict", {}).get("key") == "review" else "medium",
+                    )
+                    for r in top_risks[:4]
+                ],
+                _priority(
+                    "Template guidance",
+                    f"{len(gaps)} category-level coverage gap(s) need stronger drafting guidance",
+                    "medium",
+                ),
             ],
         },
         "finance": {
             "question": "How much payout/notional is exposed to resolution delay or dispute risk?",
-            "headline": f"${held_notional/1e6:.1f}M is held pre-payout and ${monitored_notional/1e6:.1f}M is resolving under monitoring.",
+            "headline": f"${held_notional / 1e6:.1f}M is held pre-payout and ${monitored_notional / 1e6:.1f}M is resolving under monitoring.",
             "priorities": [
-                _priority("Held pre-payout", f"${held_notional/1e6:.1f}M requires resolution clearance before funds move", "high" if held_notional else "low"),
-                _priority("Monitored exposure", f"${monitored_notional/1e6:.1f}M has identified resolution risk but is not currently blocked", "medium"),
-                _priority("Largest exposed contracts", ", ".join(r["ticker"] for r in top_risks[:3]) or "None", "medium"),
+                _priority(
+                    "Held pre-payout",
+                    f"${held_notional / 1e6:.1f}M requires resolution clearance before funds move",
+                    "high" if held_notional else "low",
+                ),
+                _priority(
+                    "Monitored exposure",
+                    f"${monitored_notional / 1e6:.1f}M has identified resolution risk but is not currently blocked",
+                    "medium",
+                ),
+                _priority(
+                    "Largest exposed contracts", ", ".join(r["ticker"] for r in top_risks[:3]) or "None", "medium"
+                ),
             ],
         },
     }

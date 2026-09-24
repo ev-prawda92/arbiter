@@ -9,6 +9,7 @@ Collection stays separate: run collect_holdout_candidates.py first, then join.
         --min-confidence 0.35 \
         --out benchmarks/cross_venue_pairs_v0_2.jsonl
 """
+
 from __future__ import annotations
 
 import argparse

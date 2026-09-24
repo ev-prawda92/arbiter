@@ -3,7 +3,11 @@ import re
 from .schema import BenchmarkCase
 
 TZ = re.compile(r"\b(?:ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT|UTC|GMT)\b", re.I)
-AUTH = re.compile(r"\b(?:NWS|NOAA|BLS|BEA|FOMC|Federal Reserve|Associated Press|AP race call|Binance|official Tour de France (?:website|results|classification))\b", re.I)
+AUTH = re.compile(
+    r"\b(?:NWS|NOAA|BLS|BEA|FOMC|Federal Reserve|Associated Press|AP race call|Binance|official Tour de France (?:website|results|classification))\b",
+    re.I,
+)
+
 
 def validate(case: BenchmarkCase) -> tuple[bool, str]:
     text = case.criteria

@@ -4,6 +4,7 @@ v0.34 mounts the Decision Operations router around the existing main application
 without destabilizing the long-lived main.py surface. New deployments should run
 `uvicorn app.server:app`; legacy `app.main:app` remains available during migration.
 """
+
 from __future__ import annotations
 
 from .main import app, _workflow_payload, resolution_store

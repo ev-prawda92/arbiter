@@ -4,6 +4,7 @@ Compiles natural-language market rules into a proposed machine-readable
 ResolutionSpecification. The compiler is deterministic and conservative:
 missing/ambiguous fields remain unresolved rather than being invented.
 """
+
 from __future__ import annotations
 
 import re
@@ -21,11 +22,22 @@ AUTHORITY_PATTERNS = [
     ("AUTH-NOAA-WEATHER", re.compile(r"\b(?:NOAA|NWS|National Weather Service|weather\.gov)\b", re.I)),
 ]
 
-SUBJECTIVE = re.compile(r"\b(?:significant|major|substantial|meaningful|officially successful|credible|widely considered|generally recognized)\b", re.I)
-TIMEZONE = re.compile(r"\b(?:UTC|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT|America/[A-Za-z_]+|Europe/[A-Za-z_]+|Asia/[A-Za-z_]+)\b", re.I)
+SUBJECTIVE = re.compile(
+    r"\b(?:significant|major|substantial|meaningful|officially successful|credible|widely considered|generally recognized)\b",
+    re.I,
+)
+TIMEZONE = re.compile(
+    r"\b(?:UTC|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT|America/[A-Za-z_]+|Europe/[A-Za-z_]+|Asia/[A-Za-z_]+)\b", re.I
+)
 TIME_OF_DAY = re.compile(r"\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:noon|midnight|open|close|closing|settlement)\b", re.I)
-DATE = re.compile(r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?\b", re.I)
-DATE_WINDOW = re.compile(r"\b(?:by\s+)?(?:the\s+)?end\s+of\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}\b", re.I)
+DATE = re.compile(
+    r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?\b",
+    re.I,
+)
+DATE_WINDOW = re.compile(
+    r"\b(?:by\s+)?(?:the\s+)?end\s+of\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}\b",
+    re.I,
+)
 NUMERIC = re.compile(r"(?:\$|€|£)?\s*(-?\d+(?:\.\d+)?)\s*(%|°?F|°?C|bps|points?|dollars?|USD)?", re.I)
 
 TOPIC_PATTERNS = {
@@ -39,6 +51,7 @@ TOPIC_PATTERNS = {
     "crypto": re.compile(r"\b(?:bitcoin|BTC|ethereum|ETH|crypto)\b", re.I),
     "recession": re.compile(r"\b(?:recession|GDP contraction|economic contraction)\b", re.I),
 }
+
 
 def _title_rules_consistency(title: str, rules: str) -> tuple[dict[str, Any], list[str]]:
     title_topics = {name for name, pat in TOPIC_PATTERNS.items() if pat.search(title)}
@@ -59,7 +72,6 @@ def _definition(title: str, rules: str) -> tuple[dict[str, Any], dict[str, Any],
     text = f"{title}\n{rules}"
     unresolved: list[str] = []
     provenance: dict[str, Any] = {}
-    lower = text.lower()
     op = None
     for token, normalized in [
         (r"\bat least\b|>=|\breach(?:es|ed)?\b|\bexceed(?:s|ed)?\b", ">="),
@@ -86,7 +98,9 @@ def _definition(title: str, rules: str) -> tuple[dict[str, Any], dict[str, Any],
     if m is None:
         nums = list(NUMERIC.finditer(title))
         # Exclude obvious four-digit years when falling back to title numbers.
-        candidates = [x for x in nums if not (x.group(1).isdigit() and len(x.group(1)) == 4 and 1900 <= int(x.group(1)) <= 2100)]
+        candidates = [
+            x for x in nums if not (x.group(1).isdigit() and len(x.group(1)) == 4 and 1900 <= int(x.group(1)) <= 2100)
+        ]
         m = candidates[0] if candidates else None
     if m:
         try:
@@ -106,8 +120,16 @@ def _definition(title: str, rules: str) -> tuple[dict[str, Any], dict[str, Any],
         if threshold_unit:
             definition["unit"] = threshold_unit
     else:
-        rate_cut = re.search(r"\b(?:interest\s+rate\s+cut|cut(?:s|ting|ted)?\s+(?:the\s+)?(?:federal\s+funds|fed\s+funds|interest)\s+rate)\b", text, re.I)
-        declaration = re.search(r"\b(?:declare(?:s|d)?|certif(?:y|ies|ied)|announc(?:e|es|ed|ement)|publish(?:es|ed)?|report(?:s|ed)?|wins?|elected|shutdown|ceasefire)\b", text, re.I)
+        rate_cut = re.search(
+            r"\b(?:interest\s+rate\s+cut|cut(?:s|ting|ted)?\s+(?:the\s+)?(?:federal\s+funds|fed\s+funds|interest)\s+rate)\b",
+            text,
+            re.I,
+        )
+        declaration = re.search(
+            r"\b(?:declare(?:s|d)?|certif(?:y|ies|ied)|announc(?:e|es|ed|ement)|publish(?:es|ed)?|report(?:s|ed)?|wins?|elected|shutdown|ceasefire)\b",
+            text,
+            re.I,
+        )
         if rate_cut and not subjective:
             definition = {"type": "rate_change_event", "direction": "cut", "criterion": rules.strip() or title.strip()}
             provenance["criterion"] = _span(text, rate_cut)
@@ -151,7 +173,9 @@ def _timing(title: str, rules: str) -> tuple[dict[str, Any], dict[str, Any], lis
     return timing, provenance, unresolved
 
 
-def _authorities(title: str, rules: str, known_authorities: list[dict[str, Any]]) -> tuple[list[str], list[str], dict[str, Any], list[str]]:
+def _authorities(
+    title: str, rules: str, known_authorities: list[dict[str, Any]]
+) -> tuple[list[str], list[str], dict[str, Any], list[str]]:
     text = f"{title}\n{rules}"
     found: list[str] = []
     provenance: dict[str, Any] = {}
@@ -204,12 +228,27 @@ def _recommended_fixes(unresolved: list[str]) -> list[dict[str, str]]:
         "timing.date": ("Timing", "Specify the governing observation date or settlement window."),
         "timing.time_of_day": ("Timing", "Specify the exact cutoff or observation time."),
         "timing.timezone": ("Timing", "Specify the timezone for the governing cutoff."),
-        "definition.objective_condition": ("Definition", "State the exact objective event or value that produces YES versus NO."),
-        "definition.subjective_term": ("Definition", "Replace subjective language with an objectively verifiable condition."),
+        "definition.objective_condition": (
+            "Definition",
+            "State the exact objective event or value that produces YES versus NO.",
+        ),
+        "definition.subjective_term": (
+            "Definition",
+            "Replace subjective language with an objectively verifiable condition.",
+        ),
         "source.authority": ("Source", "Name an approved resolution authority or source."),
-        "source.precedence": ("Source", "Define which source controls and the fallback order if multiple sources are allowed."),
-        "revision.policy": ("Source", "Specify whether the first release, final release, or another revision cutoff controls."),
-        "contract.title_rules_mismatch": ("Contract", "Align the market title with the governing resolution criteria before listing."),
+        "source.precedence": (
+            "Source",
+            "Define which source controls and the fallback order if multiple sources are allowed.",
+        ),
+        "revision.policy": (
+            "Source",
+            "Specify whether the first release, final release, or another revision cutoff controls.",
+        ),
+        "contract.title_rules_mismatch": (
+            "Contract",
+            "Align the market title with the governing resolution criteria before listing.",
+        ),
     }
     out = []
     for field in unresolved:
@@ -218,7 +257,14 @@ def _recommended_fixes(unresolved: list[str]) -> list[dict[str, str]]:
     return out
 
 
-def compile_rules(contract_id: str, title: str, rules: str, known_authorities: list[dict[str, Any]], contract_version: int = 1, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+def compile_rules(
+    contract_id: str,
+    title: str,
+    rules: str,
+    known_authorities: list[dict[str, Any]],
+    contract_version: int = 1,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     semantic = analyze_semantic_contract(title, rules)
     consistency, unresolved_consistency = _title_rules_consistency(title, rules)
     # If title and rules conflict, rule text becomes the only trusted source for
@@ -231,7 +277,9 @@ def compile_rules(contract_id: str, title: str, rules: str, known_authorities: l
     authority_ids, precedence, auth_prov, unresolved_auth = _authorities(extraction_title, rules, known_authorities)
     revision_policy, unresolved_revision = _revision_policy(rules)
 
-    unresolved = list(dict.fromkeys(unresolved_auth + unresolved_time + unresolved_def + unresolved_revision + unresolved_consistency))
+    unresolved = list(
+        dict.fromkeys(unresolved_auth + unresolved_time + unresolved_def + unresolved_revision + unresolved_consistency)
+    )
     spec = {
         "contract_id": contract_id,
         "contract_version": contract_version,
@@ -268,9 +316,11 @@ def compile_rules(contract_id: str, title: str, rules: str, known_authorities: l
         "controls": controls,
         "recommended_fixes": _recommended_fixes(unresolved),
         "status_reason": (
-            "Specification is complete enough to proceed to evidence monitoring." if status == "READY" else
-            "Specification is coherent but requires governed repair or approval before automated resolution." if status == "REVIEW" else
-            "Specification has a blocking inconsistency or missing binding field and cannot proceed."
+            "Specification is complete enough to proceed to evidence monitoring."
+            if status == "READY"
+            else "Specification is coherent but requires governed repair or approval before automated resolution."
+            if status == "REVIEW"
+            else "Specification has a blocking inconsistency or missing binding field and cannot proceed."
         ),
         "boundary": "Compiler output is a proposal. Unresolved fields are never fabricated; binding resolution remains governed and deterministic. Semantic findings are advisory in v0.13 while the ontology is benchmarked before promotion into binding policy.",
     }

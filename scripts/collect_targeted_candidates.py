@@ -13,6 +13,7 @@ Network failures against a single identifier are recorded in the coverage report
 and do not abort the run. Run offline-safe with --dry-run to validate the seed
 file structure without fetching.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -74,7 +75,9 @@ def main() -> None:
     if args.coverage:
         cov = ROOT / args.coverage if not Path(args.coverage).is_absolute() else Path(args.coverage)
         cov.parent.mkdir(parents=True, exist_ok=True)
-        cov.write_text(json.dumps({"coverage": result["coverage"], "summary": result["summary"]}, indent=2), encoding="utf-8")
+        cov.write_text(
+            json.dumps({"coverage": result["coverage"], "summary": result["summary"]}, indent=2), encoding="utf-8"
+        )
 
     for c in result["coverage"]:
         flag = "  <-- DISAGREEMENT" if c["outcome_disagreement"] else ("  (dual)" if c["dual_listed"] else "")

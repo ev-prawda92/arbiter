@@ -5,10 +5,10 @@ This is intentionally not a replacement for `terraform validate`. It catches the
 class of malformed compact HCL that previously slipped through the release gate,
 so packages fail closed even where Terraform is not installed.
 """
+
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,8 +86,7 @@ def main() -> int:
             m = BLOCK_HEADER.match(line)
             if m and m.group(1).strip():
                 problems.append(
-                    f"non-empty top-level HCL block compressed to one line: "
-                    f"{path.relative_to(ROOT)}:{lineno}"
+                    f"non-empty top-level HCL block compressed to one line: {path.relative_to(ROOT)}:{lineno}"
                 )
     if problems:
         for problem in problems:
@@ -96,7 +95,9 @@ def main() -> int:
     print("[PASS] Terraform files present and non-empty")
     print("[PASS] Terraform delimiters are balanced")
     print("[PASS] Terraform top-level blocks are not compressed into invalid single-line HCL")
-    print("NOTE: run `terraform fmt -check && terraform validate` with Terraform installed for authoritative validation.")
+    print(
+        "NOTE: run `terraform fmt -check && terraform validate` with Terraform installed for authoritative validation."
+    )
     return 0
 
 

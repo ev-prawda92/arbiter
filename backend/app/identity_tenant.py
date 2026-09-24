@@ -5,6 +5,7 @@ service identities, and request-context enforcement. Local development defaults
 remain simple; production configurations fail closed when authenticated principals
 lack tenant or principal metadata.
 """
+
 from __future__ import annotations
 
 import json
@@ -76,7 +77,14 @@ class TenantRegistry:
             if not row:
                 db.execute(
                     "INSERT INTO tenants(tenant_id,name,status,created_at,created_by,metadata_json) VALUES(?,?,?,?,?,?)",
-                    ("local", "Local Development", "active", utcnow(), "system:seed", json.dumps({"environment": "development"})),
+                    (
+                        "local",
+                        "Local Development",
+                        "active",
+                        utcnow(),
+                        "system:seed",
+                        json.dumps({"environment": "development"}),
+                    ),
                 )
 
     def create_tenant(self, name: str, actor: str, tenant_id: str | None = None, metadata: dict | None = None) -> dict:
@@ -97,47 +105,81 @@ class TenantRegistry:
             r = db.execute("SELECT * FROM tenants WHERE tenant_id=?", (tenant_id,)).fetchone()
         if not r:
             return None
-        out = dict(r); out["metadata"] = json.loads(out.pop("metadata_json")); return out
+        out = dict(r)
+        out["metadata"] = json.loads(out.pop("metadata_json"))
+        return out
 
     def list_tenants(self) -> list[dict]:
         with self.store.connect() as db:
             rows = db.execute("SELECT * FROM tenants ORDER BY created_at").fetchall()
-        out=[]
+        out = []
         for r in rows:
-            d=dict(r); d["metadata"]=json.loads(d.pop("metadata_json")); out.append(d)
+            d = dict(r)
+            d["metadata"] = json.loads(d.pop("metadata_json"))
+            out.append(d)
         return out
 
-    def register_principal(self, principal_id: str, tenant_id: str, principal_type: str, display_name: str, actor: str, metadata: dict | None = None) -> dict:
+    def register_principal(
+        self,
+        principal_id: str,
+        tenant_id: str,
+        principal_type: str,
+        display_name: str,
+        actor: str,
+        metadata: dict | None = None,
+    ) -> dict:
         if principal_type not in {"human", "service"}:
             raise ValueError("principal_type must be human or service")
         if not self.get_tenant(tenant_id):
             raise ValueError("unknown tenant")
-        now=utcnow()
+        now = utcnow()
         with self.store.connect() as db:
             if db.execute("SELECT 1 FROM principal_registry WHERE principal_id=?", (principal_id,)).fetchone():
                 raise ValueError("principal already exists")
             db.execute(
                 "INSERT INTO principal_registry(principal_id,tenant_id,principal_type,display_name,status,created_at,created_by,metadata_json) VALUES(?,?,?,?,?,?,?,?)",
-                (principal_id,tenant_id,principal_type,display_name,"active",now,actor,json.dumps(metadata or {},sort_keys=True)),
+                (
+                    principal_id,
+                    tenant_id,
+                    principal_type,
+                    display_name,
+                    "active",
+                    now,
+                    actor,
+                    json.dumps(metadata or {}, sort_keys=True),
+                ),
             )
-        self.store._audit(actor,"principal.registered","principal",principal_id,{"tenant_id":tenant_id,"principal_type":principal_type})
+        self.store._audit(
+            actor,
+            "principal.registered",
+            "principal",
+            principal_id,
+            {"tenant_id": tenant_id, "principal_type": principal_type},
+        )
         return self.get_principal(principal_id)
 
     def get_principal(self, principal_id: str) -> dict | None:
         with self.store.connect() as db:
-            r=db.execute("SELECT * FROM principal_registry WHERE principal_id=?",(principal_id,)).fetchone()
-        if not r: return None
-        d=dict(r); d["metadata"]=json.loads(d.pop("metadata_json")); return d
+            r = db.execute("SELECT * FROM principal_registry WHERE principal_id=?", (principal_id,)).fetchone()
+        if not r:
+            return None
+        d = dict(r)
+        d["metadata"] = json.loads(d.pop("metadata_json"))
+        return d
 
     def list_principals(self, tenant_id: str | None = None) -> list[dict]:
         with self.store.connect() as db:
             if tenant_id:
-                rows=db.execute("SELECT * FROM principal_registry WHERE tenant_id=? ORDER BY created_at",(tenant_id,)).fetchall()
+                rows = db.execute(
+                    "SELECT * FROM principal_registry WHERE tenant_id=? ORDER BY created_at", (tenant_id,)
+                ).fetchall()
             else:
-                rows=db.execute("SELECT * FROM principal_registry ORDER BY created_at").fetchall()
-        out=[]
+                rows = db.execute("SELECT * FROM principal_registry ORDER BY created_at").fetchall()
+        out = []
         for r in rows:
-            d=dict(r); d["metadata"]=json.loads(d.pop("metadata_json")); out.append(d)
+            d = dict(r)
+            d["metadata"] = json.loads(d.pop("metadata_json"))
+            out.append(d)
         return out
 
 
@@ -153,10 +195,16 @@ def principal_from_auth(auth: dict, production: bool = False) -> Principal:
         principal_type = principal_type or "human"
         tenant_id = tenant_id or "local"
     if production:
-        missing=[k for k,v in {"principal_id":principal_id,"principal_type":principal_type,"tenant_id":tenant_id}.items() if not v]
+        missing = [
+            k
+            for k, v in {"principal_id": principal_id, "principal_type": principal_type, "tenant_id": tenant_id}.items()
+            if not v
+        ]
         if missing:
             raise ValueError("production principal missing: " + ", ".join(missing))
-    return Principal(principal_id or "anonymous", principal_type or "unknown", tenant_id or "local", scopes, mode, auth.get("key_id"))
+    return Principal(
+        principal_id or "anonymous", principal_type or "unknown", tenant_id or "local", scopes, mode, auth.get("key_id")
+    )
 
 
 def validate_tenant_override(principal: Principal, requested_tenant: str | None) -> str:
@@ -168,17 +216,25 @@ def validate_tenant_override(principal: Principal, requested_tenant: str | None)
 
 
 def posture(store, runtime_config, key_records: list[dict]) -> dict:
-    registry=TenantRegistry(store); registry.ensure_local()
-    malformed=[]
+    registry = TenantRegistry(store)
+    registry.ensure_local()
+    malformed = []
     for r in key_records:
-        if not r.get("tenant_id") or not r.get("principal_id") or r.get("principal_type") not in {"human","service"}:
+        if not r.get("tenant_id") or not r.get("principal_id") or r.get("principal_type") not in {"human", "service"}:
             malformed.append(str(r.get("id") or "unnamed"))
-    findings=[]
+    findings = []
     if runtime_config.production and malformed:
-        findings.append({"severity":"BLOCK","code":"PRINCIPAL_METADATA_INCOMPLETE","detail":"Production API-key records must include tenant_id, principal_id, and principal_type.","key_ids":malformed})
+        findings.append(
+            {
+                "severity": "BLOCK",
+                "code": "PRINCIPAL_METADATA_INCOMPLETE",
+                "detail": "Production API-key records must include tenant_id, principal_id, and principal_type.",
+                "key_ids": malformed,
+            }
+        )
     return {
         "tenant_boundary": "principal-bound tenant context",
-        "principal_types": ["human","service"],
+        "principal_types": ["human", "service"],
         "registered_tenants": len(registry.list_tenants()),
         "registered_principals": len(registry.list_principals()),
         "malformed_key_records": malformed,

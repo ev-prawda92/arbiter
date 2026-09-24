@@ -6,10 +6,20 @@ from typing import Any
 
 ALLOWED_BINARY_OUTCOMES = {"YES", "NO"}
 LEAKAGE_KEYS = {
-    "known_outcome", "result", "settlement_value", "settlement_value_dollars",
-    "outcomePrices", "outcome_prices", "winning_outcome", "market_result",
-    "label", "gold_status", "gold_unresolved_fields", "gold_source",
-    "gold_timing", "gold_definition",
+    "known_outcome",
+    "result",
+    "settlement_value",
+    "settlement_value_dollars",
+    "outcomePrices",
+    "outcome_prices",
+    "winning_outcome",
+    "market_result",
+    "label",
+    "gold_status",
+    "gold_unresolved_fields",
+    "gold_source",
+    "gold_timing",
+    "gold_definition",
 }
 
 
@@ -39,7 +49,17 @@ class Candidate:
 
 def validate_candidate(row: dict[str, Any], min_rules_chars: int = 40) -> list[str]:
     errors: list[str] = []
-    required = ["case_id", "venue", "external_market_id", "title", "rules", "known_outcome", "source_url", "collected_at", "raw_sha256"]
+    required = [
+        "case_id",
+        "venue",
+        "external_market_id",
+        "title",
+        "rules",
+        "known_outcome",
+        "source_url",
+        "collected_at",
+        "raw_sha256",
+    ]
     for key in required:
         if row.get(key) in (None, ""):
             errors.append(f"missing {key}")
@@ -87,8 +107,14 @@ def label_from_candidate(row: dict[str, Any], frozen_at: str) -> dict[str, Any]:
     }
     # Optional independently/human supplied contract-quality gold fields.
     for key in (
-        "gold_status", "gold_unresolved_fields", "gold_source", "gold_timing",
-        "gold_definition", "gold_notes", "gold_reviewed_by", "gold_reviewed_at",
+        "gold_status",
+        "gold_unresolved_fields",
+        "gold_source",
+        "gold_timing",
+        "gold_definition",
+        "gold_notes",
+        "gold_reviewed_by",
+        "gold_reviewed_at",
     ):
         if key in row:
             label[key] = row.get(key)
@@ -105,8 +131,6 @@ def provenance_from_candidate(row: dict[str, Any]) -> dict[str, Any]:
         "raw_sha256": str(row["raw_sha256"]),
         "settled_at": row.get("settled_at"),
     }
-
-
 
 
 def evidence_from_candidate(row: dict[str, Any]) -> dict[str, Any] | None:
@@ -140,6 +164,7 @@ def evidence_from_candidate(row: dict[str, Any]) -> dict[str, Any] | None:
         "retrieved_at": raw.get("retrieved_at"),
         "raw_sha256": raw_hash,
     }
+
 
 def detect_label_leakage(value: Any, path: str = "$") -> list[str]:
     hits: list[str] = []

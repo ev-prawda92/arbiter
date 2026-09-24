@@ -18,7 +18,9 @@ from app.real_benchmark.runner import run_blind
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Run Arbiter blind against a frozen holdout. Labels are not read by the prediction runner.")
+    ap = argparse.ArgumentParser(
+        description="Run Arbiter blind against a frozen holdout. Labels are not read by the prediction runner."
+    )
     ap.add_argument("dataset", nargs="?", default="benchmarks/arb_gold_holdout_v0_1")
     ap.add_argument("--out")
     ap.add_argument("--name", default="ARB-GOLD-HOLDOUT-v0.1-blind")
@@ -33,9 +35,14 @@ def main() -> None:
     seed_reference_data()
     authorities = store.list_authorities()
     result = run_blind(
-        dataset, out, engine_module=engine, compiler_module=compiler,
-        semantic_module=semantic_contract, policy=policy.load_policy(),
-        authorities=authorities, run_name=args.name,
+        dataset,
+        out,
+        engine_module=engine,
+        compiler_module=compiler,
+        semantic_module=semantic_contract,
+        policy=policy.load_policy(),
+        authorities=authorities,
+        run_name=args.name,
     )
     print(json.dumps(result["manifest"], indent=2, sort_keys=True))
     print(f"Predictions: {out / 'predictions.jsonl'}")

@@ -1,4 +1,5 @@
 """Tests for the cross-venue join. No network I/O; synthetic + real fixture."""
+
 from __future__ import annotations
 
 import sys
@@ -17,8 +18,7 @@ from app.real_benchmark.cross_venue import (  # noqa: E402
 
 
 def _row(venue, cid, title, outcome, settled="2026-09-09T18:00:00Z"):
-    return {"case_id": cid, "venue": venue, "title": title,
-            "known_outcome": outcome, "settled_at": settled}
+    return {"case_id": cid, "venue": venue, "title": title, "known_outcome": outcome, "settled_at": settled}
 
 
 def test_same_event_disagreement_is_surfaced_and_ranked_first():
@@ -70,6 +70,7 @@ def test_real_fixture_runs_if_present():
     if not fixture.exists():
         return
     import json
+
     rows = [json.loads(l) for l in fixture.open()]
     res = join_candidates(rows, min_confidence=0.35)
     assert res["summary"]["left_count"] > 0
@@ -81,6 +82,7 @@ def test_real_fixture_runs_if_present():
 
 if __name__ == "__main__":
     import traceback
+
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
     for fn in fns:

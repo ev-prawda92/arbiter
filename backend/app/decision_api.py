@@ -4,6 +4,7 @@ The router is dependency-injected so the existing main application can mount it 
 one include_router call while keeping DecisionRecord storage and reevaluation logic
 independently testable.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -35,7 +36,7 @@ class DecisionPrecedentQuery(BaseModel):
 
 
 def _cluster_from_overview(overview: dict[str, Any], cluster_id: str) -> dict[str, Any] | None:
-    ops = ((overview.get("agent_brief") or {}).get("operations_intelligence") or {})
+    ops = (overview.get("agent_brief") or {}).get("operations_intelligence") or {}
     return next((c for c in (ops.get("clusters") or []) if c.get("cluster_id") == cluster_id), None)
 
 
@@ -121,11 +122,7 @@ def build_router(
         if not cluster:
             raise HTTPException(404, "work pattern not found")
 
-        active_by_id = {
-            str(i.get("id")): i
-            for i in (before_queue.get("items") or [])
-            if i.get("status") != "resolved"
-        }
+        active_by_id = {str(i.get("id")): i for i in (before_queue.get("items") or []) if i.get("status") != "resolved"}
         affected = [str(x) for x in (cluster.get("case_ids") or []) if str(x) in active_by_id]
         selected = active_by_id.get(affected[0]) if affected else None
         prompt = decision_operations.build_decision_prompt(cluster, selected)

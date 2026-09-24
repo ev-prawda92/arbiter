@@ -12,17 +12,23 @@ import json
 import os
 from datetime import datetime, timezone
 
-_DATA = os.path.join(os.path.dirname(__file__), "..", "data", "policy.json")
+# Live policy state is runtime data, not source: it is created from DEFAULT_POLICY
+# on first use and is not tracked in git (running the gates changes it).
+# ARBITER_POLICY_PATH lets tests and deployments point it elsewhere.
+_DATA = os.environ.get("ARBITER_POLICY_PATH") or os.path.join(os.path.dirname(__file__), "..", "data", "policy.json")
 
 DEFAULT_POLICY = {
     "version": "2026.08.24-1",
     "weights": {"source": 0.30, "timing": 0.30, "definition": 0.40},
     "thresholds": {"clean": 20, "monitored": 50},
     "changelog": [
-        {"version": "2026.08.24-1", "at": "2026-08-24T00:00:00Z",
-         "by": "arbiter.default",
-         "note": "Initial policy. Definition weighted highest — interpretive "
-                 "ambiguity is the most common driver of disputed resolutions."},
+        {
+            "version": "2026.08.24-1",
+            "at": "2026-08-24T00:00:00Z",
+            "by": "arbiter.default",
+            "note": "Initial policy. Definition weighted highest — interpretive "
+            "ambiguity is the most common driver of disputed resolutions.",
+        },
     ],
 }
 
@@ -51,13 +57,15 @@ def update_policy(new_weights=None, new_thresholds=None, by="exchange.admin", no
         policy["thresholds"].update(new_thresholds)
     stamp = datetime.now(timezone.utc)
     policy["version"] = stamp.strftime("%Y.%m.%d") + f"-{len(policy['changelog']) + 1}"
-    policy["changelog"].append({
-        "version": policy["version"],
-        "at": stamp.isoformat(),
-        "by": by,
-        "note": note or "policy updated",
-        "weights": dict(policy["weights"]),
-        "thresholds": dict(policy["thresholds"]),
-    })
+    policy["changelog"].append(
+        {
+            "version": policy["version"],
+            "at": stamp.isoformat(),
+            "by": by,
+            "note": note or "policy updated",
+            "weights": dict(policy["weights"]),
+            "thresholds": dict(policy["thresholds"]),
+        }
+    )
     save_policy(policy)
     return policy

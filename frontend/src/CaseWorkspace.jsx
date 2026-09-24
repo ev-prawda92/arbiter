@@ -308,7 +308,7 @@ export default function CaseWorkspace() {
     {open && <div className="cw-backdrop" onMouseDown={e => e.target === e.currentTarget && setOpen(false)}>
       <div className="cw-shell">
         <header className="cw-header">
-          <div><span>Arbiter v0.33 · Operator loop</span><h2>Clear the decisions that actually need a human</h2><p>Investigate the shared root cause, act once where governance permits, then re-evaluate every affected case.</p></div>
+          <div><span>Arbiter · Operator loop</span><h2>Clear the decisions that actually need a human</h2><p>Investigate the shared root cause, act once where governance permits, then re-evaluate every affected case.</p></div>
           <div className="cw-header-actions"><button onClick={load} disabled={loading}>Refresh</button><button className="cw-close" onClick={() => setOpen(false)}>×</button></div>
         </header>
 

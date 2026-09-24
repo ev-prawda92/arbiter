@@ -6,7 +6,6 @@ from typing import Any
 
 from . import BENCHMARK_VERSION
 from .dataset import verify_dataset
-from .runner import verify_prediction_run
 
 
 def default_dataset_dir() -> Path:
@@ -23,7 +22,11 @@ def posture(dataset_dir: str | Path | None = None, runs_dir: str | Path | None =
     verification = verify_dataset(dataset_root)
     latest: dict[str, Any] | None = None
     if runs_root.exists():
-        candidates = sorted((p for p in runs_root.iterdir() if p.is_dir() and (p / "run_manifest.json").exists()), key=lambda p: p.stat().st_mtime, reverse=True)
+        candidates = sorted(
+            (p for p in runs_root.iterdir() if p.is_dir() and (p / "run_manifest.json").exists()),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
         if candidates:
             try:
                 run_manifest = json.loads((candidates[0] / "run_manifest.json").read_text(encoding="utf-8"))
@@ -44,5 +47,7 @@ def posture(dataset_dir: str | Path | None = None, runs_dir: str | Path | None =
         "blind_run_required": True,
         "tune_on_holdout": False,
         "production_settlement_certified": False,
-        "next_action": "Collect and curate 50–100 resolved real contracts, then freeze ARB-GOLD-HOLDOUT-v0.1." if not verification.get("ok") else "Run Arbiter blind, pin predictions, then score labels/evidence coverage.",
+        "next_action": "Collect and curate 50–100 resolved real contracts, then freeze ARB-GOLD-HOLDOUT-v0.1."
+        if not verification.get("ok")
+        else "Run Arbiter blind, pin predictions, then score labels/evidence coverage.",
     }

@@ -1,4 +1,5 @@
 """Dependency-free Arbiter Python SDK preview."""
+
 from __future__ import annotations
 
 import json
@@ -36,13 +37,17 @@ class Arbiter:
         return self._call("GET", "/api/developer")
 
     def compile(self, contract_id, title, rules, contract_version=1, metadata=None):
-        return self._call("POST", "/api/compile", {
-            "contract_id": contract_id,
-            "contract_version": contract_version,
-            "title": title,
-            "rules": rules,
-            "metadata": metadata or {},
-        })
+        return self._call(
+            "POST",
+            "/api/compile",
+            {
+                "contract_id": contract_id,
+                "contract_version": contract_version,
+                "title": title,
+                "rules": rules,
+                "metadata": metadata or {},
+            },
+        )
 
     def contracts(self):
         return self._call("GET", "/api/contracts")
@@ -72,27 +77,45 @@ class Arbiter:
 
     # Public v1 Resolution API
     def compile_v1(self, contract_id, title, rules, contract_version=1, exchange_profile="generic", metadata=None):
-        return self._call("POST", "/v1/contracts/compile", {
-            "contract_id": contract_id,
-            "title": title,
-            "rules": rules,
-            "contract_version": contract_version,
-            "exchange_profile": exchange_profile,
-            "metadata": metadata or {},
-        })
+        return self._call(
+            "POST",
+            "/v1/contracts/compile",
+            {
+                "contract_id": contract_id,
+                "title": title,
+                "rules": rules,
+                "contract_version": contract_version,
+                "exchange_profile": exchange_profile,
+                "metadata": metadata or {},
+            },
+        )
 
-    def resolve_v1(self, contract_id, title, rules, evidence=None, contract_version=1,
-                   exchange_profile="generic", metadata=None, idempotency_key=None):
+    def resolve_v1(
+        self,
+        contract_id,
+        title,
+        rules,
+        evidence=None,
+        contract_version=1,
+        exchange_profile="generic",
+        metadata=None,
+        idempotency_key=None,
+    ):
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
-        return self._call("POST", "/v1/contracts/resolve", {
-            "contract_id": contract_id,
-            "title": title,
-            "rules": rules,
-            "contract_version": contract_version,
-            "exchange_profile": exchange_profile,
-            "metadata": metadata or {},
-            "evidence": evidence,
-        }, headers=headers)
+        return self._call(
+            "POST",
+            "/v1/contracts/resolve",
+            {
+                "contract_id": contract_id,
+                "title": title,
+                "rules": rules,
+                "contract_version": contract_version,
+                "exchange_profile": exchange_profile,
+                "metadata": metadata or {},
+                "evidence": evidence,
+            },
+            headers=headers,
+        )
 
     def resolution_v1(self, resolution_id):
         return self._call("GET", f"/v1/resolutions/{parse.quote(resolution_id)}")
@@ -101,10 +124,14 @@ class Arbiter:
         return self._call("GET", f"/v1/evidence/{parse.quote(resolution_id)}")
 
     def verify_v1(self, resolution_id, expected_response_sha256=None):
-        return self._call("POST", "/v1/contracts/verify", {
-            "resolution_id": resolution_id,
-            "expected_response_sha256": expected_response_sha256,
-        })
+        return self._call(
+            "POST",
+            "/v1/contracts/verify",
+            {
+                "resolution_id": resolution_id,
+                "expected_response_sha256": expected_response_sha256,
+            },
+        )
 
     def resolution_audit_v1(self, resolution_id):
         return self._call("GET", f"/v1/audit/{parse.quote(resolution_id)}")

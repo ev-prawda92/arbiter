@@ -1,0 +1,4 @@
+# Development and CI tooling (make check)
+-r requirements.txt
+pytest==9.1.1
+ruff==0.16.8

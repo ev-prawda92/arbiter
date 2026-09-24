@@ -9,6 +9,7 @@ engine remains the binding gate while semantic findings are introduced and
 benchmarked. A later governed policy can promote selected semantic findings to
 binding pre-listing controls.
 """
+
 from __future__ import annotations
 
 import re
@@ -41,11 +42,13 @@ def _cpi_semantics(text: str) -> dict[str, Any]:
     elif re.search(r"\bcore\s+CPI\b|CPI.*less food and energy", text, re.I):
         extracted["series"] = "CPI-U Less Food and Energy"
     else:
-        clarifications.append(_clarification(
-            "semantic.metric_series",
-            "Which CPI series governs the market (for example CPI-U All Items, CPI-W, or Core CPI)?",
-            "'CPI' names a family of indexes rather than one unique data series.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.metric_series",
+                "Which CPI series governs the market (for example CPI-U All Items, CPI-W, or Core CPI)?",
+                "'CPI' names a family of indexes rather than one unique data series.",
+            )
+        )
 
     if re.search(r"year[- ]over[- ]year|\by/?y\b|12[- ]month|from (?:a|one) year (?:earlier|ago)", text, re.I):
         extracted["measurement_basis"] = "year_over_year_percent_change"
@@ -54,32 +57,38 @@ def _cpi_semantics(text: str) -> dict[str, Any]:
     elif re.search(r"index (?:level|value)|CPI (?:level|index)", text, re.I):
         extracted["measurement_basis"] = "index_level"
     else:
-        clarifications.append(_clarification(
-            "semantic.measurement_basis",
-            "Does the threshold apply to year-over-year CPI, month-over-month CPI, or the index level?",
-            "A percentage threshold such as 3.0% is ambiguous without the measurement basis.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.measurement_basis",
+                "Does the threshold apply to year-over-year CPI, month-over-month CPI, or the index level?",
+                "A percentage threshold such as 3.0% is ambiguous without the measurement basis.",
+            )
+        )
 
     if re.search(r"not seasonally adjusted|unadjusted|\bNSA\b", text, re.I):
         extracted["seasonal_adjustment"] = "not_seasonally_adjusted"
     elif re.search(r"seasonally adjusted|seasonal(?:ly)? adjusted|\bSA\b", text, re.I):
         extracted["seasonal_adjustment"] = "seasonally_adjusted"
     else:
-        clarifications.append(_clarification(
-            "semantic.seasonal_adjustment",
-            "Should the governing CPI observation be seasonally adjusted or not seasonally adjusted?",
-            "BLS publishes measures on different adjustment bases and the contract should pin the intended one.",
-            severity="INFO",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.seasonal_adjustment",
+                "Should the governing CPI observation be seasonally adjusted or not seasonally adjusted?",
+                "BLS publishes measures on different adjustment bases and the contract should pin the intended one.",
+                severity="INFO",
+            )
+        )
 
     if re.search(r"\bU\.S\.|\bUS\b|United States|national", text, re.I):
         extracted["geography"] = "United States"
     else:
-        clarifications.append(_clarification(
-            "semantic.geography",
-            "What geography does the CPI observation cover?",
-            "The governing population/geography should be explicit for reproducible resolution.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.geography",
+                "What geography does the CPI observation cover?",
+                "The governing population/geography should be explicit for reproducible resolution.",
+            )
+        )
 
     # Reference period and publication date are distinct concepts. Detect explicit
     # reference-month language separately from a dated release/observation.
@@ -87,31 +96,37 @@ def _cpi_semantics(text: str) -> dict[str, Any]:
     if ref:
         extracted["reference_period_text"] = ref
     else:
-        clarifications.append(_clarification(
-            "semantic.reference_period",
-            "Which CPI reference month/period is being measured?",
-            "The month in which BLS publishes CPI is not necessarily the month the CPI observation describes.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.reference_period",
+                "Which CPI reference month/period is being measured?",
+                "The month in which BLS publishes CPI is not necessarily the month the CPI observation describes.",
+            )
+        )
 
     if re.search(r"Bureau of Labor Statistics|\bBLS\b", text, re.I):
         extracted["publisher"] = "U.S. Bureau of Labor Statistics"
     else:
-        clarifications.append(_clarification(
-            "semantic.publisher",
-            "Which authoritative publisher controls the CPI result?",
-            "The semantic metric must map to an explicit authoritative publication.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.publisher",
+                "Which authoritative publisher controls the CPI result?",
+                "The semantic metric must map to an explicit authoritative publication.",
+            )
+        )
 
     if re.search(r"first (?:published )?release|initial release|first print", text, re.I):
         extracted["revision_semantics"] = "first_release"
     elif re.search(r"final release|final value|latest revised|revised value", text, re.I):
         extracted["revision_semantics"] = "final_or_revised"
     else:
-        clarifications.append(_clarification(
-            "semantic.revision_semantics",
-            "Does the first published CPI value control, or can later revisions change the result?",
-            "Revision semantics determine which real-world observation is legally/operationally binding.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.revision_semantics",
+                "Does the first published CPI value control, or can later revisions change the result?",
+                "Revision semantics determine which real-world observation is legally/operationally binding.",
+            )
+        )
 
     return {
         "concept": {
@@ -133,20 +148,24 @@ def _fed_semantics(text: str) -> dict[str, Any]:
     elif re.search(r"federal funds rate|fed funds rate", text, re.I):
         extracted["rate_instrument"] = "federal_funds_rate"
     else:
-        clarifications.append(_clarification(
-            "semantic.rate_instrument",
-            "Which Federal Reserve rate or policy instrument must change?",
-            "'Interest rates' can refer to many rates; resolution should pin the specific FOMC-controlled instrument.",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.rate_instrument",
+                "Which Federal Reserve rate or policy instrument must change?",
+                "'Interest rates' can refer to many rates; resolution should pin the specific FOMC-controlled instrument.",
+            )
+        )
     if re.search(r"FOMC statement|Federal Open Market Committee statement", text, re.I):
         extracted["governing_publication"] = "FOMC statement"
     elif re.search(r"Federal Reserve|FOMC", text, re.I):
-        clarifications.append(_clarification(
-            "semantic.governing_publication",
-            "Which official Federal Reserve publication is binding evidence (for example the FOMC statement)?",
-            "Naming the institution alone may leave multiple official publications available.",
-            severity="INFO",
-        ))
+        clarifications.append(
+            _clarification(
+                "semantic.governing_publication",
+                "Which official Federal Reserve publication is binding evidence (for example the FOMC statement)?",
+                "Naming the institution alone may leave multiple official publications available.",
+                severity="INFO",
+            )
+        )
     return {
         "concept": {
             "concept_id": "MONETARY_POLICY.FOMC_RATE_ACTION",
@@ -165,18 +184,36 @@ def _weather_semantics(text: str) -> dict[str, Any]:
     if re.search(r"NOAA|National Weather Service|\bNWS\b", text, re.I):
         extracted["publisher"] = "NOAA/National Weather Service"
     else:
-        clarifications.append(_clarification("semantic.weather_authority", "Which weather station/source controls?", "Weather observations vary by station and provider."))
+        clarifications.append(
+            _clarification(
+                "semantic.weather_authority",
+                "Which weather station/source controls?",
+                "Weather observations vary by station and provider.",
+            )
+        )
     station = _found(r"(?:station|airport)\s+[A-Z0-9-]{3,8}", text)
     if station:
         extracted["station_text"] = station
     else:
-        clarifications.append(_clarification("semantic.observation_location", "Which exact station or observation location controls?", "City-level weather can differ across observing stations."))
+        clarifications.append(
+            _clarification(
+                "semantic.observation_location",
+                "Which exact station or observation location controls?",
+                "City-level weather can differ across observing stations.",
+            )
+        )
     if re.search(r"maximum|daily high|high temperature", text, re.I):
         extracted["measurement"] = "daily_max_temperature"
     elif re.search(r"minimum|daily low|low temperature", text, re.I):
         extracted["measurement"] = "daily_min_temperature"
     elif re.search(r"temperature", text, re.I):
-        clarifications.append(_clarification("semantic.weather_measurement", "Is the governing value an instantaneous observation, daily high, daily low, or another statistic?", "'Temperature' alone does not identify one reproducible observation."))
+        clarifications.append(
+            _clarification(
+                "semantic.weather_measurement",
+                "Is the governing value an instantaneous observation, daily high, daily low, or another statistic?",
+                "'Temperature' alone does not identify one reproducible observation.",
+            )
+        )
     return {
         "concept": {
             "concept_id": "WEATHER.OBSERVATION",

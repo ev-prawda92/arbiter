@@ -12,6 +12,7 @@ Asserts (fail-closed):
   R4 an unknown work pattern answers the handler's own 404, not the static 404
   R5 the frontend pages are still served when a build is present
 """
+
 from __future__ import annotations
 
 import os
@@ -61,15 +62,16 @@ def main() -> None:
     # Anything that is not itself a Mount but sits after one is shadowed; this
     # includes routers added via include_router, which some FastAPI versions
     # register as a single wrapper object rather than individual APIRoutes.
-    late = [getattr(r, "path", None) or type(r).__name__
-            for r in routes[first_mount:] if not isinstance(r, Mount)]
+    late = [getattr(r, "path", None) or type(r).__name__ for r in routes[first_mount:] if not isinstance(r, Mount)]
     check(not late, f"no API route registered after the static mount (late: {late})")
 
     client = TestClient(app)
 
     r = client.get("/api/decisions")
-    check(r.status_code == 200 and isinstance(r.json().get("decisions"), list),
-          f"GET /api/decisions -> 200 (got {r.status_code})")
+    check(
+        r.status_code == 200 and isinstance(r.json().get("decisions"), list),
+        f"GET /api/decisions -> 200 (got {r.status_code})",
+    )
 
     overview = client.get("/api/overview")
     check(overview.status_code == 200, "GET /api/overview -> 200")
@@ -77,12 +79,16 @@ def main() -> None:
     check(cluster_id is not None, "overview exposes at least one work pattern")
 
     r = client.get(f"/api/decision-context/{cluster_id}")
-    check(r.status_code == 200 and "decision_prompt" in r.json(),
-          f"GET /api/decision-context/{cluster_id} -> 200 with a decision prompt (got {r.status_code})")
+    check(
+        r.status_code == 200 and "decision_prompt" in r.json(),
+        f"GET /api/decision-context/{cluster_id} -> 200 with a decision prompt (got {r.status_code})",
+    )
 
     r = client.get("/api/decision-context/cluster_does_not_exist")
-    check(r.status_code == 404 and r.json().get("detail") == "work pattern not found",
-          "unknown work pattern gets the handler's 404, not the static-files 404")
+    check(
+        r.status_code == 404 and r.json().get("detail") == "work pattern not found",
+        "unknown work pattern gets the handler's 404, not the static-files 404",
+    )
 
     dist = os.path.join(BACKEND, "dist")
     if os.path.isdir(dist):

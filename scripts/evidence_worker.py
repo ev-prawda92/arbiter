@@ -5,6 +5,7 @@ Small production-shaped worker process that asks the Arbiter API for due
 monitors. The API remains the authority for scheduling, backoff, idempotency,
 and audit. Run this process under a supervisor/container in deployed envs.
 """
+
 from __future__ import annotations
 import argparse
 import json
@@ -16,9 +17,11 @@ import urllib.request
 
 STOP = False
 
+
 def _stop(*_):
     global STOP
     STOP = True
+
 
 def call(base: str, key: str | None, limit: int) -> dict:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
@@ -26,11 +29,14 @@ def call(base: str, key: str | None, limit: int) -> dict:
         headers["X-Arbiter-Key"] = key
     req = urllib.request.Request(
         base.rstrip("/") + f"/api/evidence-poll-due?limit={limit}",
-        data=b"{}", headers=headers, method="POST",
+        data=b"{}",
+        headers=headers,
+        method="POST",
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         raw = resp.read()
         return json.loads(raw.decode()) if raw else {}
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -60,6 +66,7 @@ def main() -> int:
                 break
             time.sleep(1)
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

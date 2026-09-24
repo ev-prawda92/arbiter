@@ -1,0 +1,26 @@
+[project]
+name = "arbiter"
+dynamic = ["version"]
+description = "Independent resolution-integrity infrastructure for event-contract exchanges"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["frontend", "backend/dist", "sdk/**/node_modules"]
+
+[tool.ruff.lint]
+# Correctness-focused: syntax errors, undefined names, unused imports/variables,
+# mutable defaults and exception chaining. (B008 is off: FastAPI Depends() defaults are idiomatic.)
+# bare re-raises and similar real defects - not stylistic preferences.
+select = ["E9", "F", "B006", "B904"]
+ignore = ["F403", "F405", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]
+"tests/*" = ["E402"]
+"demo/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

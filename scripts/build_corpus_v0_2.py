@@ -17,12 +17,12 @@ Stages, each writing into --out-dir (default benchmarks/v0_2):
 --skip-collect reuses an existing candidates file (--candidates) so stages 2-4
 can be re-run offline without re-hitting the network.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import sys
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +35,7 @@ from app.real_benchmark.cross_venue import join_candidates
 from app.real_benchmark.hardness import classify_pool
 from app.real_benchmark.hashing import read_jsonl, write_jsonl
 
-# Pivoted v0.2 targets (see HARD_CORPUS_V0_2.md). interpretive is filled by
+# Pivoted v0.2 targets (see docs/benchmark/HARD_CORPUS_V0_2.md). interpretive is filled by
 # triage of hints, so its "auto" fill is reported as hints, not a primary count.
 QUOTAS = {
     "interpretive_criteria": 35,

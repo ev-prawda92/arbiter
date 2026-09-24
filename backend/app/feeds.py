@@ -31,6 +31,7 @@ def _sample(name):
 
 # --------------------------------------------------------------------- markets
 
+
 def get_markets(limit=40, live=True):
     """Return a list of normalized market dicts. Tries Kalshi live, falls back to sample."""
     if live:
@@ -51,16 +52,18 @@ def _kalshi_live(limit):
         raw = r.json().get("markets", [])
     out = []
     for m in raw:
-        out.append({
-            "ticker": m.get("ticker"),
-            "title": m.get("title") or m.get("yes_sub_title") or "",
-            "subtitle": m.get("subtitle") or m.get("yes_sub_title") or "",
-            "category": m.get("category") or "uncategorized",
-            "rules_primary": m.get("rules_primary") or "",
-            "rules_secondary": m.get("rules_secondary") or "",
-            "open_interest": _oi(m),
-            "_source": "kalshi-live",
-        })
+        out.append(
+            {
+                "ticker": m.get("ticker"),
+                "title": m.get("title") or m.get("yes_sub_title") or "",
+                "subtitle": m.get("subtitle") or m.get("yes_sub_title") or "",
+                "category": m.get("category") or "uncategorized",
+                "rules_primary": m.get("rules_primary") or "",
+                "rules_secondary": m.get("rules_secondary") or "",
+                "open_interest": _oi(m),
+                "_source": "kalshi-live",
+            }
+        )
     return out[:limit]
 
 
@@ -77,6 +80,7 @@ def _tag_source(markets, tag):
 
 
 # ------------------------------------------------------------- resolution source
+
 
 def get_source_value(report, live=True):
     """
@@ -100,8 +104,15 @@ def get_source_value(report, live=True):
     return samples.get(report.get("ticker"))
 
 
-_STATIONS = {"nyc": "KNYC", "central park": "KNYC", "chicago": "KORD", "o'hare": "KORD",
-             "miami": "KMIA", "los angeles": "KLAX", "denver": "KDEN"}
+_STATIONS = {
+    "nyc": "KNYC",
+    "central park": "KNYC",
+    "chicago": "KORD",
+    "o'hare": "KORD",
+    "miami": "KMIA",
+    "los angeles": "KLAX",
+    "denver": "KDEN",
+}
 
 
 def _station_for(report):
@@ -121,5 +132,4 @@ def _nws_live(station):
         if temp_c is None:
             raise ValueError("no temperature in observation")
         temp_f = round(temp_c * 9 / 5 + 32, 1)
-        return {"value": temp_f, "label": f"{temp_f}\u00b0F observed at {station} (NWS live)",
-                "source": "nws-live"}
+        return {"value": temp_f, "label": f"{temp_f}\u00b0F observed at {station} (NWS live)", "source": "nws-live"}

@@ -2,11 +2,13 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any
 
+
 @dataclass
 class Expected:
     lever: str
     failure_mode: str
     should_be_clean: bool = False
+
 
 @dataclass
 class BenchmarkCase:

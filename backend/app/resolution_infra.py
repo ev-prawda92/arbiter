@@ -11,6 +11,7 @@ The module intentionally uses sqlite3 from the standard library for the local
 reference implementation.  Production can move the same schema behind
 PostgreSQL without changing the domain contracts exposed by this module.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -315,13 +316,24 @@ class ResolutionStore:
             event_hash = canonical_hash(event)
             db.execute(
                 "INSERT INTO audit_events(event_id,occurred_at,actor,action,object_type,object_id,details_json,previous_hash,event_hash) VALUES(?,?,?,?,?,?,?,?,?)",
-                (event["event_id"], event["occurred_at"], actor, action, object_type, object_id,
-                 json.dumps(details, sort_keys=True), previous_hash, event_hash),
+                (
+                    event["event_id"],
+                    event["occurred_at"],
+                    actor,
+                    action,
+                    object_type,
+                    object_id,
+                    json.dumps(details, sort_keys=True),
+                    previous_hash,
+                    event_hash,
+                ),
             )
             event["event_hash"] = event_hash
             return event
 
-    def save_contract(self, spec: ResolutionSpecification, actor: str = "system", status: str = "draft") -> dict[str, Any]:
+    def save_contract(
+        self, spec: ResolutionSpecification, actor: str = "system", status: str = "draft"
+    ) -> dict[str, Any]:
         errors = spec.validate()
         if errors:
             raise ValueError("; ".join(errors))
@@ -329,10 +341,23 @@ class ResolutionStore:
         with self.connect() as db:
             db.execute(
                 "INSERT INTO contract_versions(contract_id,version,created_at,created_by,spec_json,spec_hash,status) VALUES(?,?,?,?,?,?,?)",
-                (spec.contract_id, spec.contract_version, utcnow(), actor, json.dumps(payload, sort_keys=True), payload["spec_hash"], status),
+                (
+                    spec.contract_id,
+                    spec.contract_version,
+                    utcnow(),
+                    actor,
+                    json.dumps(payload, sort_keys=True),
+                    payload["spec_hash"],
+                    status,
+                ),
             )
-        self._audit(actor, "contract.version.created", "contract", spec.contract_id,
-                    {"version": spec.contract_version, "status": status, "spec_hash": payload["spec_hash"]})
+        self._audit(
+            actor,
+            "contract.version.created",
+            "contract",
+            spec.contract_id,
+            {"version": spec.contract_version, "status": status, "spec_hash": payload["spec_hash"]},
+        )
         return payload | {"status": status}
 
     def save_authority(self, authority: Authority, actor: str = "system") -> dict[str, Any]:
@@ -340,10 +365,23 @@ class ResolutionStore:
         with self.connect() as db:
             db.execute(
                 "INSERT INTO authority_versions(authority_id,version,created_at,created_by,authority_json,authority_hash,status) VALUES(?,?,?,?,?,?,?)",
-                (authority.authority_id, authority.version, utcnow(), actor, json.dumps(payload, sort_keys=True), payload["authority_hash"], authority.status),
+                (
+                    authority.authority_id,
+                    authority.version,
+                    utcnow(),
+                    actor,
+                    json.dumps(payload, sort_keys=True),
+                    payload["authority_hash"],
+                    authority.status,
+                ),
             )
-        self._audit(actor, "authority.version.created", "authority", authority.authority_id,
-                    {"version": authority.version, "status": authority.status, "authority_hash": payload["authority_hash"]})
+        self._audit(
+            actor,
+            "authority.version.created",
+            "authority",
+            authority.authority_id,
+            {"version": authority.version, "status": authority.status, "authority_hash": payload["authority_hash"]},
+        )
         return payload
 
     def append_evidence(self, record: EvidenceRecord, actor: str = "system:evidence") -> dict[str, Any]:
@@ -361,13 +399,31 @@ class ResolutionStore:
                     raise ValueError("supersedes references unknown evidence")
             db.execute(
                 "INSERT INTO evidence_records(evidence_id,authority_id,authority_version,contract_id,retrieved_at,observed_at,revision_number,supersedes,record_json,record_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                (record.evidence_id, record.authority_id, record.authority_version, record.contract_id,
-                 record.retrieved_at, record.observed_at, record.revision_number, record.supersedes,
-                 json.dumps(payload, sort_keys=True), payload["record_hash"]),
+                (
+                    record.evidence_id,
+                    record.authority_id,
+                    record.authority_version,
+                    record.contract_id,
+                    record.retrieved_at,
+                    record.observed_at,
+                    record.revision_number,
+                    record.supersedes,
+                    json.dumps(payload, sort_keys=True),
+                    payload["record_hash"],
+                ),
             )
-        self._audit(actor, "evidence.appended", "evidence", record.evidence_id,
-                    {"authority_id": record.authority_id, "contract_id": record.contract_id,
-                     "revision_number": record.revision_number, "record_hash": payload["record_hash"]})
+        self._audit(
+            actor,
+            "evidence.appended",
+            "evidence",
+            record.evidence_id,
+            {
+                "authority_id": record.authority_id,
+                "contract_id": record.contract_id,
+                "revision_number": record.revision_number,
+                "record_hash": payload["record_hash"],
+            },
+        )
         return payload
 
     def save_run(self, run: ResolutionRun, actor: str = "system:resolver") -> dict[str, Any]:
@@ -384,13 +440,33 @@ class ResolutionStore:
                     raise ValueError(f"unknown evidence_id: {evidence_id}")
             db.execute(
                 "INSERT INTO resolution_runs(run_id,contract_id,contract_version,policy_version,engine_version,started_at,completed_at,state,outcome,run_json,run_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                (run.run_id, run.contract_id, run.contract_version, run.policy_version, run.engine_version,
-                 run.started_at, run.completed_at, run.state, run.outcome,
-                 json.dumps(payload, sort_keys=True), payload["run_hash"]),
+                (
+                    run.run_id,
+                    run.contract_id,
+                    run.contract_version,
+                    run.policy_version,
+                    run.engine_version,
+                    run.started_at,
+                    run.completed_at,
+                    run.state,
+                    run.outcome,
+                    json.dumps(payload, sort_keys=True),
+                    payload["run_hash"],
+                ),
             )
-        self._audit(actor, "resolution.run.recorded", "resolution_run", run.run_id,
-                    {"contract_id": run.contract_id, "contract_version": run.contract_version,
-                     "state": run.state, "outcome": run.outcome, "run_hash": payload["run_hash"]})
+        self._audit(
+            actor,
+            "resolution.run.recorded",
+            "resolution_run",
+            run.run_id,
+            {
+                "contract_id": run.contract_id,
+                "contract_version": run.contract_version,
+                "state": run.state,
+                "outcome": run.outcome,
+                "run_hash": payload["run_hash"],
+            },
+        )
         return payload
 
     def _json_rows(self, sql: str, args: Iterable[Any], field: str) -> list[dict[str, Any]]:
@@ -405,7 +481,9 @@ class ResolutionStore:
 
     def latest_contract(self, contract_id: str) -> dict[str, Any] | None:
         rows = self._json_rows(
-            "SELECT spec_json FROM contract_versions WHERE contract_id=? ORDER BY version DESC LIMIT 1", (contract_id,), "spec_json"
+            "SELECT spec_json FROM contract_versions WHERE contract_id=? ORDER BY version DESC LIMIT 1",
+            (contract_id,),
+            "spec_json",
         )
         return rows[0] if rows else None
 
@@ -416,36 +494,56 @@ class ResolutionStore:
 
     def get_authority(self, authority_id: str, version: int | None = None) -> dict[str, Any] | None:
         if version is None:
-            sql, args = "SELECT authority_json FROM authority_versions WHERE authority_id=? ORDER BY version DESC LIMIT 1", (authority_id,)
+            sql, args = (
+                "SELECT authority_json FROM authority_versions WHERE authority_id=? ORDER BY version DESC LIMIT 1",
+                (authority_id,),
+            )
         else:
-            sql, args = "SELECT authority_json FROM authority_versions WHERE authority_id=? AND version=?", (authority_id, version)
+            sql, args = (
+                "SELECT authority_json FROM authority_versions WHERE authority_id=? AND version=?",
+                (authority_id, version),
+            )
         rows = self._json_rows(sql, args, "authority_json")
         return rows[0] if rows else None
 
     def list_evidence(self, contract_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         if contract_id:
-            sql, args = "SELECT record_json FROM evidence_records WHERE contract_id=? ORDER BY retrieved_at DESC LIMIT ?", (contract_id, limit)
+            sql, args = (
+                "SELECT record_json FROM evidence_records WHERE contract_id=? ORDER BY retrieved_at DESC LIMIT ?",
+                (contract_id, limit),
+            )
         else:
             sql, args = "SELECT record_json FROM evidence_records ORDER BY retrieved_at DESC LIMIT ?", (limit,)
         return self._json_rows(sql, args, "record_json")
 
     def list_runs(self, contract_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         if contract_id:
-            sql, args = "SELECT run_json FROM resolution_runs WHERE contract_id=? ORDER BY started_at DESC LIMIT ?", (contract_id, limit)
+            sql, args = (
+                "SELECT run_json FROM resolution_runs WHERE contract_id=? ORDER BY started_at DESC LIMIT ?",
+                (contract_id, limit),
+            )
         else:
             sql, args = "SELECT run_json FROM resolution_runs ORDER BY started_at DESC LIMIT ?", (limit,)
         return self._json_rows(sql, args, "run_json")
 
-
     def list_work_states(self) -> dict[str, dict[str, Any]]:
         with self.connect() as db:
             rows = db.execute("SELECT * FROM work_item_state ORDER BY updated_at DESC").fetchall()
-        return {r["work_item_id"]: {
-            "work_item_id": r["work_item_id"], "status": r["status"], "owner": r["owner"],
-            "note": r["note"], "updated_at": r["updated_at"], "updated_by": r["updated_by"],
-        } for r in rows}
+        return {
+            r["work_item_id"]: {
+                "work_item_id": r["work_item_id"],
+                "status": r["status"],
+                "owner": r["owner"],
+                "note": r["note"],
+                "updated_at": r["updated_at"],
+                "updated_by": r["updated_by"],
+            }
+            for r in rows
+        }
 
-    def set_work_state(self, work_item_id: str, status: str, owner: str = "", note: str = "", actor: str = "operator") -> dict[str, Any]:
+    def set_work_state(
+        self, work_item_id: str, status: str, owner: str = "", note: str = "", actor: str = "operator"
+    ) -> dict[str, Any]:
         if status not in {"open", "in_progress", "resolved"}:
             raise ValueError("status must be open, in_progress, or resolved")
         now = utcnow()
@@ -455,12 +553,27 @@ class ResolutionStore:
                 "ON CONFLICT(work_item_id) DO UPDATE SET status=excluded.status, owner=excluded.owner, note=excluded.note, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
                 (work_item_id, status, owner, note, now, actor),
             )
-        self._audit(actor, "work_item.updated", "work_item", work_item_id,
-                    {"status": status, "owner": owner, "note": note})
-        return {"work_item_id": work_item_id, "status": status, "owner": owner, "note": note, "updated_at": now, "updated_by": actor}
+        self._audit(
+            actor, "work_item.updated", "work_item", work_item_id, {"status": status, "owner": owner, "note": note}
+        )
+        return {
+            "work_item_id": work_item_id,
+            "status": status,
+            "owner": owner,
+            "note": note,
+            "updated_at": now,
+            "updated_by": actor,
+        }
 
-
-    def save_analysis_case(self, title: str, criteria: str, result: dict[str, Any], actor: str = "operator", case_id: str | None = None, source_template_id: str | None = None) -> dict[str, Any]:
+    def save_analysis_case(
+        self,
+        title: str,
+        criteria: str,
+        result: dict[str, Any],
+        actor: str = "operator",
+        case_id: str | None = None,
+        source_template_id: str | None = None,
+    ) -> dict[str, Any]:
         """Persist every compiler/analyze run while keeping one stable case identity."""
         case_id = case_id or gen_id("case")
         run_id = gen_id("case_run")
@@ -471,7 +584,9 @@ class ResolutionStore:
         input_hash = canonical_hash(inp)
         result_hash = canonical_hash(result)
         with self.connect() as db:
-            existing = db.execute("SELECT case_id, created_at, created_by FROM analysis_cases WHERE case_id=?", (case_id,)).fetchone()
+            existing = db.execute(
+                "SELECT case_id, created_at, created_by FROM analysis_cases WHERE case_id=?", (case_id,)
+            ).fetchone()
             if existing:
                 db.execute(
                     "UPDATE analysis_cases SET title=?,criteria=?,compiler_status=?,resolution_outcome=?,updated_at=?,latest_run_id=?,source_template_id=COALESCE(?,source_template_id) WHERE case_id=?",
@@ -482,18 +597,57 @@ class ResolutionStore:
                 created_at, created_by = now, actor
                 db.execute(
                     "INSERT INTO analysis_cases(case_id,title,criteria,compiler_status,resolution_outcome,created_at,updated_at,created_by,latest_run_id,source_template_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                    (case_id, title, criteria, compiler_status, resolution_outcome, now, now, actor, run_id, source_template_id),
+                    (
+                        case_id,
+                        title,
+                        criteria,
+                        compiler_status,
+                        resolution_outcome,
+                        now,
+                        now,
+                        actor,
+                        run_id,
+                        source_template_id,
+                    ),
                 )
             db.execute(
                 "INSERT INTO analysis_case_runs(run_id,case_id,created_at,actor,input_json,result_json,input_hash,result_hash) VALUES(?,?,?,?,?,?,?,?)",
-                (run_id, case_id, now, actor, json.dumps(inp, sort_keys=True), json.dumps(result, sort_keys=True), input_hash, result_hash),
+                (
+                    run_id,
+                    case_id,
+                    now,
+                    actor,
+                    json.dumps(inp, sort_keys=True),
+                    json.dumps(result, sort_keys=True),
+                    input_hash,
+                    result_hash,
+                ),
             )
-        self._audit(actor, "analysis_case.run.recorded", "analysis_case", case_id,
-                    {"run_id": run_id, "compiler_status": compiler_status, "resolution_outcome": resolution_outcome, "input_hash": input_hash, "result_hash": result_hash})
-        return {"case_id": case_id, "run_id": run_id, "title": title, "criteria": criteria,
-                "compiler_status": compiler_status, "resolution_outcome": resolution_outcome,
-                "created_at": created_at, "updated_at": now, "created_by": created_by,
-                "source_template_id": source_template_id}
+        self._audit(
+            actor,
+            "analysis_case.run.recorded",
+            "analysis_case",
+            case_id,
+            {
+                "run_id": run_id,
+                "compiler_status": compiler_status,
+                "resolution_outcome": resolution_outcome,
+                "input_hash": input_hash,
+                "result_hash": result_hash,
+            },
+        )
+        return {
+            "case_id": case_id,
+            "run_id": run_id,
+            "title": title,
+            "criteria": criteria,
+            "compiler_status": compiler_status,
+            "resolution_outcome": resolution_outcome,
+            "created_at": created_at,
+            "updated_at": now,
+            "created_by": created_by,
+            "source_template_id": source_template_id,
+        }
 
     def list_analysis_cases(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.connect() as db:
@@ -505,26 +659,69 @@ class ResolutionStore:
             case = db.execute("SELECT * FROM analysis_cases WHERE case_id=?", (case_id,)).fetchone()
             if not case:
                 return None
-            runs = db.execute("SELECT * FROM analysis_case_runs WHERE case_id=? ORDER BY created_at DESC", (case_id,)).fetchall()
+            runs = db.execute(
+                "SELECT * FROM analysis_case_runs WHERE case_id=? ORDER BY created_at DESC", (case_id,)
+            ).fetchall()
         out = dict(case)
-        out["runs"] = [{
-            "run_id": r["run_id"], "created_at": r["created_at"], "actor": r["actor"],
-            "input": json.loads(r["input_json"]), "result": json.loads(r["result_json"]),
-            "input_hash": r["input_hash"], "result_hash": r["result_hash"],
-        } for r in runs]
+        out["runs"] = [
+            {
+                "run_id": r["run_id"],
+                "created_at": r["created_at"],
+                "actor": r["actor"],
+                "input": json.loads(r["input_json"]),
+                "result": json.loads(r["result_json"]),
+                "input_hash": r["input_hash"],
+                "result_hash": r["result_hash"],
+            }
+            for r in runs
+        ]
         return out
 
-    def save_template(self, name: str, title: str, criteria: str, actor: str = "operator", source_case_id: str | None = None, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def save_template(
+        self,
+        name: str,
+        title: str,
+        criteria: str,
+        actor: str = "operator",
+        source_case_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         template_id = gen_id("tpl")
         now = utcnow()
         metadata = metadata or {}
         with self.connect() as db:
             db.execute(
                 "INSERT INTO contract_templates(template_id,name,title,criteria,source_case_id,created_at,updated_at,created_by,metadata_json) VALUES(?,?,?,?,?,?,?,?,?)",
-                (template_id, name, title, criteria, source_case_id, now, now, actor, json.dumps(metadata, sort_keys=True)),
+                (
+                    template_id,
+                    name,
+                    title,
+                    criteria,
+                    source_case_id,
+                    now,
+                    now,
+                    actor,
+                    json.dumps(metadata, sort_keys=True),
+                ),
             )
-        self._audit(actor, "contract_template.created", "contract_template", template_id, {"name": name, "source_case_id": source_case_id})
-        return {"template_id": template_id, "name": name, "title": title, "criteria": criteria, "source_case_id": source_case_id, "created_at": now, "updated_at": now, "created_by": actor, "metadata": metadata}
+        self._audit(
+            actor,
+            "contract_template.created",
+            "contract_template",
+            template_id,
+            {"name": name, "source_case_id": source_case_id},
+        )
+        return {
+            "template_id": template_id,
+            "name": name,
+            "title": title,
+            "criteria": criteria,
+            "source_case_id": source_case_id,
+            "created_at": now,
+            "updated_at": now,
+            "created_by": actor,
+            "metadata": metadata,
+        }
 
     def list_templates(self) -> list[dict[str, Any]]:
         with self.connect() as db:
@@ -536,24 +733,37 @@ class ResolutionStore:
             r = db.execute("SELECT * FROM contract_templates WHERE template_id=?", (template_id,)).fetchone()
         return ({**dict(r), "metadata": json.loads(r["metadata_json"])}) if r else None
 
-    def audit_log(self, limit: int = 100, object_type: str | None = None, object_id: str | None = None) -> list[dict[str, Any]]:
+    def audit_log(
+        self, limit: int = 100, object_type: str | None = None, object_id: str | None = None
+    ) -> list[dict[str, Any]]:
         clauses, args = [], []
         if object_type:
-            clauses.append("object_type=?"); args.append(object_type)
+            clauses.append("object_type=?")
+            args.append(object_type)
         if object_id:
-            clauses.append("object_id=?"); args.append(object_id)
+            clauses.append("object_id=?")
+            args.append(object_id)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         with self.connect() as db:
             rows = db.execute(
                 f"SELECT * FROM audit_events{where} ORDER BY sequence DESC LIMIT ?",
                 (*args, limit),
             ).fetchall()
-            return [{
-                "sequence": r["sequence"], "event_id": r["event_id"], "occurred_at": r["occurred_at"],
-                "actor": r["actor"], "action": r["action"], "object_type": r["object_type"],
-                "object_id": r["object_id"], "details": json.loads(r["details_json"]),
-                "previous_hash": r["previous_hash"], "event_hash": r["event_hash"],
-            } for r in rows]
+            return [
+                {
+                    "sequence": r["sequence"],
+                    "event_id": r["event_id"],
+                    "occurred_at": r["occurred_at"],
+                    "actor": r["actor"],
+                    "action": r["action"],
+                    "object_type": r["object_type"],
+                    "object_id": r["object_id"],
+                    "details": json.loads(r["details_json"]),
+                    "previous_hash": r["previous_hash"],
+                    "event_hash": r["event_hash"],
+                }
+                for r in rows
+            ]
 
     def verify_audit_chain(self) -> dict[str, Any]:
         with self.connect() as db:
@@ -563,9 +773,14 @@ class ResolutionStore:
             if r["previous_hash"] != previous:
                 return {"ok": False, "sequence": r["sequence"], "reason": "previous_hash mismatch"}
             base = {
-                "event_id": r["event_id"], "occurred_at": r["occurred_at"], "actor": r["actor"],
-                "action": r["action"], "object_type": r["object_type"], "object_id": r["object_id"],
-                "details": json.loads(r["details_json"]), "previous_hash": r["previous_hash"],
+                "event_id": r["event_id"],
+                "occurred_at": r["occurred_at"],
+                "actor": r["actor"],
+                "action": r["action"],
+                "object_type": r["object_type"],
+                "object_id": r["object_id"],
+                "details": json.loads(r["details_json"]),
+                "previous_hash": r["previous_hash"],
             }
             if canonical_hash(base) != r["event_hash"]:
                 return {"ok": False, "sequence": r["sequence"], "reason": "event_hash mismatch"}
@@ -574,8 +789,10 @@ class ResolutionStore:
 
     def summary(self) -> dict[str, Any]:
         with self.connect() as db:
+
             def count(table: str) -> int:
                 return int(db.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"])
+
             return {
                 "database": self.path if self.backend == "sqlite" else "postgresql://configured",
                 "database_backend": self.backend,
@@ -599,26 +816,40 @@ def seed_reference_data() -> dict[str, int]:
     """Seed a few canonical authorities for local/demo use. Idempotent."""
     authorities = [
         Authority(
-            authority_id="AUTH-BLS-CPI", version=1, name="BLS Consumer Price Index",
-            organization="U.S. Bureau of Labor Statistics", source_type="government_dataset",
-            endpoint="https://www.bls.gov/cpi/", dataset="Consumer Price Index",
-            field="CPI-U / published contract-specific field", precision="source-defined",
+            authority_id="AUTH-BLS-CPI",
+            version=1,
+            name="BLS Consumer Price Index",
+            organization="U.S. Bureau of Labor Statistics",
+            source_type="government_dataset",
+            endpoint="https://www.bls.gov/cpi/",
+            dataset="Consumer Price Index",
+            field="CPI-U / published contract-specific field",
+            precision="source-defined",
             revision_behavior={"policy": "contract_must_define_first_vs_revised_print"},
             availability_policy={"expected": "scheduled_release"},
             approved_contract_classes=["macro", "inflation"],
         ),
         Authority(
-            authority_id="AUTH-FED-FOMC", version=1, name="Federal Reserve FOMC Statements",
-            organization="Federal Reserve", source_type="official_publication",
+            authority_id="AUTH-FED-FOMC",
+            version=1,
+            name="Federal Reserve FOMC Statements",
+            organization="Federal Reserve",
+            source_type="official_publication",
             endpoint="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
-            dataset="FOMC statements", field="target federal funds range / action",
+            dataset="FOMC statements",
+            field="target federal funds range / action",
             approved_contract_classes=["macro", "rates"],
         ),
         Authority(
-            authority_id="AUTH-NOAA-WEATHER", version=1, name="NOAA / National Weather Service",
-            organization="NOAA / NWS", source_type="government_dataset",
-            endpoint="https://www.weather.gov/", dataset="station observations and climate reports",
-            field="contract-specific station observation", precision="station/report-defined",
+            authority_id="AUTH-NOAA-WEATHER",
+            version=1,
+            name="NOAA / National Weather Service",
+            organization="NOAA / NWS",
+            source_type="government_dataset",
+            endpoint="https://www.weather.gov/",
+            dataset="station observations and climate reports",
+            field="contract-specific station observation",
+            precision="station/report-defined",
             revision_behavior={"policy": "contract_must_define_revision_cutoff"},
             approved_contract_classes=["weather"],
         ),

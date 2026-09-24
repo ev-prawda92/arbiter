@@ -5,6 +5,7 @@ pretending that a human workflow action is itself a binding market resolution.
 It prepares cluster actions, records reevaluation intent, updates work ownership/state,
 and computes before/after workload compression metrics.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -55,7 +56,9 @@ def build_decision_prompt(cluster: dict[str, Any], selected_case: dict[str, Any]
     """Create the smallest explicit human judgment represented by a work pattern."""
     blocker = str(cluster.get("blocker_type") or "operator_review")
     action = cluster.get("primary_action") or cluster.get("recommended_action") or "Review governed decision"
-    root = cluster.get("root_cause") or (selected_case or {}).get("detail") or "A governed exception remains unresolved."
+    root = (
+        cluster.get("root_cause") or (selected_case or {}).get("detail") or "A governed exception remains unresolved."
+    )
     clear = cluster.get("clear_condition") or "Record the controlling judgment, then re-evaluate affected cases."
     questions = {
         "authority_conflict": "Which governed authority controls for this work pattern?",
@@ -70,7 +73,9 @@ def build_decision_prompt(cluster: dict[str, Any], selected_case: dict[str, Any]
     }
     return {
         "decision_type": decision_type_for_blocker(blocker),
-        "question": questions.get(blocker, f"What governed judgment resolves this {blocker.replace('_', ' ')} pattern?"),
+        "question": questions.get(
+            blocker, f"What governed judgment resolves this {blocker.replace('_', ' ')} pattern?"
+        ),
         "recommended_action": action,
         "context": root,
         "clear_condition": clear,
@@ -96,6 +101,7 @@ def apply_decision_to_workflow(
     decision_id = str(decision.get("decision_id") or "")
     if decision_id:
         from .decision_records import DecisionRecordService
+
         if DecisionRecordService(resolution_store).is_superseded(decision_id):
             raise ValueError(f"refusing to apply superseded decision {decision_id}")
     by_id = {str(item.get("id")): item for item in (current_queue.get("items") or [])}
@@ -260,8 +266,7 @@ def apply_authoritative_decisions(
             ):
                 item["status"] = "resolved"
                 item["note"] = (
-                    f"Cleared by governed decision {decision.get('decision_id')}: "
-                    f"{decision.get('selection')}"
+                    f"Cleared by governed decision {decision.get('decision_id')}: {decision.get('selection')}"
                 )
                 item["governed_by"] = {
                     "decision_id": decision.get("decision_id"),
@@ -275,7 +280,13 @@ def apply_authoritative_decisions(
 
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     status_order = {"open": 0, "in_progress": 1, "resolved": 2}
-    items.sort(key=lambda x: (status_order.get(x.get("status"), 0), order.get(x.get("severity"), 9), -float(x.get("notional") or 0)))
+    items.sort(
+        key=lambda x: (
+            status_order.get(x.get("status"), 0),
+            order.get(x.get("severity"), 9),
+            -float(x.get("notional") or 0),
+        )
+    )
     active = [i for i in items if i.get("status") != "resolved"]
     summary = {
         "active": len(active),
@@ -308,8 +319,12 @@ def clearability(cluster: dict[str, Any], queue_items: list[dict[str, Any]] | No
     }
     if blocker in DECIDABLE_BLOCKERS and not blocked_kinds:
         return {"clearable": True, "reason": "A recorded decision answers this pattern and clears its cases."}
-    why = reasons.get(blocker) or (f"it includes {', '.join(k.replace('_', ' ') for k in blocked_kinds)} work" if blocked_kinds
-                                   else f"{blocker.replace('_', ' ')} is not a judgment call")
-    return {"clearable": False,
-            "reason": f"A decision is recorded and audited, but it will not clear these cases: {why}."}
-
+    why = reasons.get(blocker) or (
+        f"it includes {', '.join(k.replace('_', ' ') for k in blocked_kinds)} work"
+        if blocked_kinds
+        else f"{blocker.replace('_', ' ')} is not a judgment call"
+    )
+    return {
+        "clearable": False,
+        "reason": f"A decision is recorded and audited, but it will not clear these cases: {why}.",
+    }
