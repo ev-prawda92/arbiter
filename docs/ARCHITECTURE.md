@@ -55,9 +55,14 @@ with `ARBITER_DATABASE_PATH` and `ARBITER_POLICY_PATH`.
 
 The front end is built with Vite and has three entry pages that compile to `backend/dist`:
 
-- `index.html` → `main.jsx`: home, exposure view, exception workspace, contract design review.
-- `console.html` → `ConsoleShell.jsx`: operations console and case workspace.
-- `decision-workbench.html` → `DecisionWorkbench.jsx`: applicable precedent, decision recording with a live consistency check, clearing outcome, Ask Arbiter.
+One single-page app (`index.html` → `src/app/main.jsx`) with hash routes:
+
+- `src/app/App.jsx`: shell (navigation, global Ask Arbiter, refresh) and routing.
+- `src/app/Today.jsx`, `Queue.jsx`, `Decide.jsx`, `Precedents.jsx`: the operator flow.
+- `src/legacy/LegacyViews.jsx`: the detailed Markets, Contract review, Portfolio, Benchmark,
+  Controls, Validation and Policy views, rendered inside the shell. Their stylesheet is scoped
+  under `.legacy` and they read the shell's design tokens.
+- `console.html` and `decision-workbench.html` redirect to `/#/queue` and `/#/decide`, so old links keep working.
 
 ## Tests
 

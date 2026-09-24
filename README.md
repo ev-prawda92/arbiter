@@ -20,13 +20,18 @@ Requires Python 3.11+ and Node 22.
 ./start.sh
 ```
 
-Then open:
+Then open `http://localhost:8000`. One console, organized around the operator's day:
 
-| Page | What it is |
+| Section | What it is |
 |---|---|
-| `http://localhost:8000/` | Home: exposure overview, exception workspace, contract design review |
-| `http://localhost:8000/console.html` | Operations console: work queue, clusters, case workspace |
-| `http://localhost:8000/decision-workbench.html` | Decision workbench: applicable precedent, record a decision, see what it clears, Ask Arbiter |
+| **Today** | What stands between the queue and settlement: the intake → queue → decide → precedent flow with live counts, what to decide next, controls, activity |
+| **Queue** | Open cases grouped into work patterns by root cause, filterable, with precedent coverage marked |
+| **Decide** | One pattern at a time: the judgment needed, what was ruled before (clause by clause), the ruling with a live consistency check, then straight on to the next pattern |
+| **Precedents** | Every ruling, what it has applied to since, appeal checks, and Ask Arbiter |
+| Markets, Contract review | Per-contract resolution detail and pre-listing design review |
+| Portfolio, Benchmark, Controls & audit, Validation, Policy | Assurance views |
+
+Ask Arbiter is in the top bar on every page (⌘K).
 
 Pull live venue markets into the queue (run from a machine that can reach the venue APIs):
 

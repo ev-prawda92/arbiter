@@ -155,6 +155,11 @@ def build_work_queue(
             exc.get("recommended_action", "Review the governed evidence before settlement authorization."),
             href="/work-queue",
         )
+        meta = exc.get("metadata") or {}
+        items[-1]["contract_id"] = exc.get("contract_id")
+        items[-1]["source"] = meta.get("source")
+        items[-1]["review_class"] = meta.get("review_class")
+        items[-1]["precedent"] = (meta.get("precedent_matches") or [None])[0]
 
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     status_order = {"open": 0, "in_progress": 1, "resolved": 2}

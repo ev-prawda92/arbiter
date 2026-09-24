@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import './styles.css'
 
-import ReactDOM from 'react-dom/client'
-
-function App() {
-  const [view, setView] = useState('overview') // overview, work, cases, markets, monitoring, benchmark, infrastructure, policy
+// The detailed views of the original home app, rendered inside the unified
+// shell (src/app). The shell owns navigation; this component owns the data
+// each view loads. Route names: work, cases, markets, monitoring, benchmark,
+// infrastructure, validation, policy.
+export function LegacyViews({ view, onNavigate = () => {} }) {
+  const setView = onNavigate
   const [markets, setMarkets] = useState([])
   const [monitoring, setMonitoring] = useState(null)
   const [overview, setOverview] = useState(null)
@@ -24,8 +26,11 @@ function App() {
 
   useEffect(() => {
     loadMarkets()
-    loadOverview()
   }, [])
+
+  useEffect(() => {
+    handleViewChange(view)
+  }, [view])
 
   const loadMarkets = async (live = false) => {
     setLoading(true)
@@ -167,7 +172,6 @@ function App() {
   }
 
   const handleViewChange = async (v) => {
-    setView(v)
     if (v === 'overview' && !overview) {
       await loadOverview()
     }
@@ -195,8 +199,7 @@ function App() {
   }
 
   return (
-    <div className="arbiter">
-      <Rail markets={markets} view={view} onViewChange={handleViewChange} onRefresh={() => { loadMarkets(); loadOverview(); loadWorkQueue(); }} />
+    <div className="arbiter legacy">
 
       {view === 'overview' && (
         <OverviewView data={overview} onWork={() => handleViewChange('work')} onResolution={() => handleViewChange('markets')} />
@@ -271,63 +274,6 @@ function App() {
           }}
         />
       )}
-    </div>
-  )
-}
-
-function Rail({ markets, view, onViewChange, onRefresh }) {
-  return (
-    <div className="rail">
-      <div className="rail-in">
-        <div className="brand">
-          <span className="wordmark">ARBITER</span>
-          <span className="sub">Resolution Control Infrastructure</span>
-        </div>
-        <div className="nav">
-          <button className={`nav-btn ${view === 'overview' ? 'active' : ''}`} onClick={() => onViewChange('overview')}>Overview</button>
-          <button className={`nav-btn ${view === 'work' ? 'active' : ''}`} onClick={() => onViewChange('work')}>Work Queue</button>
-          <button className={`nav-btn ${view === 'cases' ? 'active' : ''}`} onClick={() => onViewChange('cases')}>Cases</button>
-          <button
-            className={`nav-btn ${view === 'markets' ? 'active' : ''}`}
-            onClick={() => onViewChange('markets')}
-          >
-            Resolution
-          </button>
-          <button
-            className={`nav-btn ${view === 'monitoring' ? 'active' : ''}`}
-            onClick={() => onViewChange('monitoring')}
-          >
-            Portfolio
-          </button>
-          <button
-            className={`nav-btn ${view === 'benchmark' ? 'active' : ''}`}
-            onClick={() => onViewChange('benchmark')}
-          >
-            Benchmark
-          </button>
-          <button
-            className={`nav-btn ${view === 'infrastructure' ? 'active' : ''}`}
-            onClick={() => onViewChange('infrastructure')}
-          >
-            Controls
-          </button>
-          <button
-            className={`nav-btn ${view === 'validation' ? 'active' : ''}`}
-            onClick={() => onViewChange('validation')}
-          >
-            Validation
-          </button>
-          <button
-            className={`nav-btn ${view === 'policy' ? 'active' : ''}`}
-            onClick={() => onViewChange('policy')}
-          >
-            Policy
-          </button>
-          <button className="nav-btn refresh" onClick={onRefresh} title="Reload markets">
-            ↻
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -1357,9 +1303,3 @@ function AnalyzeModal({ onClose, onSuccess, initial = null }) {
     </div>
   )
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)

@@ -8,7 +8,7 @@ implementation, and what is not done yet.
 ```bash
 make install
 make check        # lint, format, pytest, all 27 gates, release gate 452/452
-./start.sh        # then open /console.html and /decision-workbench.html
+./start.sh        # then open http://localhost:8000
 ```
 
 Every gate starts from empty temporary state, so no result depends on a pre-seeded database.
