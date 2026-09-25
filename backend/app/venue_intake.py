@@ -49,7 +49,7 @@ from .resolution_infra import (
     utcnow,
 )
 
-VERSION = "0.39.0"
+VERSION = "0.43.0"
 ACTOR = "system:venue-intake"
 PARSER_VERSION = f"venue-intake-{VERSION}"
 
@@ -111,6 +111,27 @@ PINNED_RELEASE_MARKERS = (
     "without regard to revisions",
 )
 
+# v0.43: a contested-source flag needs the rules to ADMIT a second source for
+# the same fact without saying which one wins. Naming the certifying authority
+# ("certified/official results only, not preliminary") is the fix, not the
+# problem; the v0.39 rule flagged every such election market (19,627 of 38,076
+# open Kalshi markets on the Sep 24 2026 full scan).
+ALT_SOURCE_RE = re.compile(
+    r"\bor (?:be )?(?:confirmed |reported )?(?:by )?"
+    r"(?:multiple |major |other |reputable |credible |widely |mainstream )*"
+    r"(?:news|media|credible|reporting|reports|sources|outlets|press)\b"
+    r"|consensus of credible|credible (?:reporting|sources|media|news)|widely reported|confirmed by multiple"
+    r"|may also be used"
+)
+PRECEDENCE_RE = re.compile(
+    r"if there is (?:any )?ambiguity|takes precedence|shall control|will control|\bcontrols\b|prevail"
+    r"|based solely on|solely on the official|in the event of (?:a |any )?(?:conflict|discrepanc|disagreement)"
+    r"|in case of (?:a )?(?:conflict|discrepanc)|may be used only|only as (?:those|these|the) provisions"
+)
+# A dated clarification the venue appended after listing is a recorded
+# interpretive ruling; a standing exclusion ("does not count") is precision.
+CLARIFICATION_RE = re.compile(r"\bclarification\b|\bto clarify\b|\bclarified\b", re.I)
+
 # Wording whose presence in a sentence can raise a flag; used to learn which
 # such sentences are standing fine print (see boilerplate_for).
 FLAG_MARKERS = (
@@ -128,6 +149,26 @@ TEMPLATE_FLOOR: dict[str, frozenset[str]] = {
     ),
     "kalshi": frozenset(),
 }
+
+# v0.43: venue provisions a human has reviewed and found fully specified
+# elsewhere in the venue's contract terms. A sentence matching one is standing
+# procedure, not ambiguity in this market. Kalshi's election markets point to
+# the Contract's Accelerated Resolution provision (early resolution on a
+# consensus of designated media calls, certified results otherwise); that
+# provision is defined once in the contract terms, so it is reviewed once, not
+# flagged on 1,066 markets. Fixed and versioned - never learned from a scan.
+REVIEWED_PROVISIONS: dict[str, tuple[re.Pattern[str], ...]] = {
+    "kalshi": (
+        re.compile(r"eligible for accelerated (?:resolution|determination)", re.I),
+        re.compile(r"may resolve early once a consensus of designated media", re.I),
+        re.compile(r"cease to provide independent election calls", re.I),
+    ),
+    "polymarket": (),
+}
+
+
+def _reviewed_provision(venue: str, sentence: str) -> bool:
+    return any(p.search(sentence) for p in REVIEWED_PROVISIONS.get(venue, ()))
 
 
 # --------------------------------------------------------------------------
@@ -351,6 +392,37 @@ def _templated_disclaimer(row: dict[str, Any] | None, boilerplate: dict[str, fro
     return bool(sentences) and sentences <= template
 
 
+def _competing_sources(row: dict[str, Any] | None) -> bool:
+    """The rules admit a second source for the same fact and never rank them."""
+    if row is None:
+        return True
+    text = str(row.get("rules") or "").lower()
+    return bool(ALT_SOURCE_RE.search(text)) and not PRECEDENCE_RE.search(text)
+
+
+def _post_listing_clarification(row: dict[str, Any] | None) -> bool:
+    if row is None:
+        return True
+    return (row.get("dispute_count") or 0) > 0 or bool(CLARIFICATION_RE.search(str(row.get("rules") or "")))
+
+
+def triage_templates() -> dict[str, frozenset[str]]:
+    """The only templated wording triage may discount: a fixed, reviewed floor.
+
+    v0.43: triage no longer learns templates from the scanned pool, so a
+    market's flag depends on its own rules text alone - the same market gets
+    the same answer in a 200-market scan and a 38,000-market scan.
+    """
+    return dict(TEMPLATE_FLOOR)
+
+
+def triage(row: dict[str, Any], override: str | None = None) -> tuple[dict[str, Any], str | None]:
+    """(classifier verdict, review class) for one market, from its own text only."""
+    templates = triage_templates()
+    verdict = classify(row, templates)
+    return verdict, review_class(verdict, override, row, templates)
+
+
 def _templated_interpretive(row: dict[str, Any] | None, boilerplate: dict[str, frozenset[str]] | None) -> bool:
     """Vague wording that only appears in standing fine print (e.g. Kalshi's
     leader-out death clause, "sole discretion") is template, not ambiguity."""
@@ -358,7 +430,8 @@ def _templated_interpretive(row: dict[str, Any] | None, boilerplate: dict[str, f
         return False
     sentences = _marked_sentences(row, tuple(INTERPRETIVE_TERMS) + tuple(VAGUE_SOURCE_MARKERS))
     template = (boilerplate or {}).get(SENTENCE_KEY.format(venue=row["venue"]), frozenset())
-    return bool(sentences) and sentences <= template
+    open_sentences = {s for s in sentences if s not in template and not _reviewed_provision(row["venue"], s)}
+    return bool(sentences) and not open_sentences
 
 
 def review_class(
@@ -372,8 +445,10 @@ def review_class(
         return override
     fired = [c for c in PRIORITY if c in (verdict.get("fired_classes") or [])]
     for klass in fired:
-        if klass == "multi_source_conflict" and not _strict_election(row, boilerplate):
-            continue  # sports "win the ..." is not a contested official source
+        if klass == "multi_source_conflict" and not (_strict_election(row, boilerplate) and _competing_sources(row)):
+            continue  # one named authority (or none) is not a conflict between sources
+        if klass == "disputed" and not _post_listing_clarification(row):
+            continue  # a standing exclusion is precision, not a dispute
         if klass == "disputed" and _templated_disclaimer(row, boilerplate):
             continue  # series fine print, not a dispute
         if klass == "revised_source" and row is not None and (not _revision_series_hits(row) or _release_pinned(row)):
@@ -625,9 +700,9 @@ def sync(
 ) -> dict[str, Any]:
     """Pull every watched market and bring governed state up to date.
 
-    ``boilerplate`` is per-venue templated wording (see boilerplate_for); pass
-    the set computed over a discovery scan so sync classifies exactly as
-    discovery did. Without it, a floor of known venue templates is used.
+    ``boilerplate`` is per-venue templated wording (see boilerplate_for). Since
+    v0.43 it is used only for precedent matching; triage reads each market's
+    own rules text against the fixed template floor (see triage).
     """
     boilerplate = boilerplate if boilerplate is not None else dict(TEMPLATE_FLOOR)
     pctx = _precedent_context(store)
@@ -650,8 +725,7 @@ def sync(
                 entry["error"] = f"{type(exc).__name__}: {exc}"
                 report["errors"].append(entry)
                 continue
-            verdict = classify(row, boilerplate)
-            klass = review_class(verdict, event.review_class, row, boilerplate)
+            verdict, klass = triage(row, event.review_class)
             matches: list[dict[str, Any]] = []
             if pctx:
                 engine, live, corpus = pctx
@@ -937,6 +1011,18 @@ def _event_key(venue: str, raw: dict[str, Any]) -> tuple[str, str]:
     return f"polymarket-{ev}", str(first.get("title") or raw.get("question") or ev)
 
 
+def series_of(venue: str, raw: dict[str, Any], row: dict[str, Any]) -> str:
+    """The drafting family a market belongs to: one rules template, one fix.
+
+    Kalshi: the series ticker (KXCPIYOY for every monthly CPI market).
+    Polymarket: the parent event.
+    """
+    if venue == "kalshi":
+        series = raw.get("series_ticker") or str(raw.get("event_ticker") or row.get("event_id") or "").split("-")[0]
+        return str(series or row.get("market_id"))
+    return _event_key(venue, raw)[0]
+
+
 def discover(
     list_fetcher: ListFetcher = list_open_live,
     limit: int = 200,
@@ -962,6 +1048,8 @@ def discover(
         "errors": {},
         "boilerplate": {},
         "by_category": {},
+        "by_series": {},
+        "by_class": {},
         "precedent": {},
     }
     for venue in venues:
@@ -994,7 +1082,7 @@ def discover(
         flagged = 0
         pulled = 0
         for raw, url, row in pool:
-            klass = review_class(classify(row, stats["boilerplate"]), None, row, stats["boilerplate"])
+            klass = triage(row)[1]
             if klass is None and pctx and pulled < PRECEDENT_PULL_LIMIT:
                 engine, live, corpus = pctx
                 hit = engine.match(
@@ -1011,6 +1099,13 @@ def discover(
             if not include_all and klass is None:
                 continue
             flagged += 1
+            if klass is not None:
+                series = series_of(venue, raw, row)
+                entry = stats["by_series"].setdefault(venue, {}).setdefault(series, {"flagged": 0, "classes": {}})
+                entry["flagged"] += 1
+                entry["classes"][klass] = entry["classes"].get(klass, 0) + 1
+                by_class = stats["by_class"].setdefault(venue, {})
+                by_class[klass] = by_class.get(klass, 0) + 1
             cache[(venue, row["market_id"])] = (raw, url)
             key, label = _event_key(venue, raw)
             meta = meta_of.get(row["market_id"]) or {}
@@ -1116,7 +1211,7 @@ def retriage(
         if row is None or state[0] != "open" or state[1] != ACTOR or wid in decided:
             report["skipped"].append({**label, "why": "touched by an operator or decision" if row else "no contract"})
             continue
-        klass = review_class(classify(row, boilerplate), None, row, boilerplate)
+        klass = triage(row)[1]
         expected_kind = ROUTING[klass][0] if klass else None
         if expected_kind == exc["kind"]:
             report["kept"].append({**label, "review_class": klass})

@@ -20,6 +20,10 @@ the network. Properties asserted (fail-closed):
   V11 discovery scans open markets, skips parlays / settled / clean ones, and
       groups a venue event's flagged markets into one work pattern
   V12 no false alarms from venue templates or sports "win the" wording
+  V18 v0.43: on a sample of the real full-book scan, election markets that
+      name the certifying authority are not source conflicts, dated venue
+      clarifications stay flagged, and every market's flag is the same alone
+      and inside a large pool (triage reads only the market's own text)
   V13 on the real Sep 23 2026 scan (300 open markets captured from the live
       APIs), exactly the known 5 markets are flagged - a precision regression
   V15 fine print recurring across events (Kalshi pitcher props, rules quoted
@@ -418,12 +422,16 @@ def main() -> None:
     real_events, real_fetch, real_stats = venue_intake.discover(lambda venue, limit: real[venue], limit=1000)
     flagged = sorted(m for e in real_events for _, m in e.markets)
     check(real_stats["scanned"] == {"kalshi": 200, "polymarket": 100}, "V13 the real scan has 300 open markets")
-    expected = ["3519811", "3539958", "3582091", "3697620", "4385336"] + [
-        f"KXNCAAFTEAMRECTD-26SEP26UCLAMD-{t}" for t in ("MD2", "MD3", "MD4", "UCLA2", "UCLA3", "UCLA4")
-    ]
+    # v0.43: only the two election markets whose rules name the certifying
+    # authority as primary and then let "a consensus of credible reporting"
+    # also be used, with no tie-break. Dropped since v0.39: the Taiwan and
+    # Knesset markets (rules route ambiguity "solely" to the official body),
+    # the Boise State and UCLA-Maryland markets (a standing "does not count"
+    # exclusion is precision, not a dispute).
+    expected = ["3519811", "3697620"]
     check(
         flagged == sorted(expected),
-        f"V13 exactly the 11 known markets are flagged on the real scan (got {len(flagged)})",
+        f"V13 exactly the 2 known markets are flagged on the real scan (got {len(flagged)}: {flagged})",
     )
 
     # V15 standing fine print vs one-event clarification
@@ -454,7 +462,10 @@ def main() -> None:
         pitcher("KXMLBERA-26SEP232040AZCOL-COLMADAMS38-2", "Mason Adams", "earned runs", 2),
         pitcher("KXMLBWA-26SEP232040AZCOL-AZMKELLY29-1", "Merrill Kelly", "walks allowed", 1),
         *[
-            dict(kalshi(f"KXIRAN-27-26{mo}", "US-Iran deal?", mo and mou), event_ticker="KXIRAN-27")
+            dict(
+                kalshi(f"KXIRAN-27-26{mo}", "US-Iran deal?", mo and ("Clarification (08/03/26): " + mou)),
+                event_ticker="KXIRAN-27",
+            )
             for mo in ("AUG", "SEP", "OCT", "NOV")
         ],
         *[
@@ -475,8 +486,17 @@ def main() -> None:
     )
     check(
         got15 == ["KXIRAN-27-26AUG", "KXIRAN-27-26NOV", "KXIRAN-27-26OCT", "KXIRAN-27-26SEP"],
-        "V15 an MOU-style clarification on 4 markets of ONE event stays flagged",
+        "V15 a dated MOU-style clarification on 4 markets of ONE event stays flagged",
     )
+    ev15b, _, _ = venue_intake.discover(
+        lambda venue, limit: (
+            [(dict(kalshi("KXIRAN-28-26AUG", "US-Iran deal?", mou), event_ticker="KXIRAN-28"), "fixture")]
+            if venue == "kalshi"
+            else []
+        ),
+        limit=50,
+    )
+    check(not ev15b, "V15 the same exclusion written into the rules (no clarification) is precision, not a dispute")
 
     # V17 real Sep 24 scan (Kalshi by category)
     with gzip.open(os.path.join(ROOT, "tests", "fixtures", "venue_scan_2026-09-24.json.gz"), "rt") as fh:
@@ -491,17 +511,17 @@ def main() -> None:
         sorted(by_event)
         == sorted(
             [
-                "kalshi-KXBRUVSEAT-35",
                 "kalshi-KXG7LEADEROUT-26JUL20",
                 "kalshi-KXXISUCCESSOR-45JAN01",
-                "polymarket-848492",
-                "polymarket-990651",
                 "polymarket-1061890",
             ]
         ),
-        f"V17 exactly the 6 known events are flagged (got {sorted(by_event)})",
+        f"V17 exactly the 3 known events are flagged (got {sorted(by_event)})",
     )
-    check(st24["flagged"] == {"kalshi": 22, "polymarket": 3}, f"V17 25 markets flagged (got {st24['flagged']})")
+    # v0.43: BRUV and the two Polymarket election events no longer flag - their
+    # rules name one result source (or rank the sources), so there is no
+    # conflict for a human to settle.
+    check(st24["flagged"] == {"kalshi": 21, "polymarket": 1}, f"V17 22 markets flagged (got {st24['flagged']})")
     flat24 = {m for ms in by_event.values() for m in ms}
     check(
         not any(t.startswith(("KXGDPYEAR", "KXUSCPIYEAR", "KXNOMGDPGROWTH", "KXU3EOY")) for t in flat24),
@@ -540,7 +560,7 @@ def main() -> None:
 
     clar = (
         "Resolves Yes if the NATO allies formally appoint a new Secretary General. "
-        "An acting or interim appointment does not count as an appointment for this market."
+        "Clarification (09/01/26): An acting or interim appointment does not count as an appointment for this market."
     )
     page1 = {
         "cursor": "p2",
@@ -629,9 +649,21 @@ def main() -> None:
     # V14 re-triage
     tstore = ResolutionStore(os.path.join(tmp, "retriage.db"))
     noisy_events, noisy_fetch, _ = venue_intake.discover(lambda venue, limit: real[venue], limit=1000, include_all=True)
-    venue_intake.sync(
-        tstore, noisy_events, fetcher=noisy_fetch, boilerplate={}
-    )  # pre-fix behaviour: no template learning
+    # an older, noisier classifier: everything the current one passes is
+    # routed to policy review anyway (the v0.39 full-book scan flagged 55%)
+    current_triage = venue_intake.triage
+
+    def noisy_triage(row, override=None):
+        verdict, klass = current_triage(row, override)
+        if row.get("market_id") == real["kalshi"][0][0]["ticker"]:
+            return verdict, klass  # pinned from the watchlist below instead
+        return verdict, klass or "interpretive_criteria"
+
+    venue_intake.triage = noisy_triage
+    try:
+        venue_intake.sync(tstore, noisy_events, fetcher=noisy_fetch)
+    finally:
+        venue_intake.triage = current_triage
     evsvc = get_evidence_service(tstore)
     opened = [x for x in evsvc.list_exceptions() if (x.get("metadata") or {}).get("source") == "venue_intake"]
     check(len(opened) > 50, f"V14 setup: the pre-fix sync opened a noisy queue ({len(opened)} items)")
@@ -712,6 +744,74 @@ def main() -> None:
         "V14 each closure carries its reason",
     )
     check(tstore.verify_audit_chain()["ok"] is True, "V14 audit chain intact after re-triage")
+
+    # V18 v0.43 triage precision and scale invariance on the real full-book scan
+    with gzip.open(os.path.join(ROOT, "tests", "fixtures", "kalshi_triage_2026-09-24.json.gz"), "rt") as fh:
+        sample = json.load(fh)["markets"]
+
+    def as_raw(m):
+        return {
+            "ticker": m["market_id"],
+            "event_ticker": m["event_id"],
+            "title": m["title"],
+            "rules_primary": m["rules"],
+            "rules_secondary": "",
+            "status": "active",
+            "result": "",
+            "close_time": "2045-01-01T00:00:00Z",
+        }
+
+    def cls(m):
+        return venue_intake.triage(venue_intake.normalize("kalshi", as_raw(m), "fixture"))[1]
+
+    check(
+        all(cls(m) == m["v043_class"] for m in sample),
+        f"V18 the {len(sample)} real full-scan markets triage exactly as reviewed",
+    )
+    certified = [m for m in sample if "certified" in m["rules"].lower() and m["v039_class"] == "multi_source_conflict"]
+    check(
+        len(certified) >= 15 and not any(cls(m) == "multi_source_conflict" for m in certified),
+        f"V18 election markets that name the certifying authority are not source conflicts ({len(certified)} checked)",
+    )
+    fam = {}
+    for m in sample:
+        fam.setdefault(m["market_id"].split("-")[0], set()).add(cls(m))
+    check(
+        fam.get("KXXISUCCESSOR") == {"interpretive_criteria"} and fam.get("KXG7LEADEROUT") == {"interpretive_criteria"},
+        "V18 the Xi-succession and G7 leader-out wording is flagged",
+    )
+    check(fam.get("KXCPIYOY") == {"revised_source"}, "V18 CPI markets that never say which release counts are flagged")
+    clarified = [m for m in sample if "clarification (" in m["rules"].lower()]
+    check(
+        clarified and all(cls(m) == "disputed" for m in clarified),
+        f"V18 dated clarifications the venue appended after listing stay flagged ({len(clarified)})",
+    )
+    check(
+        sum(1 for m in sample if m["v039_class"] == "multi_source_conflict") >= 50
+        and sum(1 for m in sample if m["v039_class"] == "multi_source_conflict" and cls(m)) == 0,
+        "V18 none of the sampled v0.39 election source-conflict flags survive",
+    )
+    # scale invariance: the same market gets the same answer in any pool
+    g7 = [m for m in sample if m["market_id"].startswith("KXG7LEADEROUT")]
+    small, _, small_st = venue_intake.discover(
+        lambda venue, limit: [(as_raw(m), "fixture") for m in g7[:1]] if venue == "kalshi" else [], limit=10
+    )
+    big_pool = [(as_raw(m), "fixture") for m in sample] + real24["kalshi"]
+    big, _, _ = venue_intake.discover(lambda venue, limit: big_pool if venue == "kalshi" else [], limit=100000)
+    big_flag = {m for e in big for _, m in e.markets}
+    check(
+        g7[0]["market_id"] in {m for e in small for _, m in e.markets} and g7[0]["market_id"] in big_flag,
+        "V18 a G7 market is flagged alone and inside a 580-market pool alike",
+    )
+    alone = {m["market_id"] for m in sample if cls(m)}
+    check(
+        alone == {m["market_id"] for m in sample} & big_flag,
+        "V18 every sampled market's flag is identical alone and in the pool (no learned templates in triage)",
+    )
+    check(
+        any(fams for fams in (small_st.get("by_series") or {}).values()),
+        "V18 discovery reports flags by drafting family",
+    )
 
     check(store.verify_audit_chain()["ok"] is True, "audit chain intact after all syncs")
     print("VENUE INTAKE GATE: PASS")

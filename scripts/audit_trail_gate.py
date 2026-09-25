@@ -168,9 +168,9 @@ def main() -> int:
     )
     check(r.status_code == 200, "setup: a departure from precedent recorded with a distinction")
     queue = client.get("/api/work-queue", headers=A).json()["items"]
-    bruv = next(i for i in queue if "BRUV" in i["title"] and i["status"] != "resolved")
+    manual = next(i for i in queue if "Chinese Communist" in i["title"] and i["status"] != "resolved")
     client.post(
-        f"/api/work-queue/{bruv['id']}",
+        f"/api/work-queue/{manual['id']}",
         headers=A,
         json={"status": "resolved", "actor": "operator:jane", "note": "closing"},
     )
@@ -226,7 +226,7 @@ def main() -> int:
     kinds = exc["counts"]
     check(kinds.get("departure") == 1, f"A4 the departure from precedent is flagged ({kinds})")
     check(
-        kinds.get("manual_close") == 1 and any(bruv["id"] in i["title"] for i in exc["items"]),
+        kinds.get("manual_close") == 1 and any(manual["id"] in i["title"] for i in exc["items"]),
         "A4 the case closed by hand without a decision is flagged",
     )
     check(kinds.get("unanchored") == 1, "A4 a never-anchored chain is flagged")
