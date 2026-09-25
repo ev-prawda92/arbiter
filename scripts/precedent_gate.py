@@ -145,7 +145,10 @@ def main() -> int:
     client = TestClient(app)
     pool24 = scan("venue_scan_2026-09-24.json.gz")
     rep = ingest(pool24)
-    check(rep["totals"]["work_items_opened"] == 25, "P3 setup: the Sep 24 scan opens its 25 known work items")
+    check(
+        rep["totals"]["work_items_opened"] == 22,
+        "P3 setup: the Sep 24 scan opens its 22 known work items (v0.43 triage)",
+    )
     by_count = {c["count"]: c for c in clusters(client)}
     ccp, g7 = by_count[14], by_count[7]
 

@@ -151,6 +151,17 @@ def main() -> int:
                 for c, n in sorted(cats_seen.items(), key=lambda x: -x[1]["scanned"])
             ]
             print(f"  {v} by category (flagged/scanned): " + ", ".join(parts))
+        for v, classes in stats.get("by_class", {}).items():
+            print(f"  {v} by reason: " + ", ".join(f"{k} {n}" for k, n in sorted(classes.items(), key=lambda x: -x[1])))
+        for v, fams in stats.get("by_series", {}).items():
+            top = sorted(fams.items(), key=lambda x: -x[1]["flagged"])
+            print(
+                f"  {v}: {sum(f['flagged'] for f in fams.values())} flagged markets in {len(fams)} drafting families"
+                " (one rules template each, so one fix each); largest:"
+            )
+            for series, f in top[:15]:
+                reasons = ", ".join(f"{k} {n}" for k, n in sorted(f["classes"].items(), key=lambda x: -x[1]))
+                print(f"    {series:<28} {f['flagged']:>6}  {reasons}")
     print(f"{len(events)} events, {sum(len(e.markets) for e in events)} markets\n")
     for m in report["markets"]:
         outcome = m.get("outcome") or "-"

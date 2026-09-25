@@ -113,7 +113,7 @@ def evaluate() -> dict:
     bp = vi.boilerplate_for(rows)
     flagged = []
     for r in rows:
-        klass = vi.review_class(vi.classify(r, bp), None, r, bp)
+        klass = vi.triage(r)[1]
         if klass:
             flagged.append((r, klass))
     reach = []

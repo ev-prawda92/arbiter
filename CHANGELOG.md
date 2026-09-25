@@ -6,6 +6,7 @@ changelog files; their work is summarized in the v0.34 notes and git history.
 
 | Version | Release | Notes |
 |---|---|---|
+| v0.43 | Precise Live Triage | [changelog](docs/releases/CHANGELOG_V0_43.md) |
 | v0.42 | Auditor Workspace | [changelog](docs/releases/CHANGELOG_V0_42.md) |
 | v0.41 | Audit Trail for Auditors | [changelog](docs/releases/CHANGELOG_V0_41.md) |
 | v0.40 | Unified Console | [changelog](docs/releases/CHANGELOG_V0_40.md) |
