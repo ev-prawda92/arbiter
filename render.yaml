@@ -5,7 +5,7 @@ services:
     name: arbiter-demo
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     # Rebuild the demo database from the bundled public-market captures on every
     # start (about two seconds, offline), then serve it read-only.
