@@ -24,3 +24,4 @@ benchmarks/candidates*.jsonl
 .venue-raw/
 # live governed-policy state (seeded from DEFAULT_POLICY in backend/app/policy.py)
 backend/data/policy.json
+out/
