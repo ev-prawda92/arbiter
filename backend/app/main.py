@@ -494,6 +494,9 @@ def health():
         "infrastructure": resolution_store.summary(),
         "data_plane": production_data.get_service(resolution_store).posture(),
         "demo_mode": demo_mode.enabled(),
+        # v0.45: "open" = no credential required (local development or the demo);
+        # the console asks for a key only when this is "keys".
+        "auth": "keys" if (developer.api_auth_enabled() or identity_federation.load_config().enabled) else "open",
     }
 
 

@@ -1872,3 +1872,11 @@ pre.cmd { background: var(--side); color: #e2e8f0; padding: 12px 14px; border-ra
 .si-actions .btn { padding: 6px 12px; font-size: 13px; }
 .search.narrow { width: 90px; flex: none; min-width: 0; }
 .engagement { display: grid; gap: 16px; }
+
+/* v0.45 sign-in */
+.signin-scrim { position: fixed; inset: 0; background: rgba(8, 12, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+.signin { background: var(--surface, #fff); color: var(--ink, #0f172a); border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
+.signin h2 { margin: 0; font-size: 18px; }
+.signin p { margin: 0; font-size: 13px; }
+.signin .bad-text { color: #b42318; }
+.signout { position: fixed; right: 16px; bottom: 16px; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(100, 116, 139, 0.4); background: var(--surface, #fff); color: var(--ink, #0f172a); cursor: pointer; z-index: 20; }

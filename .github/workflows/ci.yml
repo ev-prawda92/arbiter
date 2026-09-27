@@ -87,6 +87,8 @@ jobs:
 
       - name: Demo mode gate
         run: python scripts/demo_mode_gate.py
+      - name: Access gate
+        run: python scripts/access_gate.py
 
       - name: Public API gate
         env:

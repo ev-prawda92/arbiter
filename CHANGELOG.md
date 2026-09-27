@@ -6,6 +6,7 @@ changelog files; their work is summarized in the v0.34 notes and git history.
 
 | Version | Release | Notes |
 |---|---|---|
+| v0.45 | Console Access Control | [changelog](docs/releases/CHANGELOG_V0_45.md) |
 | v0.44 | Hosted Demo Mode | [changelog](docs/releases/CHANGELOG_V0_44.md) |
 | v0.43 | Precise Live Triage | [changelog](docs/releases/CHANGELOG_V0_43.md) |
 | v0.42 | Auditor Workspace | [changelog](docs/releases/CHANGELOG_V0_42.md) |
