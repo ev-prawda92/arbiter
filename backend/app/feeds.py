@@ -18,6 +18,8 @@ import json
 import os
 import httpx
 
+from . import demo_mode
+
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 KALSHI_BASE = os.environ.get("KALSHI_BASE", "https://api.elections.kalshi.com/trade-api/v2")
 KALSHI_KEY = os.environ.get("KALSHI_API_KEY", "")
@@ -34,6 +36,8 @@ def _sample(name):
 
 def get_markets(limit=40, live=True):
     """Return a list of normalized market dicts. Tries Kalshi live, falls back to sample."""
+    if demo_mode.enabled():
+        return []  # hosted demo: no network, and no built-in sample seeds in the queue
     if live:
         try:
             return _kalshi_live(limit)
@@ -95,7 +99,7 @@ def get_source_value(report, live=True):
         return samples.get(report.get("ticker"))
 
     station = _station_for(report)
-    if live and station:
+    if live and station and not demo_mode.enabled():
         try:
             return _nws_live(station)
         except Exception:  # noqa: BLE001

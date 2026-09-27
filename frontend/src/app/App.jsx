@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, post } from './api'
+import { AUTH_EVENT, getKey, setKey } from './auth'
 import Today from './Today'
 import Queue from './Queue'
 import Decide from './Decide'
@@ -62,6 +63,38 @@ function Icon({ d }) {
   )
 }
 
+function SignIn({ onDone }) {
+  const [key, setKeyText] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async e => {
+    e.preventDefault()
+    setBusy(true)
+    setErr('')
+    setKey(key.trim())
+    try {
+      const who = await api('/api/identity/whoami')
+      onDone(who)
+    } catch (x) {
+      setKey('')
+      setErr(x.status === 401 ? 'That key was not accepted.' : x.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="signin-scrim">
+      <form className="signin" onSubmit={submit}>
+        <h2>Sign in to Arbiter</h2>
+        <p className="muted">This server requires an API key. It is kept for this browser tab only and sent with each request.</p>
+        <label className="field"><span>API key</span><input type="password" autoFocus value={key} onChange={e => setKeyText(e.target.value)} autoComplete="off" /></label>
+        {err && <p className="bad-text">{err}</p>}
+        <button className="btn primary" disabled={!key.trim() || busy}>{busy ? 'Checking…' : 'Sign in'}</button>
+      </form>
+    </div>
+  )
+}
+
 export default function App() {
   const [route, setRoute] = useState(parseHash)
   const [overview, setOverview] = useState(null)
@@ -69,6 +102,9 @@ export default function App() {
   const [precedents, setPrecedents] = useState(null)
   const [error, setError] = useState('')
   const [navOpen, setNavOpen] = useState(false)
+  const [demo, setDemo] = useState(false)
+  const [needKey, setNeedKey] = useState(false)
+  const [authMode, setAuthMode] = useState('open')
 
   useEffect(() => {
     const onHash = () => {
@@ -95,6 +131,19 @@ export default function App() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  useEffect(() => {
+    api('/api/health')
+      .then(h => {
+        setDemo(h?.demo_mode === true)
+        setAuthMode(h?.auth || 'open')
+        if (h?.auth === 'keys' && !getKey()) setNeedKey(true)
+      })
+      .catch(() => setDemo(false))
+    const onAuth = () => setNeedKey(true)
+    window.addEventListener(AUTH_EVENT, onAuth)
+    return () => window.removeEventListener(AUTH_EVENT, onAuth)
+  }, [])
 
   const clusters = overview?.agent_brief?.operations_intelligence?.clusters || []
   const items = queue?.items || []
@@ -140,7 +189,11 @@ export default function App() {
           ))}
         </nav>
         <div className="side-foot">
-          <span className={`chip ${audit === false ? 'bad' : 'ok'}`}>{audit === false ? 'Audit chain broken' : 'Audit chain verified'}</span>
+          {audit === undefined ? (
+            <span className="chip">Audit chain not checked yet</span>
+          ) : (
+            <span className={`chip ${audit === false ? 'bad' : 'ok'}`}>{audit === false ? 'Audit chain broken' : 'Audit chain verified'}</span>
+          )}
           <small>Humans decide. Arbiter remembers, checks and proves.</small>
         </div>
       </aside>
@@ -156,12 +209,17 @@ export default function App() {
             <Icon d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7" />
           </button>
         </header>
-        {error && <div className="banner bad">Could not load governed state: {error}</div>}
+        {demo && <div className="banner demo">Read-only demo · sample data from public Kalshi and Polymarket markets</div>}
+        {error && !needKey && <div className="banner bad">Could not load governed state: {error}</div>}
         <main className="page" key={page}>
           {body}
         </main>
       </div>
       {navOpen && <div className="scrim" onClick={() => setNavOpen(false)} />}
+      {needKey && <SignIn onDone={() => { setNeedKey(false); reload() }} />}
+      {authMode === 'keys' && !needKey && (
+        <button className="signout" onClick={() => { setKey(''); setNeedKey(true) }}>Sign out</button>
+      )}
     </div>
   )
 }

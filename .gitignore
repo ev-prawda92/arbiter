@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 backend/data/arbiter.db*
+backend/data/demo.db*
 backend/data/benchmark/latest_results.json
 backend/dist/
 frontend/node_modules/
@@ -23,3 +24,4 @@ benchmarks/candidates*.jsonl
 .venue-raw/
 # live governed-policy state (seeded from DEFAULT_POLICY in backend/app/policy.py)
 backend/data/policy.json
+out/
