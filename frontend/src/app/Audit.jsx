@@ -229,7 +229,10 @@ function Package() {
     setErr('')
     try {
       const res = await fetch('/api/audit/package', { method: 'POST' })
-      if (!res.ok) throw new Error(`${res.status} export failed`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(typeof body?.detail === 'string' ? body.detail : `${res.status} export failed`)
+      }
       const blob = await res.blob()
       const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'arbiter-audit-package.zip'
       const url = URL.createObjectURL(blob)

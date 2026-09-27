@@ -8,7 +8,7 @@ without destabilizing the long-lived main.py surface. New deployments should run
 from __future__ import annotations
 
 from .main import app, _workflow_payload, resolution_store
-from . import audit_api, audit_engagement, audit_trail, developer, decision_api, decision_records, precedents
+from . import audit_api, demo_mode, audit_engagement, audit_trail, developer, decision_api, decision_records, precedents
 
 # Ensure the durable DecisionRecord table exists before the first request.
 decision_records.get_service(resolution_store)
@@ -27,6 +27,9 @@ app.include_router(
 )
 
 app.include_router(audit_api.build_router(resolution_store=resolution_store, require_scope=developer.require_scope))
+
+# Outermost middleware: in demo mode, refuse writes before any other handling.
+demo_mode.install(app)
 
 # main.py mounts the built frontend as a catch-all StaticFiles app at "/".
 # Starlette matches routes in registration order, so anything registered after

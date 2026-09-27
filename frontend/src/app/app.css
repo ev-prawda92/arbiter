@@ -277,6 +277,12 @@ select {
   background: var(--red-soft);
   color: var(--red);
 }
+.banner.demo {
+  padding: 6px 14px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 13px;
+}
 
 /* ---------- ask ---------- */
 .askbar {

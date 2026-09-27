@@ -1,0 +1,21 @@
+# Render.com blueprint: the read-only Arbiter demo for prospects.
+# See docs/operations/DEMO_DEPLOY.md.
+services:
+  - type: web
+    name: arbiter-demo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    # Rebuild the demo database from the bundled public-market captures on every
+    # start (about two seconds, offline), then serve it read-only.
+    dockerCommand: >-
+      sh -c "python /app/scripts/seed_demo.py --db /app/backend/data/demo.db --force &&
+      exec python -m uvicorn app.server:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"
+    envVars:
+      - key: ARBITER_DEMO_MODE
+        value: "1"
+      - key: ARBITER_DATABASE_PATH
+        value: /app/backend/data/demo.db
+      - key: ARBITER_POLICY_PATH
+        value: /app/backend/data/policy.json

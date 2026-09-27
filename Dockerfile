@@ -17,6 +17,8 @@ RUN pip install -r /app/backend/requirements-production.txt
 COPY backend/ /app/backend/
 COPY --from=frontend /src/backend/dist /app/backend/dist
 COPY scripts/ /app/scripts/
+# Public-market captures used by scripts/seed_demo.py to build the read-only demo offline.
+COPY tests/fixtures/venue_scan_2026-09-24.json.gz tests/fixtures/kalshi_triage_2026-09-24.json.gz /app/tests/fixtures/
 COPY *.md /app/
 RUN chown -R arbiter:arbiter /app
 USER arbiter

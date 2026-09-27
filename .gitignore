@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 backend/data/arbiter.db*
+backend/data/demo.db*
 backend/data/benchmark/latest_results.json
 backend/dist/
 frontend/node_modules/

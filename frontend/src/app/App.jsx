@@ -69,6 +69,7 @@ export default function App() {
   const [precedents, setPrecedents] = useState(null)
   const [error, setError] = useState('')
   const [navOpen, setNavOpen] = useState(false)
+  const [demo, setDemo] = useState(false)
 
   useEffect(() => {
     const onHash = () => {
@@ -95,6 +96,12 @@ export default function App() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  useEffect(() => {
+    api('/api/health')
+      .then(h => setDemo(h?.demo_mode === true))
+      .catch(() => setDemo(false))
+  }, [])
 
   const clusters = overview?.agent_brief?.operations_intelligence?.clusters || []
   const items = queue?.items || []
@@ -156,6 +163,7 @@ export default function App() {
             <Icon d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7" />
           </button>
         </header>
+        {demo && <div className="banner demo">Read-only demo · sample data from public Kalshi and Polymarket markets</div>}
         {error && <div className="banner bad">Could not load governed state: {error}</div>}
         <main className="page" key={page}>
           {body}
